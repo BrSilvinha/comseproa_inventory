@@ -1,0 +1,154 @@
+/* Estilos para la sección de categorías */
+.categorias-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background-color: #c8c9ca; /* Color de fondo adaptado */
+    border-radius: 10px;
+}
+
+.categoria-card {
+    background-color: #0a253c; /* Fondo oscuro */
+    color: #ffffff; /* Texto en blanco */
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.categoria-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.categoria-card h4 {
+    margin-bottom: 15px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+p.no-productos {
+    font-size: 14px;
+    color: #c8c9ca; /* Color gris claro */
+    margin-top: 10px;
+}
+
+/* Botones dentro de las categorías */
+.categoria-card button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out, transform 0.2s;
+}
+
+/* Botón Registrar Producto */
+.btn-registrar {
+    background-color: #c8c9ca; /* Gris claro */
+    color: #0a253c; /* Azul oscuro */
+}
+
+.btn-registrar:hover {
+    background-color: #ffffff; /* Blanco al pasar el cursor */
+    color: #0a253c;
+    transform: scale(1.05);
+}
+
+/* Botón Lista de Productos */
+.btn-lista {
+    background-color: #ffffff; /* Blanco */
+    color: #0a253c; /* Azul oscuro */
+}
+
+.btn-lista:hover {
+    background-color: #c8c9ca; /* Gris claro */
+    transform: scale(1.05);
+}
+
+/* Íconos dentro de los botones */
+.categoria-card button i {
+    margin-right: 8px;
+}
+/* Estilos para la sección de categorías */
+.categorias-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background-color: #c8c9ca; /* Color de fondo adaptado */
+    border-radius: 10px;
+}
+
+.categoria-card {
+    background-color: #0a253c; /* Fondo oscuro */
+    color: #ffffff; /* Texto en blanco */
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.categoria-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.categoria-card h4 {
+    margin-bottom: 15px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+p.no-productos {
+    font-size: 14px;
+    color: #c8c9ca; /* Color gris claro */
+    margin-top: 10px;
+}
+
+/* Botones dentro de las categorías */
+.categoria-card button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out, transform 0.2s;
+}
+
+/* Botón Registrar Producto */
+.btn-registrar {
+    background-color: #c8c9ca; /* Gris claro */
+    color: #0a253c; /* Azul oscuro */
+}
+
+.btn-registrar:hover {
+    background-color: #ffffff; /* Blanco al pasar el cursor */
+    color: #0a253c;
+    transform: scale(1.05);
+}
+
+/* Botón Lista de Productos */
+.btn-lista {
+    background-color: #ffffff; /* Blanco */
+    color: #0a253c; /* Azul oscuro */
+}
+
+.btn-lista:hover {
+    background-color: #c8c9ca; /* Gris claro */
+    transform: scale(1.05);
+}
+
+/* Íconos dentro de los botones */
+.categoria-card button i {
+    margin-right: 8px;
+}

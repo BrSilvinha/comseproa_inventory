@@ -133,13 +133,13 @@ $conn->close();
                     <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
                 </a>
                 <ul class="submenu">
-                    <li><a href="almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
-                    <li><a href="almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                    <li><a href="/almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                    <li><a href="/almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
                 </ul>
             </li>
 
             <!-- Cerrar Sesión -->
-            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
+            <li><a href="/logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
         </ul>
     </nav>
 

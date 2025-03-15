@@ -1,44 +1,80 @@
-/* Reset básico */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Arial, sans-serif;
+/* Contenedor de los almacenes */
+.almacenes-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
-/* Contenedor principal */
-.main-content {
-    margin-left: 260px; /* Ajuste para que no quede detrás del menú */
-    padding: 40px;
-    width: calc(100% - 260px);
+/* Tarjeta de almacén */
+.almacen-card {
+    background: #ffffff; /* Fondo blanco */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: 300px;
     text-align: center;
-    background-color: #ffffff;
-    min-height: 100vh;
+    border: 1px solid #c8c9ca; /* Borde gris */
 }
 
-/* Título principal */
+/* Título de la tarjeta */
+.almacen-card h3 {
+    margin: 10px 0;
+    font-size: 18px;
+    color: #0a253c; /* Azul oscuro */
+}
+
+/* Texto de la tarjeta */
+.almacen-card p {
+    font-size: 14px;
+    color: #666; /* Gris oscuro */
+}
+
+/* Botón para ver almacén */
+.btn-ver {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #0a253c; /* Azul oscuro */
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 14px;
+    border: 1px solid #c8c9ca;
+}
+
+.btn-ver:hover {
+    background: #c8c9ca; /* Gris claro */
+    color: #0a253c; /* Azul oscuro */
+}
+
+/* Contenido principal */
+.main-content {
+    margin-left: 250px; /* Espacio para el menú */
+    padding: 20px;
+    transition: margin-left 0.3s;
+}
+
+/* Título "Almacenes Registrados" */
 .main-content h2 {
-    color: #0a253c;
-    font-size: 24px;
+    color: #0a253c; /* Azul oscuro */
     margin-bottom: 20px;
 }
-
 /* Contenedor del formulario */
 .form-container {
-    background-color: #ffffff;
-    color: #0a253c;
-    padding: 30px;
+    background: #ffffff; /* Fondo blanco */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     max-width: 400px;
     margin: auto;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    text-align: left;
+    border: 1px solid #c8c9ca; /* Borde gris */
 }
 
-/* Etiquetas */
+/* Etiquetas del formulario */
 .form-container label {
     display: block;
     font-weight: bold;
+    color: #0a253c; /* Azul oscuro */
     margin-bottom: 5px;
 }
 
@@ -47,65 +83,48 @@
     width: 100%;
     padding: 10px;
     margin-bottom: 15px;
-    border: 1px solid #c8c9ca;
+    border: 1px solid #c8c9ca; /* Borde gris */
     border-radius: 5px;
     font-size: 14px;
+    color: #0a253c; /* Azul oscuro */
 }
 
-/* Botón de envío */
+/* Botón de registrar */
 .form-container button {
-    background-color: #0a253c;
+    width: 100%;
+    background: #0a253c; /* Azul oscuro */
     color: white;
     padding: 10px;
-    width: 100%;
     border: none;
     border-radius: 5px;
     font-size: 16px;
+    font-weight: bold;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background-color 0.3s ease-in-out;
 }
 
 .form-container button:hover {
-    background-color: #1b3a57;
+    background: #c8c9ca; /* Gris claro */
+    color: #0a253c; /* Azul oscuro */
 }
 
 /* Mensajes de éxito y error */
 .message, .error {
     text-align: center;
-    font-size: 14px;
     padding: 10px;
-    margin: 10px auto;
-    width: 100%;
-    max-width: 400px;
+    margin-bottom: 10px;
     border-radius: 5px;
+    font-weight: bold;
 }
 
 .message {
-    background-color: #0a253c;
-    color: white;
+    background: #d4edda; /* Verde claro */
+    color: #155724; /* Verde oscuro */
+    border: 1px solid #c3e6cb;
 }
 
 .error {
-    background-color: #ff4d4d;
-    color: white;
-}
-
-/* Enlaces */
-.links {
-    margin-top: 20px;
-}
-
-.links .link {
-    display: inline-block;
-    margin: 10px;
-    padding: 10px;
-    background-color: #0a253c;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    transition: background 0.3s;
-}
-
-.links .link:hover {
-    background-color: #1b3a57;
+    background: #f8d7da; /* Rojo claro */
+    color: #721c24; /* Rojo oscuro */
+    border: 1px solid #f5c6cb;
 }
