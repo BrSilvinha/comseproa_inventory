@@ -1,0 +1,106 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif; /* Fuente */
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+    background-color: #ffffff; /* Fondo blanco */
+}
+
+/* Sección Izquierda */
+.left-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 50%;
+    height: 100%;
+}
+
+.left-section .logo {
+    width: 900px; /* Tamaño grande */
+    height: auto;
+}
+
+.left-section h2 {
+    font-size: 32px; /* Letras grandes */
+    font-weight: bold;
+    margin-top: 15px;
+    text-transform: uppercase;
+    color: #0a253c; /* Azul oscuro */
+}
+
+/* Línea Vertical */
+.divider {
+    width: 2px;
+    height: 80%;
+    background-color: #c8c9ca; /* Gris claro */
+}
+
+/* Sección Derecha (Formulario) */
+.right-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 50%;
+    height: 100%;
+    text-align: center;
+}
+
+.right-section h2 {
+    font-size: 30px; /* Tamaño grande */
+    margin-bottom: 20px;
+    color: #0a253c; /* Azul oscuro */
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+}
+
+label {
+    text-align: left;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 16px;
+    color: #0a253c; /* Azul oscuro */
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #c8c9ca; /* Gris claro */
+    border-radius: 5px;
+    font-size: 16px;
+    background-color: #ffffff; /* Blanco */
+    color: #0a253c; /* Azul oscuro */
+}
+
+input::placeholder {
+    color: #c8c9ca; /* Gris claro */
+}
+
+button {
+    background-color: #0a253c; /* Azul oscuro */
+    color: #ffffff; /* Blanco */
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+button:hover {
+    background-color: #c8c9ca; /* Gris claro */
+    color: #0a253c; /* Azul oscuro */
+}

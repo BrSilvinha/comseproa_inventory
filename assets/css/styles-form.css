@@ -1,0 +1,98 @@
+.register-container {
+    max-width: 550px; /* Aumenté el ancho para que las columnas se vean bien */
+    margin: 40px auto;
+    padding: 25px;
+    background: #ffffff; /* Blanco */
+    border-radius: 10px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+    text-align: center;
+}
+
+.register-container h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #0a253c; /* Azul oscuro */
+    font-weight: bold;
+}
+
+/* Contenedor de dos columnas */
+.form-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px; /* Espacio entre columnas */
+}
+
+.form-row input,
+.form-row select {
+    width: 100%; /* Ajuste automático dentro de la columna */
+}
+
+.register-container input,
+.register-container select {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #c8c9ca; /* Gris claro */
+    border-radius: 6px;
+    font-size: 16px;
+    background: #f9f9f9;
+}
+
+/* Botón */
+.register-container button {
+    width: 100%;
+    padding: 12px;
+    background: #0a253c; /* Azul oscuro */
+    color: white;
+    font-size: 18px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s ease;
+    font-weight: bold;
+}
+
+.register-container button:hover {
+    background: #081b2b; /* Azul más oscuro */
+}
+
+.mensaje {
+    text-align: center;
+    color: red;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+/* Encabezado */
+h1 {
+    text-align: center;
+    color: #ffffff;
+    background-color: #0a253c;
+    padding: 15px;
+    border-radius: 5px;
+}
+.form-group {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.form-group:nth-child(1),
+.form-group:nth-child(2),
+.form-group:nth-child(3) {
+    flex-wrap: nowrap; /* Mantener en una sola línea */
+}
+
+.form-group:nth-child(4),
+.form-group:nth-child(5) {
+    flex-direction: column; /* Cambiar a disposición vertical */
+}
+
+.form-group input,
+.form-group select {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #c8c9ca;
+    border-radius: 5px;
+}

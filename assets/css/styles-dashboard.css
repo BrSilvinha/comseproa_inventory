@@ -1,0 +1,170 @@
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Estilos generales */
+body {
+    background-color: #ffffff; /* Fondo blanco */
+}
+
+/* Barra de navegación */
+.navbar {
+    background-color: #0a253c; /* Azul oscuro */
+    color: #ffffff; /* Blanco */
+    display: flex;
+    justify-content: space-between;
+    padding: 15px;
+}
+
+.navbar ul {
+    list-style: none;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.navbar ul li {
+    margin: 0 15px;
+}
+
+.navbar ul li a {
+    color: #ffffff; /* Blanco */
+    text-decoration: none;
+}
+
+/* Contenedor del dashboard */
+.dashboard-container {
+    text-align: center;
+    padding: 20px;
+}
+
+/* Tarjetas del dashboard */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.card {
+    background: #ffffff; /* Blanco */
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #c8c9ca; /* Gris claro */
+}
+
+.card h3 {
+    margin-top: 0;
+    color: #0a253c; /* Azul oscuro */
+}
+
+.card a {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #0a253c; /* Azul oscuro */
+    color: #ffffff; /* Blanco */
+    text-decoration: none;
+    border-radius: 5px;
+}
+
+.card a:hover {
+    background-color: #c8c9ca; /* Gris claro */
+    color: #0a253c; /* Azul oscuro */
+}
+
+/* Diseño del Menú Lateral */
+.sidebar {
+    width: 250px;
+    height: 100vh;
+    background: #0a253c; /* Azul oscuro */
+    color: #ffffff; /* Blanco */
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding-top: 20px;
+}
+
+.sidebar h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+}
+
+.sidebar ul li {
+    padding: 15px;
+    
+}
+
+.sidebar ul li a {
+    text-decoration: none;
+    color: #ffffff; /* Blanco */
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+}
+
+
+.sidebar ul li a i {
+    margin-right: 10px;
+    font-size: 20px;
+}
+
+/* Contenido Principal */
+.content {
+    margin-left: 260px;
+    padding: 20px;
+}
+
+/* Submenú oculto por defecto */
+.submenu {
+    display: none;
+    list-style: none;
+    padding-left: 15px;
+    background: #0a253c; /* Azul oscuro */
+    border-left: 3px solid #c8c9ca; /* Gris claro */
+}
+
+.submenu-container a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.submenu-container .submenu li {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+/* Estilo para hacer más pequeño el texto del submenú */
+.submenu li a {
+    font-size: 14px !important;
+    padding: 5px 10px !important;
+    color: #ffffff !important; /* Blanco */
+}
+
+.submenu li a:hover {
+    background-color: #c8c9ca !important; /* Gris claro */
+    color: #0a253c !important; /* Azul oscuro */
+}
+
+/* Hace más pequeños los iconos dentro del submenú */
+.submenu li a i {
+    font-size: 16px !important;
+    margin-right: 5px !important;
+}
+
+/* Mostrar submenú cuando está activo */
+.submenu.activo {
+    display: block;
+}

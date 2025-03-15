@@ -1,0 +1,152 @@
+<?php
+session_start();
+require_once "../config/database.php";
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit();
+}
+
+// Obtener datos del usuario a editar
+if (isset($_GET["id"])) {
+    $id = (int) $_GET["id"];
+    $stmt = $conn->prepare("SELECT nombre, apellidos, dni, correo, rol, estado, almacen_id FROM usuarios WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $usuario = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$usuario) {
+        die("Usuario no encontrado.");
+    }
+} else {
+    die("ID de usuario no válido.");
+}
+
+// Obtener lista de almacenes
+$almacenes = [];
+$stmt = $conn->prepare("SELECT id, nombre FROM almacenes");
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $almacenes[] = $row;
+}
+$stmt->close();
+
+// Guardar cambios
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $nombre = trim($_POST["nombre"]);
+    $apellidos = trim($_POST["apellidos"]);
+    $dni = trim($_POST["dni"]);
+    $correo = trim($_POST["correo"]);
+    $rol = $_POST["rol"];
+    $estado = $_POST["estado"];
+    $almacen_id = $_POST["almacen_id"];
+
+    // Validaciones
+    if (!preg_match("/^\d{8}$/", $dni)) {
+        die("El DNI debe tener exactamente 8 dígitos.");
+    }
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        die("Correo electrónico no válido.");
+    }
+
+    $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, apellidos=?, dni=?, correo=?, rol=?, estado=?, almacen_id=? WHERE id=?");
+    $stmt->bind_param("ssssssii", $nombre, $apellidos, $dni, $correo, $rol, $estado, $almacen_id, $id);
+
+    if ($stmt->execute()) {
+        header("Location: listar.php?mensaje=Usuario actualizado correctamente");
+        exit();
+    } else {
+        echo "Error al actualizar usuario.";
+    }
+    $stmt->close();
+}
+$conn->close();
+?>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Usuario</title>
+    
+    <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
+        <link rel="stylesheet" href="../assets/css/styles-form.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <!-- Menú Lateral -->
+    <nav class="sidebar">
+        <h2>GRUPO SEAL</h2>
+        <ul>
+            <li><a href="http://localhost:3000/dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
+
+            <!-- Usuarios -->
+            <li class="submenu-container">
+                <a href="#" aria-label="Menú Usuarios">
+                    <i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu">
+                    <li><a href="usuarios/registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
+                    <li><a href="usuarios/listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
+                </ul>
+            </li>
+
+            <!-- Almacenes -->
+            <li class="submenu-container">
+                <a href="#" aria-label="Menú Almacenes">
+                    <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu">
+                    <li><a href="almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                    <li><a href="almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                </ul>
+            </li>
+
+            <!-- Cerrar Sesión -->
+            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
+        </ul>
+    </nav>
+    <main class="content">
+        <h1>Editar Usuario</h1>
+        <div class="register-container">
+            <form method="post">
+                <div class="form-group">
+                    <input type="text" name="nombre" placeholder="Nombre" value="<?= htmlspecialchars($usuario['nombre']) ?>" required>
+                    <input type="text" name="apellidos" placeholder="Apellidos" value="<?= htmlspecialchars($usuario['apellidos']) ?>" required>
+                </div>
+                <div class="form-group">
+                    <input type="text" name="dni" placeholder="DNI" maxlength="8" value="<?= htmlspecialchars($usuario['dni']) ?>" required pattern="\d{8}" title="El DNI debe contener 8 dígitos">
+                    <input type="email" name="correo" placeholder="Correo Electrónico" value="<?= htmlspecialchars($usuario['correo']) ?>" required>
+                </div>
+                <div class="form-group">
+                    <select name="rol" required>
+                        <option value="admin" <?= $usuario['rol'] == 'admin' ? 'selected' : ''; ?>>Administrador</option>
+                        <option value="doctor" <?= $usuario['rol'] == 'doctor' ? 'selected' : ''; ?>>Doctor</option>
+                        <option value="usuario" <?= $usuario['rol'] == 'usuario' ? 'selected' : ''; ?>>Usuario</option>
+                    </select>
+                    <select name="almacen_id">
+                        <option value="">Seleccione un almacén</option>
+                        <?php foreach ($almacenes as $almacen): ?>
+                            <option value="<?= $almacen["id"] ?>" <?= ($usuario['almacen_id'] == $almacen["id"]) ? 'selected' : ''; ?>>
+                                <?= htmlspecialchars($almacen["nombre"]) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select name="estado">
+                        <option value="Activo" <?= $usuario['estado'] == 'Activo' ? 'selected' : ''; ?>>Activo</option>
+                        <option value="Inactivo" <?= $usuario['estado'] == 'Inactivo' ? 'selected' : ''; ?>>Inactivo</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">Guardar Cambios</button>
+            </form>
+        </div>
+    </main>
+    <script src="../assets/js/script.js"></script>
+</body>
+</html>
