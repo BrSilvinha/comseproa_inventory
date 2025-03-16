@@ -19,7 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"], $_POST["id"
     $id = (int) $_POST["id"]; // Convertir ID a entero para mayor seguridad
 
     if ($_POST["action"] === "delete") {
-        $stmt = $conn->prepare("UPDATE usuarios SET estado = 'Eliminado' WHERE id = ?");
+        $stmt = $conn->prepare("DELETE FROM usuarios WHERE id = ?");
         $stmt->bind_param("i", $id);
         $response["success"] = $stmt->execute();
         $stmt->close();
