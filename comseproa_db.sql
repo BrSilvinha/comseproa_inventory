@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 14-03-2025 a las 23:13:02
+-- Tiempo de generación: 17-03-2025 a las 23:23:46
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -38,10 +38,27 @@ CREATE TABLE `almacenes` (
 --
 
 INSERT INTO `almacenes` (`id`, `nombre`, `ubicacion`) VALUES
-(1, 'almacen 1', 'olmos'),
-(2, 'almacen 2', 'chicalyo'),
-(3, 'LAMBAYEQUE - 01', 'LAMBAYEQUE'),
-(4, 'olmos', 'olmos km50');
+(1, 'Grupo Sael - Lambayeque', 'Lambayeque - Chiclayo');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `categorias`
+--
+
+CREATE TABLE `categorias` (
+  `id` int(11) NOT NULL,
+  `nombre` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `categorias`
+--
+
+INSERT INTO `categorias` (`id`, `nombre`) VALUES
+(2, 'Accesorios de Seguridad'),
+(3, 'Kebras y Fundas Nuevas'),
+(1, 'Ropa');
 
 -- --------------------------------------------------------
 
@@ -51,9 +68,12 @@ INSERT INTO `almacenes` (`id`, `nombre`, `ubicacion`) VALUES
 
 CREATE TABLE `entrega_uniformes` (
   `id` int(11) NOT NULL,
-  `usuario_id` int(11) NOT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `nombre_destinatario` varchar(100) DEFAULT NULL,
+  `dni_destinatario` varchar(8) DEFAULT NULL,
   `almacen_id` int(11) NOT NULL,
-  `talla` varchar(10) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `cantidad` int(11) NOT NULL,
   `fecha_entrega` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -83,12 +103,65 @@ CREATE TABLE `movimientos` (
 
 CREATE TABLE `productos` (
   `id` int(11) NOT NULL,
+  `categoria_id` int(11) NOT NULL,
+  `almacen_id` int(11) NOT NULL,
   `nombre` varchar(100) NOT NULL,
   `descripcion` text DEFAULT NULL,
-  `categoria` varchar(50) DEFAULT NULL,
-  `stock` int(11) NOT NULL DEFAULT 0,
-  `precio` decimal(10,2) NOT NULL,
-  `almacen_id` int(11) NOT NULL
+  `modelo` varchar(100) DEFAULT NULL,
+  `color` varchar(50) DEFAULT NULL,
+  `talla_dimensiones` varchar(50) DEFAULT NULL,
+  `cantidad` int(11) NOT NULL DEFAULT 0,
+  `unidad_medida` varchar(50) DEFAULT NULL,
+  `estado` enum('Nuevo','Usado','Dañado') NOT NULL,
+  `observaciones` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `productos`
+--
+
+INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripcion`, `modelo`, `color`, `talla_dimensiones`, `cantidad`, `unidad_medida`, `estado`, `observaciones`) VALUES
+(1, 2, 1, 'Portapistola', NULL, '', 'Negro', '', 2, 'Unidad', 'Nuevo', ''),
+(2, 3, 1, 'Fundas', NULL, '', 'Azul', 'L', 16, 'Unidad', 'Nuevo', ''),
+(3, 1, 1, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', ''),
+(4, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'plomo', 'M', 2, 'Unidad', '', ''),
+(5, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'plomo', 'L', 1, 'Unidad', '', ''),
+(6, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 4, 'Unidad', '', ''),
+(7, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 3, 'Unidad', '', ''),
+(8, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '38', 3, 'Unidad', '', ''),
+(9, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 2, 'Unidad', '', ''),
+(10, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', '', ''),
+(11, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '34', 2, 'Unidad', '', ''),
+(12, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 28, 'Unidad', '', ''),
+(13, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 98, 'Unidad', '', 'SIN BOTON'),
+(14, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'M', 20, 'Unidad', '', ''),
+(15, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'L', 59, 'Unidad', '', ''),
+(16, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'XL', 15, 'Unidad', '', ''),
+(17, 1, 1, 'Polo camisero M/L', NULL, 'Varon', 'Plomo', 'XL', 1, 'Unidad', '', ''),
+(18, 1, 1, 'Polo camisero M/L', NULL, 'Varon', 'azul', 'L', 7, 'Unidad', '', ''),
+(19, 1, 1, 'Chaleco supervisor', NULL, 'Varon', 'Plomo', 'L', 1, 'Unidad', '', ''),
+(20, 1, 1, 'Casaca Drill', NULL, 'Varon', 'Azul', 'L', 10, 'Unidad', '', ''),
+(21, 1, 1, 'Gorras', NULL, 'Varon', 'Azul', '', 13, 'Unidad', '', ''),
+(22, 1, 1, 'Corbatas', NULL, 'Varon', 'Guinda', '', 19, 'Unidad', '', ''),
+(23, 1, 1, 'Corbatas', NULL, 'Varon', 'Marrones', '', 21, 'Unidad', '', ''),
+(24, 1, 1, 'Borseguis', NULL, 'Varon', 'Negro', '2 PARES', 41, 'Unidad', '', ''),
+(25, 2, 1, 'Correajes', NULL, '', 'Negro', '', 14, 'Unidad', 'Nuevo', '');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `solicitudes_transferencia`
+--
+
+CREATE TABLE `solicitudes_transferencia` (
+  `id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `almacen_origen` int(11) NOT NULL,
+  `almacen_destino` int(11) NOT NULL,
+  `cantidad` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `fecha_solicitud` timestamp NOT NULL DEFAULT current_timestamp(),
+  `estado` enum('pendiente','aprobada','rechazada') DEFAULT 'pendiente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -117,9 +190,7 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nombre`, `apellidos`, `dni`, `celular`, `direccion`, `correo`, `contraseña`, `almacen_id`, `rol`, `estado`, `fecha_registro`) VALUES
-(5, 'luis', 'terrones', '89789787', '987654321', 'chicalyo', 'luis@gmail.com', '$2y$10$cdz76bXBhIaYEwcUn15e7O5VbAmTD2bZGk53yx0IwA1r1u.V9cCau', 2, 'admin', 'activo', '2025-03-12 19:42:13'),
-(9, 'jhamir', 'silva', '71749437', '987654321', '', 'jhamirsilva@gmail.com', '$2y$10$wd1doD7Gbs5INnExtab7m.u3hgB9IrIdtn3O0l1v7oLCf2LTKaPLO', 3, 'admin', 'activo', '2025-03-13 15:02:28'),
-(11, 'josue', 'ss', '87654567', '987654321', 'sa julian', 'josue@gmail.com', '$2y$10$kgYVnpZswD5dQxfhl.Dso.Vc6iu.UQtobCpIQ4lRks5rSfNFgmS8m', 3, 'admin', 'activo', '2025-03-13 22:21:50');
+(2, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'San Julian - 664 - MOTUPE', 'jhamirsilva@gmail.com', '$2y$10$nX2msoqlqlMYYDnktR8A4u51faVPkCBpJbLVli5edgp7VikUqtKTG', 1, 'admin', 'activo', '2025-03-17 17:54:46');
 
 --
 -- Índices para tablas volcadas
@@ -132,12 +203,20 @@ ALTER TABLE `almacenes`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indices de la tabla `categorias`
+--
+ALTER TABLE `categorias`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `nombre` (`nombre`);
+
+--
 -- Indices de la tabla `entrega_uniformes`
 --
 ALTER TABLE `entrega_uniformes`
   ADD PRIMARY KEY (`id`),
   ADD KEY `usuario_id` (`usuario_id`),
-  ADD KEY `almacen_id` (`almacen_id`);
+  ADD KEY `almacen_id` (`almacen_id`),
+  ADD KEY `producto_id` (`producto_id`);
 
 --
 -- Indices de la tabla `movimientos`
@@ -154,7 +233,18 @@ ALTER TABLE `movimientos`
 --
 ALTER TABLE `productos`
   ADD PRIMARY KEY (`id`),
+  ADD KEY `categoria_id` (`categoria_id`),
   ADD KEY `almacen_id` (`almacen_id`);
+
+--
+-- Indices de la tabla `solicitudes_transferencia`
+--
+ALTER TABLE `solicitudes_transferencia`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `producto_id` (`producto_id`),
+  ADD KEY `almacen_origen` (`almacen_origen`),
+  ADD KEY `almacen_destino` (`almacen_destino`),
+  ADD KEY `usuario_id` (`usuario_id`);
 
 --
 -- Indices de la tabla `usuarios`
@@ -163,7 +253,7 @@ ALTER TABLE `usuarios`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `dni` (`dni`),
   ADD UNIQUE KEY `correo` (`correo`),
-  ADD KEY `fk_almacen` (`almacen_id`);
+  ADD KEY `almacen_id` (`almacen_id`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
@@ -173,7 +263,13 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `almacenes`
 --
 ALTER TABLE `almacenes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT de la tabla `categorias`
+--
+ALTER TABLE `categorias`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `entrega_uniformes`
@@ -191,13 +287,19 @@ ALTER TABLE `movimientos`
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+
+--
+-- AUTO_INCREMENT de la tabla `solicitudes_transferencia`
+--
+ALTER TABLE `solicitudes_transferencia`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Restricciones para tablas volcadas
@@ -208,7 +310,8 @@ ALTER TABLE `usuarios`
 --
 ALTER TABLE `entrega_uniformes`
   ADD CONSTRAINT `entrega_uniformes_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `entrega_uniformes_ibfk_2` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `entrega_uniformes_ibfk_2` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `entrega_uniformes_ibfk_3` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `movimientos`
@@ -223,13 +326,23 @@ ALTER TABLE `movimientos`
 -- Filtros para la tabla `productos`
 --
 ALTER TABLE `productos`
-  ADD CONSTRAINT `productos_ibfk_1` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `productos_ibfk_1` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `productos_ibfk_2` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `solicitudes_transferencia`
+--
+ALTER TABLE `solicitudes_transferencia`
+  ADD CONSTRAINT `solicitudes_transferencia_ibfk_1` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `solicitudes_transferencia_ibfk_2` FOREIGN KEY (`almacen_origen`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `solicitudes_transferencia_ibfk_3` FOREIGN KEY (`almacen_destino`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `solicitudes_transferencia_ibfk_4` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  ADD CONSTRAINT `fk_almacen` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
