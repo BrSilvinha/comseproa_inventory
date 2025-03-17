@@ -1,0 +1,225 @@
+/* Estilos para la tabla de productos */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #ffffff;
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+}
+
+.main-content {
+    min-height: 100vh; /* Asegura que el contenido ocupe toda la pantalla */
+    display: flex;
+    flex-direction: column;
+}
+
+.titulo-productos h1 {
+    text-align: center;
+    color: #ffffff;
+    background-color: #0a253c;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.titulo-productos h1 span {
+    font-size: 18px; /* Un poco más pequeño para diferenciar */
+    font-weight: lighter;
+    opacity: 0.9;
+}
+
+
+
+
+/* Ajustar la tabla para que no se salga de la pantalla */
+table {
+    width: 95%; /* Reduce el ancho de la tabla */
+    max-width: 900px; /* Máximo tamaño permitido */
+    border-collapse: collapse;
+    background-color: #ffffff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgba(200, 201, 202, 0.5);
+}
+/* Contenedor para la tabla con scroll en caso de que se desborde */
+.table-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto; /* Permite desplazamiento horizontal si es necesario */
+    padding: 10px;
+}
+
+thead {
+    background-color: #0a253c;
+    color: #ffffff;
+}
+
+thead th {
+    padding: 15px;
+    text-transform: uppercase;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #c8c9ca;
+}
+
+tbody tr:hover {
+    background-color: rgba(10, 37, 60, 0.2);
+}
+
+tbody td {
+    padding: 12px;
+    color: #0a253c;
+    text-align: center;
+    border-bottom: 1px solid #c8c9ca;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Botón de acción (si se agregan acciones como editar o eliminar) */
+.button-action {
+    background-color: #0a253c;
+    color: #ffffff;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.button-action:hover {
+    background-color: #c8c9ca;
+    color: #0a253c;
+}
+.titulo-productos, table {
+    margin-left: 250px; /* Ajusta según el ancho de tu menú lateral */
+    padding: 20px; /* Espaciado interno */
+}
+
+/* Paginación siempre centrada y en la parte inferior */
+.paginacion {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    width: 100%;
+    position: relative;
+    bottom: 0;
+}
+
+.paginacion a {
+    display: inline-block;
+    padding: 10px 15px;
+    margin: 0 5px;
+    background-color: #0a253c;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background 0.3s ease;
+}
+
+.paginacion a:hover {
+    background-color: #004080;
+}
+
+
+.paginacion span {
+    display: inline-block;
+    padding: 10px 15px;
+    font-weight: bold;
+    color: #0a253c;
+}
+/* Ajuste para que las filas de la tabla sean del mismo tamaño */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Asegurar que los encabezados y celdas sean compactos */
+th, td {
+    padding: 8px; /* Reduce el padding */
+    text-align: center;
+    border: 1px solid #ddd;
+    white-space: nowrap; /* Evita saltos de línea */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Muestra "..." si el texto es muy largo */
+    height: 45px; /* Reduce la altura de las filas */
+    font-size: 14px; /* Hace el texto más compacto */
+}
+
+th {
+    background-color: #0a253c;
+    color: white;
+}
+
+/* Asegurar que todas las filas sean del mismo tamaño */
+tbody tr {
+    height: 50px;
+}
+/* Estilos generales para los botones */
+.btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Botón Enviar */
+.btn.enviar {
+    background-color: #0a253c; /* Azul oscuro */
+    color: #ffffff;
+}
+
+.btn.enviar:hover {
+    background-color: #081a2b; /* Un tono más oscuro */
+}
+
+/* Botón Entregar */
+.btn.entregar {
+    background-color: #0a253c; /* Azul oscuro */
+    color: #ffffff;
+}
+
+.btn.entregar:hover {
+    background-color: #081a2b; /* Un tono más oscuro */
+}
+
+/* Estilos para los botones de stock (+ y -) */
+.btn.stock {
+    background-color: #ffffff;
+    color: #0a253c;
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    border: 1px solid #0a253c;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn.stock:hover {
+    background-color: #c8c9ca;
+}
+
+/* Ajuste para que los botones de stock estén alineados con el número */
+td .btn.stock {
+    margin: 0 5px;
+}
+
+/* Efecto de clic */
+.btn:active {
+    transform: scale(0.95);
+}
