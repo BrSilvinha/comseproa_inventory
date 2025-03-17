@@ -7,31 +7,41 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-require_once "../config/database.php";
+require_once "../config/database.php"; // Conectar a la base de datos
 
-// Verificar si se proporcionó almacén
-if (!isset($_GET['almacen_id']) || !filter_var($_GET['almacen_id'], FILTER_VALIDATE_INT)) {
-    die("Datos no válidos.");
+// Verificar si se proporcionó almacén y categoría en la URL
+if (!isset($_GET['almacen_id']) || !filter_var($_GET['almacen_id'], FILTER_VALIDATE_INT) || 
+    !isset($_GET['categoria_id']) || !filter_var($_GET['categoria_id'], FILTER_VALIDATE_INT)) {
+    die("⚠️ Datos no válidos.");
 }
 
 $almacen_id = $_GET['almacen_id'];
+$categoria_id = $_GET['categoria_id'];
+
+// Definir el nombre de la categoría
+$categorias = [
+    1 => "Ropa",
+    2 => "Accesorios de seguridad",
+    3 => "Kebras y fundas nuevas"
+];
+
+$nombre_categoria = $categorias[$categoria_id] ?? "Desconocida";
 
 $mensaje = "";
 $error = "";
 
+// Manejo del formulario
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (!empty($_POST["nombre"]) && !empty($_POST["cantidad"]) && !empty($_POST["unidad_medida"]) && !empty($_POST["estado"])) {
-        $nombre = trim($_POST["nombre"]);
-        $modelo = trim($_POST["modelo"] ?? '');
-        $color = trim($_POST["color"] ?? '');
-        $talla_dimensiones = trim($_POST["talla_dimensiones"] ?? '');
-        $cantidad = intval($_POST["cantidad"]);
-        $unidad_medida = trim($_POST["unidad_medida"]);
-        $estado = trim($_POST["estado"]);
-        $observaciones = trim($_POST["observaciones"] ?? '');
-        $categoria_id = intval($_POST["categoria"]);
+    $nombre = trim($_POST["nombre"] ?? '');
+    $modelo = trim($_POST["modelo"] ?? '');
+    $color = trim($_POST["color"] ?? '');
+    $talla_dimensiones = trim($_POST["talla_dimensiones"] ?? '');
+    $cantidad = isset($_POST["cantidad"]) ? intval($_POST["cantidad"]) : 0;
+    $unidad_medida = trim($_POST["unidad_medida"] ?? '');
+    $estado = trim($_POST["estado"] ?? '');
+    $observaciones = trim($_POST["observaciones"] ?? '');
 
-        // Insertar el producto en la base de datos
+    if (!empty($nombre) && $cantidad > 0 && !empty($unidad_medida) && !empty($estado)) {
         $sql = "INSERT INTO productos (nombre, modelo, color, talla_dimensiones, cantidad, unidad_medida, estado, observaciones, almacen_id, categoria_id) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
@@ -48,7 +58,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "❌ Error en la consulta SQL: " . $conn->error;
         }
     } else {
-        $error = "⚠️ Todos los campos obligatorios deben llenarse.";
+        $error = "⚠️ Todos los campos obligatorios deben llenarse correctamente.";
     }
 }
 ?>
@@ -60,11 +70,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registrar Producto - COMSEPROA</title>
     <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
+    <link rel="stylesheet" href="../assets/css/styles-productos.css">
     <link rel="stylesheet" href="../assets/css/styles-registrar-producto.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
-
 <!-- Menú Lateral -->
 <nav class="sidebar">
     <h2>GRUPO SEAL</h2>
@@ -97,86 +107,87 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
     </ul>
 </nav>
-<!-- Contenido Principal -->
+
 <div class="main-content">
     <h1>Registrar Nuevo Producto</h1>
-
     <?php if (!empty($mensaje)): ?>
-        <p class="message"><?php echo $mensaje; ?></p>
+        <p class="message"> <?php echo $mensaje; ?> </p>
     <?php endif; ?>
     <?php if (!empty($error)): ?>
-        <p class="error"><?php echo $error; ?></p>
+        <p class="error"> <?php echo $error; ?> </p>
     <?php endif; ?>
 
     <div class="form-container">
-        <form action="" method="POST">
-            <label for="categoria">Seleccionar Categoría:</label>
-            <select id="categoria" name="categoria" required onchange="mostrarCampos()">
-                <option value="">Seleccione una categoría</option>
-                <option value="1">Ropa</option>
-                <option value="2">Accesorios de seguridad</option>
-                <option value="3">Kebras y fundas nuevas</option>
-            </select>
-
-            <label for="nombre">Denominación:</label>
-            <input type="text" id="nombre" name="nombre" required>
-
-            <div id="campo-modelo">
+    <form action="" method="POST">
+        <label>Categoría seleccionada:</label>
+        <input type="text" value="<?php echo htmlspecialchars($nombre_categoria); ?>" readonly>
+        <input type="hidden" name="categoria" value="<?php echo $categoria_id; ?>">
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="nombre">Denominación:</label>
+                <input type="text" id="nombre" name="nombre" required>
+            </div>
+            
+            <?php if ($categoria_id == 1 || $categoria_id == 2): ?>
+            <div class="form-group">
                 <label for="modelo">Modelo:</label>
                 <input type="text" id="modelo" name="modelo">
             </div>
-
-            <div id="campo-color">
+            <?php endif; ?>
+        
+            <div class="form-group">
                 <label for="color">Color:</label>
                 <input type="text" id="color" name="color">
             </div>
-
-            <div id="campo-talla">
+        
+            <div class="form-group">
                 <label for="talla_dimensiones">Talla / Dimensiones:</label>
                 <input type="text" id="talla_dimensiones" name="talla_dimensiones">
             </div>
-
-            <label for="cantidad">Cantidad:</label>
-            <input type="number" id="cantidad" name="cantidad" required>
-
-            <label for="unidad_medida">Unidad de Medida:</label>
-            <input type="text" id="unidad_medida" name="unidad_medida" required>
-
-            <label for="estado">Estado:</label>
-            <select id="estado" name="estado" required>
-                <option value="Nuevo">Nuevo</option>
-                <option value="Usado">Usado</option>
-                <option value="Dañado">Dañado</option>
-            </select>
-
-            <label for="observaciones">Observaciones:</label>
-            <textarea id="observaciones" name="observaciones"></textarea>
-
-            <button type="submit"><i class="fas fa-save"></i> Registrar Producto</button>
-        </form>
-    </div>
+        
+            <div class="form-group">
+                <label for="cantidad">Cantidad:</label>
+                <input type="number" id="cantidad" name="cantidad" min="1" required>
+            </div>
+        
+            <div class="form-group">
+                <label for="unidad_medida">Unidad de Medida:</label>
+                <input type="text" id="unidad_medida" name="unidad_medida" required>
+            </div>
+        
+            <div class="form-group">
+                <label for="estado">Estado:</label>
+                <select id="estado" name="estado" required>
+                    <option value="Nuevo">Nuevo</option>
+                    <option value="Usado">Usado</option>
+                    <option value="Dañado">Dañado</option>
+                </select>
+            </div>
+        
+            <div class="form-group">
+                <label for="observaciones">Observaciones:</label>
+                <textarea id="observaciones" name="observaciones"></textarea>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn-registrar">Registrar Producto</button>
+    </form>
 </div>
 
 <script>
-function mostrarCampos() {
-    var categoria = document.getElementById("categoria").value;
-    
-    // Ocultar todos los campos adicionales por defecto
-    document.getElementById("campo-modelo").style.display = "none";
-    document.getElementById("campo-color").style.display = "none";
-    document.getElementById("campo-talla").style.display = "none";
+document.addEventListener("DOMContentLoaded", function () {
+    var categoria = "<?php echo $categoria_id; ?>";
 
-    if (categoria == "1" || categoria == "2") { 
-        // Ropa y Accesorios de seguridad: Muestran Modelo, Color y Talla/Dimensiones
+    if (categoria === "1" || categoria === "2") {
         document.getElementById("campo-modelo").style.display = "block";
         document.getElementById("campo-color").style.display = "block";
         document.getElementById("campo-talla").style.display = "block";
-    } else if (categoria == "3") {
-        // Kebras y fundas nuevas: Solo muestran Color y Talla/Dimensiones
+    } else if (categoria === "3") {
         document.getElementById("campo-color").style.display = "block";
         document.getElementById("campo-talla").style.display = "block";
     }
-}
+});
 </script>
 <script src="../assets/js/script.js"></script>
 </body>
