@@ -46,7 +46,7 @@ $result = $conn->query($sql);
                 <li><a href="/almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
-        <li><a href="/logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
+        <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
     </ul>
 </nav>
 

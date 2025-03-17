@@ -87,9 +87,10 @@ $stmt_categorias->close();
                     <h4><?php echo htmlspecialchars($categoria['nombre']); ?></h4>
                     <p>Productos: <?php echo $categoria['total_productos']; ?></p>
 
-                    <button class="btn-registrar" onclick="location.href='/productos/registrar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
+                    <button class="btn-registrar" onclick="location.href='../almacenes/registrar_producto.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
                         <i class="fas fa-plus"></i> Registrar Producto
                     </button>
+
 
                     <button class="btn-lista" onclick="location.href='/productos/listar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
                         <i class="fas fa-list"></i> Lista de Productos

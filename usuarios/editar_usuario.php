@@ -107,7 +107,7 @@ $conn->close();
             </li>
 
             <!-- Cerrar Sesión -->
-            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
+            <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
         </ul>
     </nav>
     <main class="content">
