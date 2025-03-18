@@ -98,8 +98,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu">
-                <li><a href="registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
-                <li><a href="listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                <li><a href="../almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                <li><a href="../almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
 

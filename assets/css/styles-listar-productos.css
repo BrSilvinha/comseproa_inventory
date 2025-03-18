@@ -1,25 +1,39 @@
-/* Estilos para la tabla de productos */
+/* Estilos generales */
 body {
     font-family: Arial, sans-serif;
     background-color: #ffffff;
-    color: #ffffff;
+    color: #000000;
     margin: 0;
     padding: 0;
-}
-
-.main-content {
-    min-height: 100vh; /* Asegura que el contenido ocupe toda la pantalla */
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
+/* Contenedor principal */
+/* Contenedor principal */
+.main-content {
+    width: 90%;
+    max-width: 1000px;
+    margin: 20px auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 80vh; /* Asegura un mínimo de altura en la sección */
+    justify-content: space-between; /* Mantiene la paginación abajo */
+}
+
+
+/* Estilo del título */
 .titulo-productos h1 {
     text-align: center;
     color: #ffffff;
     background-color: #0a253c;
-    padding: 15px;
+    padding: 10px;
     border-radius: 5px;
+    font-size: 18px;
 }
+
 
 .titulo-productos h1 span {
     font-size: 18px; /* Un poco más pequeño para diferenciar */
@@ -31,55 +45,60 @@ body {
 
 
 /* Ajustar la tabla para que no se salga de la pantalla */
+/* Ajustes de la tabla */
 table {
-    width: 95%; /* Reduce el ancho de la tabla */
-    max-width: 900px; /* Máximo tamaño permitido */
+    width: 80%; /* Reduce el ancho de la tabla */
+    max-width: 700px; /* Establece un tamaño máximo */
     border-collapse: collapse;
     background-color: #ffffff;
     border-radius: 10px;
-    overflow: hidden;
     box-shadow: 0 0 10px rgba(200, 201, 202, 0.5);
 }
 /* Contenedor para la tabla con scroll en caso de que se desborde */
+/* Contenedor de la tabla */
 .table-container {
-    flex-grow: 1;
+    flex-grow: 1; /* Permite que la tabla crezca dentro del espacio disponible */
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
-    overflow-x: auto; /* Permite desplazamiento horizontal si es necesario */
-    padding: 10px;
 }
 
+/* Encabezado */
 thead {
     background-color: #0a253c;
     color: #ffffff;
 }
 
 thead th {
-    padding: 15px;
+    padding: 10px;
     text-transform: uppercase;
+    font-size: 14px; /* Reduce el tamaño del texto */
 }
+
 
 tbody tr:nth-child(even) {
     background-color: #c8c9ca;
 }
 
 tbody tr:hover {
-    background-color: rgba(10, 37, 60, 0.2);
+    background-color: rgba(10, 37, 60, 0.1);
 }
 
+
+/* Cuerpo de la tabla */
 tbody td {
-    padding: 12px;
-    color: #0a253c;
+    padding: 8px;
+    font-size: 14px; /* Reduce el tamaño del texto */
     text-align: center;
     border-bottom: 1px solid #c8c9ca;
 }
 
-tbody tr:last-child td {
-    border-bottom: none;
-}
 
+/* Filas alternas */
+tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}   
 /* Botón de acción (si se agregan acciones como editar o eliminar) */
 .button-action {
     background-color: #0a253c;
@@ -101,13 +120,12 @@ tbody tr:last-child td {
 }
 
 /* Paginación siempre centrada y en la parte inferior */
+/* Estilos de la paginación */
 .paginacion {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
     width: 100%;
-    position: relative;
+    text-align: center;
+    padding: 15px 0;
+    position: relative; /* Evita que se desplace */
     bottom: 0;
 }
 
@@ -222,4 +240,88 @@ td .btn.stock {
 /* Efecto de clic */
 .btn:active {
     transform: scale(0.95);
+}
+
+.contenedor-titulo-busqueda {
+    display: flex;
+    align-items: center; /* Alinea verticalmente */
+    justify-content: space-between; /* Espaciado entre título y búsqueda */
+}
+
+.titulo-productos h1 {
+    margin: 0; /* Elimina márgenes extra */
+}
+
+.busqueda form {
+    display: flex;
+    gap: 5px; /* Espacio entre el input y el botón */
+}
+.busqueda {
+    background-color: #ffffff; /* Fondo blanco */
+    padding: 8px 12px; /* Espaciado interno */
+    border-radius: 8px; /* Bordes redondeados */
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+    display: flex;
+    align-items: center;
+}
+
+.busqueda form {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Espacio entre input y botón */
+    width: 100%;
+}
+
+.busqueda input[type="text"] {
+    flex-grow: 1; /* Permite que el input se expanda */
+    padding: 8px;
+    border: 1px solid #c8c9ca; /* Borde gris */
+    border-radius: 5px;
+    font-size: 14px;
+    outline: none; /* Quita el borde azul al hacer clic */
+    color: #0a253c; /* Texto azul oscuro */
+    background-color: #ffffff; /* Fondo blanco */
+}
+
+.busqueda input[type="text"]::placeholder {
+    color: #c8c9ca; /* Color del placeholder */
+}
+
+.busqueda button {
+    background-color: #0a253c; /* Azul oscuro */
+    color: #ffffff; /* Texto blanco */
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease-in-out;
+}
+
+.busqueda button:hover {
+    background-color: #081d2d; /* Azul más oscuro al pasar el mouse */
+}
+
+.busqueda button i {
+    font-size: 16px;
+}
+.busqueda select {
+    padding: 8px;
+    border: 2px solid #c8c9ca; /* Color gris claro */
+    border-radius: 5px;
+    background: #ffffff; /* Fondo blanco */
+    font-size: 14px;
+    color: #0a253c; /* Texto en azul oscuro */
+    cursor: pointer;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.busqueda select:hover {
+    border-color: #0a253c; /* Azul oscuro al pasar el mouse */
+}
+
+.busqueda select:focus {
+    border-color: #0a253c;
+    box-shadow: 0px 0px 5px rgba(10, 37, 60, 0.5); /* Sombra en azul oscuro */
 }
