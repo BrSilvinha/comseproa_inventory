@@ -119,39 +119,7 @@ tbody tr:nth-child(even) {
     padding: 20px; /* Espaciado interno */
 }
 
-/* Paginación siempre centrada y en la parte inferior */
-/* Estilos de la paginación */
-.paginacion {
-    width: 100%;
-    text-align: center;
-    padding: 15px 0;
-    position: relative; /* Evita que se desplace */
-    bottom: 0;
-}
 
-.paginacion a {
-    display: inline-block;
-    padding: 10px 15px;
-    margin: 0 5px;
-    background-color: #0a253c;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    font-weight: bold;
-    transition: background 0.3s ease;
-}
-
-.paginacion a:hover {
-    background-color: #004080;
-}
-
-
-.paginacion span {
-    display: inline-block;
-    padding: 10px 15px;
-    font-weight: bold;
-    color: #0a253c;
-}
 /* Ajuste para que las filas de la tabla sean del mismo tamaño */
 table {
     width: 100%;
@@ -324,4 +292,43 @@ td .btn.stock {
 .busqueda select:focus {
     border-color: #0a253c;
     box-shadow: 0px 0px 5px rgba(10, 37, 60, 0.5); /* Sombra en azul oscuro */
+}
+/* Estilos de la paginación */
+.pagination {
+    width: 100%;
+    text-align: center;
+    padding: 15px 0;
+    position: relative; /* Evita que se desplace */
+    bottom: 0;
+    list-style: none; /* Quita los estilos de lista */
+    display: flex;
+    justify-content: center;
+    gap: 8px; /* Espacio entre elementos */
+}
+
+.pagination li {
+    display: inline-block;
+}
+
+.pagination a {
+    display: inline-block;
+    padding: 10px 15px;
+    background-color: #0a253c;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background 0.3s ease;
+}
+
+.pagination a:hover {
+    background-color: #004080;
+}
+
+/* Estilo para la página activa */
+.pagination .active a {
+    background-color: #004080;
+    color: white;
+    cursor: default;
+    pointer-events: none; /* Evita que se pueda hacer clic */
 }

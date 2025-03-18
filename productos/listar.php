@@ -95,33 +95,61 @@
 
         $total_paginas = ceil($total_productos / $productos_por_pagina);
 
-    // Validar y obtener el campo de filtro
-    $campo_filtro = isset($_GET['campo_filtro']) && in_array($_GET['campo_filtro'], $campos_seleccionados) ? $_GET['campo_filtro'] : null;
+// Validar y obtener el campo de filtro
+$campo_filtro = isset($_GET['campo_filtro']) && in_array($_GET['campo_filtro'], $campos_seleccionados) ? $_GET['campo_filtro'] : null;
 
-    // Construcción de la consulta base
-    $sql_productos = "SELECT $columnas_sql FROM productos WHERE categoria_id = ? AND almacen_id = ?";
-    $params = [$categoria_id, $almacen_id];
-    $types = "ii";
+// Construcción de la consulta base
+$sql_productos = "SELECT $columnas_sql FROM productos WHERE categoria_id = ? AND almacen_id = ?";
+$params = [$categoria_id, $almacen_id];
+$types = "ii";
 
-    if (!empty($busqueda) && $campo_filtro) {
-        $sql_productos .= " AND $campo_filtro LIKE ?";
-        $params[] = "$busqueda%"; // Solo los que comiencen con la búsqueda
-        $types .= "s";
-    }
-    
+// Aplicar búsqueda si hay un término y un campo de filtro válido
+if (!empty($busqueda) && $campo_filtro) {
+    $sql_productos .= " AND $campo_filtro LIKE ?";
+    $params[] = "$busqueda%"; // Solo los que comiencen con la búsqueda
+    $types .= "s";
+}
 
-    // Agregar paginación
-    $sql_productos .= " LIMIT ?, ?";
-    $params[] = $inicio;
-    $params[] = $productos_por_pagina;
-    $types .= "ii";
+// Contar el total de productos que coinciden con la búsqueda y almacén
+$sql_total = "SELECT COUNT(*) AS total FROM productos WHERE categoria_id = ? AND almacen_id = ?";
+if (!empty($busqueda) && $campo_filtro) {
+    $sql_total .= " AND $campo_filtro LIKE ?";
+}
+$stmt_total = $conn->prepare($sql_total);
+if (!empty($busqueda) && $campo_filtro) {
+    $stmt_total->bind_param("iis", $categoria_id, $almacen_id, $params[2]);
+} else {
+    $stmt_total->bind_param("ii", $categoria_id, $almacen_id);
+}
+$stmt_total->execute();
+$result_total = $stmt_total->get_result();
+$total_productos = $result_total->fetch_assoc()['total'];
+$stmt_total->close();
 
-    // Preparar la consulta
-    $stmt_productos = $conn->prepare($sql_productos);
+// Calcular total de páginas
+$total_paginas = ($total_productos > 0) ? ceil($total_productos / $productos_por_pagina) : 1;
+
+// Si hay menos productos que la cantidad por página, ocultar la paginación
+$mostrar_paginacion = $total_productos > $productos_por_pagina;
+
+// Agregar paginación a la consulta
+$sql_productos .= " LIMIT ?, ?";
+$params[] = $inicio;
+$params[] = $productos_por_pagina;
+$types .= "ii";
+
+// Preparar y ejecutar la consulta
+$stmt_productos = $conn->prepare($sql_productos);
+if ($stmt_productos) {
     $stmt_productos->bind_param($types, ...$params);
     $stmt_productos->execute();
     $productos = $stmt_productos->get_result();
     $stmt_productos->close();
+} else {
+    die("Error en la consulta SQL");
+}
+
+
 
         ?>
 
@@ -230,21 +258,35 @@
         </div>
 
         <!-- Paginación Fija -->
-        <div class="paginacion">
-            <?php if ($pagina_actual > 1): ?>
-                <a href="?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria_id; ?>&pagina=<?php echo $pagina_actual - 1; ?>">&laquo; Anterior</a>
-            <?php endif; ?>
+        <?php if ($mostrar_paginacion): ?>
+            <nav>
+                <ul class="pagination">
+                    <?php if ($pagina_actual > 1): ?>
+                        <li>
+                            <a href="?pagina=<?= $pagina_actual - 1 ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>">
+                                Anterior
+                            </a>
+                        </li>
+                    <?php endif; ?>
 
-            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-                <a href="?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria_id; ?>&pagina=<?php echo $i; ?>" class="<?php echo $i == $pagina_actual ? 'activo' : ''; ?>">
-                    <?php echo $i; ?>
-                </a>
-            <?php endfor; ?>
+                    <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                        <li class="<?= ($i == $pagina_actual) ? 'active' : '' ?>">
+                            <a href="?pagina=<?= $i ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>">
+                                <?= $i ?>
+                            </a>
+                        </li>
+                    <?php endfor; ?>
 
-            <?php if ($pagina_actual < $total_paginas): ?>
-                <a href="?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria_id; ?>&pagina=<?php echo $pagina_actual + 1; ?>">Siguiente &raquo;</a>
-            <?php endif; ?>
-        </div>
+                    <?php if ($pagina_actual < $total_paginas): ?>
+                        <li>
+                            <a href="?pagina=<?= $pagina_actual + 1 ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>">
+                                Siguiente
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                </ul>
+            </nav>
+        <?php endif; ?>
     </div>
 
         <?php else: ?>
