@@ -71,6 +71,16 @@ $stmt_categorias->close();
                 <li><a href="listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
+                <!-- Notificaciones -->
+                <li class="submenu-container">
+            <a href="#" aria-label="Menú Notificaciones">
+                <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu">
+                <li><a href="notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes <span class="badge">3</span></a></li>
+                <li><a href="notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+            </ul>
+        </li>
         <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
     </ul>
 </nav>
