@@ -45,9 +45,9 @@
             if ($stmt->num_rows > 0) {
                 $mensaje = "El usuario con este correo o DNI ya está registrado.";
             } else {
-                $contraseña_hash = password_hash($contraseña, PASSWORD_BCRYPT);
-                $stmt = $conn->prepare("INSERT INTO usuarios (nombre, apellidos, dni, celular, direccion, correo, contraseña, rol, estado, almacen_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?)");
-                $stmt->bind_param("ssssssssi", $nombre, $apellidos, $dni, $celular, $direccion, $correo, $contraseña_hash, $rol, $almacen_id);
+                $contrasena_hash = password_hash($contraseña, PASSWORD_BCRYPT);
+                $stmt = $conn->prepare("INSERT INTO usuarios (nombre, apellidos, dni, celular, direccion, correo, contrasena, rol, estado, almacen_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?)");
+                $stmt->bind_param("ssssssssi", $nombre, $apellidos, $dni, $celular, $direccion, $correo, $contrasena_hash, $rol, $almacen_id);
 
                 if ($stmt->execute()) {
                     $_SESSION['mensaje_exito'] = "Usuario registrado exitosamente.";
@@ -87,7 +87,7 @@
                     <i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i>
                 </a>
                 <ul class="submenu">
-                    <li><a href="usuarios/registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
+                    <li><a href="/usuarios/registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
                     <li><a href="/usuarios/listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
 
                 </ul>

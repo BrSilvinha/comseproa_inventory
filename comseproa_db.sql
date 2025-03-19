@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 17-03-2025 a las 23:23:46
+-- Tiempo de generación: 19-03-2025 a las 16:07:06
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -38,7 +38,8 @@ CREATE TABLE `almacenes` (
 --
 
 INSERT INTO `almacenes` (`id`, `nombre`, `ubicacion`) VALUES
-(1, 'Grupo Sael - Lambayeque', 'Lambayeque - Chiclayo');
+(1, 'Grupo Sael - Lambayeque', 'Lambayeque - Chiclayo'),
+(2, 'Grupo Sael - Olmos', 'Olmos - Lambayeque');
 
 -- --------------------------------------------------------
 
@@ -116,37 +117,6 @@ CREATE TABLE `productos` (
   `observaciones` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Volcado de datos para la tabla `productos`
---
-
-INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripcion`, `modelo`, `color`, `talla_dimensiones`, `cantidad`, `unidad_medida`, `estado`, `observaciones`) VALUES
-(1, 2, 1, 'Portapistola', NULL, '', 'Negro', '', 2, 'Unidad', 'Nuevo', ''),
-(2, 3, 1, 'Fundas', NULL, '', 'Azul', 'L', 16, 'Unidad', 'Nuevo', ''),
-(3, 1, 1, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', ''),
-(4, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'plomo', 'M', 2, 'Unidad', '', ''),
-(5, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'plomo', 'L', 1, 'Unidad', '', ''),
-(6, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 4, 'Unidad', '', ''),
-(7, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 3, 'Unidad', '', ''),
-(8, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '38', 3, 'Unidad', '', ''),
-(9, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 2, 'Unidad', '', ''),
-(10, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', '', ''),
-(11, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '34', 2, 'Unidad', '', ''),
-(12, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 28, 'Unidad', '', ''),
-(13, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 98, 'Unidad', '', 'SIN BOTON'),
-(14, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'M', 20, 'Unidad', '', ''),
-(15, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'L', 59, 'Unidad', '', ''),
-(16, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'XL', 15, 'Unidad', '', ''),
-(17, 1, 1, 'Polo camisero M/L', NULL, 'Varon', 'Plomo', 'XL', 1, 'Unidad', '', ''),
-(18, 1, 1, 'Polo camisero M/L', NULL, 'Varon', 'azul', 'L', 7, 'Unidad', '', ''),
-(19, 1, 1, 'Chaleco supervisor', NULL, 'Varon', 'Plomo', 'L', 1, 'Unidad', '', ''),
-(20, 1, 1, 'Casaca Drill', NULL, 'Varon', 'Azul', 'L', 10, 'Unidad', '', ''),
-(21, 1, 1, 'Gorras', NULL, 'Varon', 'Azul', '', 13, 'Unidad', '', ''),
-(22, 1, 1, 'Corbatas', NULL, 'Varon', 'Guinda', '', 19, 'Unidad', '', ''),
-(23, 1, 1, 'Corbatas', NULL, 'Varon', 'Marrones', '', 21, 'Unidad', '', ''),
-(24, 1, 1, 'Borseguis', NULL, 'Varon', 'Negro', '2 PARES', 41, 'Unidad', '', ''),
-(25, 2, 1, 'Correajes', NULL, '', 'Negro', '', 14, 'Unidad', 'Nuevo', '');
-
 -- --------------------------------------------------------
 
 --
@@ -178,7 +148,7 @@ CREATE TABLE `usuarios` (
   `celular` varchar(15) NOT NULL,
   `direccion` varchar(255) DEFAULT NULL,
   `correo` varchar(100) NOT NULL,
-  `contraseña` varchar(255) NOT NULL,
+  `contrasena` varchar(255) NOT NULL,
   `almacen_id` int(11) DEFAULT NULL,
   `rol` enum('admin','almacenero') NOT NULL,
   `estado` enum('activo','inactivo') DEFAULT 'activo',
@@ -189,8 +159,8 @@ CREATE TABLE `usuarios` (
 -- Volcado de datos para la tabla `usuarios`
 --
 
-INSERT INTO `usuarios` (`id`, `nombre`, `apellidos`, `dni`, `celular`, `direccion`, `correo`, `contraseña`, `almacen_id`, `rol`, `estado`, `fecha_registro`) VALUES
-(2, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'San Julian - 664 - MOTUPE', 'jhamirsilva@gmail.com', '$2y$10$nX2msoqlqlMYYDnktR8A4u51faVPkCBpJbLVli5edgp7VikUqtKTG', 1, 'admin', 'activo', '2025-03-17 17:54:46');
+INSERT INTO `usuarios` (`id`, `nombre`, `apellidos`, `dni`, `celular`, `direccion`, `correo`, `contrasena`, `almacen_id`, `rol`, `estado`, `fecha_registro`) VALUES
+(2, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'jhamirsilva@gmail.com', 'jhamirsilva@gmail.com', '$2y$10$el1h9Vg4/l8pYr6fQEPm7OOgPacR9U7svo/U3oe4GQUP5vTVCNakC', 1, 'admin', 'activo', '2025-03-19 14:47:41');
 
 --
 -- Índices para tablas volcadas
@@ -233,6 +203,7 @@ ALTER TABLE `movimientos`
 --
 ALTER TABLE `productos`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `idx_producto_almacen` (`nombre`,`color`,`talla_dimensiones`,`almacen_id`),
   ADD KEY `categoria_id` (`categoria_id`),
   ADD KEY `almacen_id` (`almacen_id`);
 
@@ -263,7 +234,7 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `almacenes`
 --
 ALTER TABLE `almacenes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
@@ -287,7 +258,7 @@ ALTER TABLE `movimientos`
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_transferencia`
@@ -299,7 +270,7 @@ ALTER TABLE `solicitudes_transferencia`
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- Restricciones para tablas volcadas

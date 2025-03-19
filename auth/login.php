@@ -12,7 +12,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
-    $sql = "SELECT id, nombre, apellidos, contraseña, rol FROM usuarios WHERE correo = ? AND estado = 'activo'";
+    $sql = "SELECT id, nombre, apellidos, contrasena, rol FROM usuarios WHERE correo = ? AND estado = 'activo'";
+
     $stmt = $conn->prepare($sql);
     
     if (!$stmt) {
@@ -27,7 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $user = $result->fetch_assoc();
         
         // Verificar la contraseña
-        if (password_verify($password, $user["contraseña"])) {
+        if (password_verify($password, $user["contrasena"])) {
             // Guardar sesión
             $_SESSION["user_id"] = $user["id"];
             $_SESSION["user_name"] = $user["nombre"] . " " . $user["apellidos"];

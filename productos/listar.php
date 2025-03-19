@@ -102,14 +102,12 @@ $campo_filtro = isset($_GET['campo_filtro']) && in_array($_GET['campo_filtro'], 
 $sql_productos = "SELECT $columnas_sql FROM productos WHERE categoria_id = ? AND almacen_id = ?";
 $params = [$categoria_id, $almacen_id];
 $types = "ii";
-
 // Aplicar búsqueda si hay un término y un campo de filtro válido
 if (!empty($busqueda) && $campo_filtro) {
     $sql_productos .= " AND $campo_filtro LIKE ?";
     $params[] = "$busqueda%"; // Solo los que comiencen con la búsqueda
     $types .= "s";
 }
-
 // Contar el total de productos que coinciden con la búsqueda y almacén
 $sql_total = "SELECT COUNT(*) AS total FROM productos WHERE categoria_id = ? AND almacen_id = ?";
 if (!empty($busqueda) && $campo_filtro) {
@@ -148,9 +146,6 @@ if ($stmt_productos) {
 } else {
     die("Error en la consulta SQL");
 }
-
-
-
         ?>
 
         <!DOCTYPE html>
@@ -222,8 +217,6 @@ if ($stmt_productos) {
         </div>
 
     </div>
-
-        
         <?php if ($productos->num_rows > 0): ?>
             <div class="main-content">
         <div class="table-container">
@@ -293,6 +286,5 @@ if ($stmt_productos) {
             <p>No hay productos registrados en esta categoría.</p>
         <?php endif; ?>
         <script src="../assets/js/script.js"></script>
-        </body>
-        </html>
-            
+    </body>
+</html>
