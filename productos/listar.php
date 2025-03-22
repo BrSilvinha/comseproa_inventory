@@ -260,13 +260,17 @@ $stmt_productos->close();
                                 <?php if ($campo === 'cantidad'): ?>
                                     <td>
                                         <div class="control-cantidad">
+                                            <?php if ($usuario_rol == 'admin'): ?>
                                             <button class="btn stock" data-id="<?php echo intval($producto['id']); ?>" data-accion="restar">
                                                 <i class="fas fa-minus"></i>
                                             </button>
+                                            <?php endif; ?>
                                             <span id="cantidad-<?php echo intval($producto['id']); ?>"><?php echo intval($producto['cantidad']); ?></span>
+                                            <?php if ($usuario_rol == 'admin'): ?>
                                             <button class="btn stock" data-id="<?php echo intval($producto['id']); ?>" data-accion="sumar">
                                                 <i class="fas fa-plus"></i>
                                             </button>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 <?php else: ?>
