@@ -28,7 +28,11 @@ $sql = "SELECT
             st.estado,
             st.fecha_solicitud,
             st.usuario_aprobador_id,
-            m.fecha as fecha_aprobacion,
+            CASE
+                WHEN st.estado = 'aprobada' THEN COALESCE(m.fecha, st.fecha_solicitud)
+                WHEN st.estado = 'rechazada' THEN st.fecha_solicitud
+                ELSE NULL
+            END as fecha_respuesta,
             p.nombre as producto_nombre, 
             p.color, 
             p.talla_dimensiones, 
@@ -48,9 +52,12 @@ $sql = "SELECT
         JOIN almacenes a2 ON st.almacen_destino = a2.id
         JOIN usuarios u_solicitante ON st.usuario_id = u_solicitante.id
         LEFT JOIN usuarios u_aprobador ON st.usuario_aprobador_id = u_aprobador.id
-        LEFT JOIN movimientos m ON (m.producto_id = st.producto_id AND m.almacen_origen = st.almacen_origen 
-                                  AND m.almacen_destino = st.almacen_destino AND m.cantidad = st.cantidad 
-                                  AND m.tipo = 'transferencia')
+        LEFT JOIN movimientos m ON (m.producto_id = st.producto_id 
+                                  AND m.almacen_origen = st.almacen_origen 
+                                  AND m.almacen_destino = st.almacen_destino 
+                                  AND m.cantidad = st.cantidad 
+                                  AND m.tipo = 'transferencia'
+                                  AND m.estado = 'completado')
         WHERE st.estado != 'pendiente'";
 
 
@@ -337,8 +344,8 @@ if ($result && $result->num_rows > 0) {
                     <?php endif; ?>
                 </td>
                 <td>
-                    <?php if (!empty($solicitud['fecha_aprobacion'])): ?>
-                        <?php echo date('d/m/Y H:i', strtotime($solicitud['fecha_aprobacion'])); ?>
+                    <?php if (!empty($solicitud['fecha_respuesta'])): ?>
+                        <?php echo date('d/m/Y H:i', strtotime($solicitud['fecha_respuesta'])); ?>
                     <?php else: ?>
                         -
                     <?php endif; ?>
