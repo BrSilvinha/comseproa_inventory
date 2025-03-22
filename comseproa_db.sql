@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 19-03-2025 a las 16:07:06
+-- Tiempo de generación: 22-03-2025 a las 19:47:05
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -117,6 +117,46 @@ CREATE TABLE `productos` (
   `observaciones` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Volcado de datos para la tabla `productos`
+--
+
+INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripcion`, `modelo`, `color`, `talla_dimensiones`, `cantidad`, `unidad_medida`, `estado`, `observaciones`) VALUES
+(51, 1, 1, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', ''),
+(52, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 1, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(53, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 6, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(54, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'S', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(55, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 1, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(56, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 1, 'Unidad', 'Nuevo', ''),
+(57, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 3, 'Unidad', 'Nuevo', ''),
+(58, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '38', 3, 'Unidad', 'Nuevo', ''),
+(59, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 2, 'Unidad', 'Nuevo', ''),
+(60, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', 'Nuevo', ''),
+(61, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '34', 2, 'Unidad', 'Nuevo', ''),
+(62, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 119, 'Unidad', 'Nuevo', 'SIN BOTON'),
+(63, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'M', 20, 'Unidad', 'Nuevo', ''),
+(64, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'L', 59, 'Unidad', 'Nuevo', ''),
+(65, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'XL', 15, 'Unidad', 'Nuevo', ''),
+(66, 1, 1, 'Polo camisero TACTICO M/L', NULL, 'Varon', 'Azul', 'L', 7, 'Unidad', 'Nuevo', ''),
+(67, 1, 1, 'Chaleco supervisor', NULL, 'Varon', 'Plomo', 'L', 1, 'Unidad', 'Nuevo', ''),
+(68, 1, 1, 'Casaca Drill', NULL, 'Varon', 'Azul', 'L', 10, 'Unidad', 'Nuevo', ''),
+(69, 1, 1, 'Gorras', NULL, 'Varon', 'Azul', NULL, 13, 'Unidad', 'Nuevo', ''),
+(70, 1, 1, 'Corbatas', NULL, 'Varon', 'Guinda', NULL, 19, 'Unidad', 'Nuevo', ''),
+(71, 1, 1, 'Corbatas', NULL, 'Varon', 'Marrones', NULL, 21, 'Unidad', 'Nuevo', ''),
+(72, 1, 1, 'Borseguis', NULL, 'Varon', 'Negro', '41', 2, 'Pares', 'Nuevo', ''),
+(73, 1, 1, 'Borseguis', NULL, 'Varon', 'Negro', '43', 1, 'Pares', 'Nuevo', 'Ingreso el 17/03'),
+(74, 2, 1, 'Portapistola', NULL, NULL, 'Negro', NULL, 2, 'Unidad', 'Nuevo', ''),
+(75, 2, 1, 'Correajes', NULL, NULL, 'Negro', NULL, 14, 'Unidad', 'Nuevo', ''),
+(76, 2, 1, 'Cascos de Seguridad', NULL, NULL, 'Blanco', NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
+(77, 2, 1, 'Lentes', NULL, NULL, NULL, NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
+(78, 2, 1, 'Guantes', NULL, NULL, NULL, NULL, 2, 'Pares', 'Nuevo', 'INGRESO EL 17/03'),
+(79, 3, 1, 'Fundas', NULL, NULL, 'Azul', 'L', 16, 'Unidad', 'Nuevo', ''),
+(80, 1, 2, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(81, 1, 2, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(82, 1, 2, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', ''),
+(83, 1, 2, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 1, 'Unidad', 'Nuevo', ''),
+(84, 1, 2, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 2, 'Unidad', 'Nuevo', 'SIN BOTON');
+
 -- --------------------------------------------------------
 
 --
@@ -131,7 +171,8 @@ CREATE TABLE `solicitudes_transferencia` (
   `cantidad` int(11) NOT NULL,
   `usuario_id` int(11) NOT NULL,
   `fecha_solicitud` timestamp NOT NULL DEFAULT current_timestamp(),
-  `estado` enum('pendiente','aprobada','rechazada') DEFAULT 'pendiente'
+  `estado` enum('pendiente','aprobada','rechazada') DEFAULT 'pendiente',
+  `usuario_aprobador_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -160,7 +201,10 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nombre`, `apellidos`, `dni`, `celular`, `direccion`, `correo`, `contrasena`, `almacen_id`, `rol`, `estado`, `fecha_registro`) VALUES
-(2, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'jhamirsilva@gmail.com', 'jhamirsilva@gmail.com', '$2y$10$el1h9Vg4/l8pYr6fQEPm7OOgPacR9U7svo/U3oe4GQUP5vTVCNakC', 1, 'admin', 'activo', '2025-03-19 14:47:41');
+(2, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'jhamirsilva@gmail.com', 'jhamirsilva@gmail.com', '$2y$10$1yejJGgM2shtBXIq9WfuaO8E1hF7ksm6h.LoDvoCvkI2nLcXqir0S', 1, 'admin', 'activo', '2025-03-19 14:47:41'),
+(4, 'Javier Agustin', 'Silva De La Cruz', '17577855', '987654321', 'Garcilazo de la vega 673', 'javier@gmail.com', '$2y$10$Rfyl9ZC1ZFn.E0kKA812gOMvlAXF2bApclsA/wC7fBMoeQHold4PS', 2, 'admin', 'activo', '2025-03-22 14:56:42'),
+(5, 'almacenero', 'chicalyo', '12343234', '123443234', 'prueba01', 'almacenerocix@gmail.com', '$2y$10$jqBJ8SejYjG1TCKjitkp/uekhDC5c9OhJf6gTW2xsDpvZWD1daEHO', 1, 'almacenero', 'activo', '2025-03-22 16:17:37'),
+(6, 'almacenero', 'olmos', '12312323', '543234321', 'prueba02', 'almaceneroolmos@gmail.com', '$2y$10$rOQK2skh5H/Iqtgeas.qIeC90k9dyXFCb2J19z0r/Y/eA6GXeYQBy', 2, 'almacenero', 'activo', '2025-03-22 16:19:28');
 
 --
 -- Índices para tablas volcadas
@@ -215,7 +259,8 @@ ALTER TABLE `solicitudes_transferencia`
   ADD KEY `producto_id` (`producto_id`),
   ADD KEY `almacen_origen` (`almacen_origen`),
   ADD KEY `almacen_destino` (`almacen_destino`),
-  ADD KEY `usuario_id` (`usuario_id`);
+  ADD KEY `usuario_id` (`usuario_id`),
+  ADD KEY `fk_usuario_aprobador` (`usuario_aprobador_id`);
 
 --
 -- Indices de la tabla `usuarios`
@@ -258,7 +303,7 @@ ALTER TABLE `movimientos`
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=85;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_transferencia`
@@ -270,7 +315,7 @@ ALTER TABLE `solicitudes_transferencia`
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- Restricciones para tablas volcadas
@@ -304,6 +349,7 @@ ALTER TABLE `productos`
 -- Filtros para la tabla `solicitudes_transferencia`
 --
 ALTER TABLE `solicitudes_transferencia`
+  ADD CONSTRAINT `fk_usuario_aprobador` FOREIGN KEY (`usuario_aprobador_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `solicitudes_transferencia_ibfk_1` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `solicitudes_transferencia_ibfk_2` FOREIGN KEY (`almacen_origen`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `solicitudes_transferencia_ibfk_3` FOREIGN KEY (`almacen_destino`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE,

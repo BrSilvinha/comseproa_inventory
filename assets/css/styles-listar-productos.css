@@ -11,57 +11,63 @@ body {
 }
 
 /* Contenedor principal */
-/* Contenedor principal */
 .main-content {
-    width: 90%;
-    max-width: 1000px;
-    margin: 20px auto;
+    width: calc(100% - 260px);
+    margin-left: 250px; /* Reducido de 260px */
+    margin-top: 15px; /* Reducido de 20px */
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 80vh; /* Asegura un mínimo de altura en la sección */
-    justify-content: space-between; /* Mantiene la paginación abajo */
+    min-height: 75vh; /* Reducido de 80vh */
+    justify-content: space-between;
 }
 
+/* Contenedor título y búsqueda */
+.contenedor-titulo-busqueda {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: calc(100% - 260px);
+    margin-left: 250px;
+    margin-top: 15px;
+    padding: 0 10px; /* Reducido de 15px */
+}
 
 /* Estilo del título */
 .titulo-productos h1 {
     text-align: center;
     color: #ffffff;
     background-color: #0a253c;
-    padding: 10px;
+    padding: 8px; /* Reducido de 10px */
     border-radius: 5px;
-    font-size: 18px;
+    font-size: 16px; /* Reducido de 18px */
+    margin: 0;
 }
 
-
 .titulo-productos h1 span {
-    font-size: 18px; /* Un poco más pequeño para diferenciar */
+    font-size: 16px; /* Reducido de 18px */
     font-weight: lighter;
     opacity: 0.9;
 }
 
-
-
-
-/* Ajustar la tabla para que no se salga de la pantalla */
-/* Ajustes de la tabla */
-table {
-    width: 80%; /* Reduce el ancho de la tabla */
-    max-width: 700px; /* Establece un tamaño máximo */
-    border-collapse: collapse;
-    background-color: #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(200, 201, 202, 0.5);
-}
-/* Contenedor para la tabla con scroll en caso de que se desborde */
 /* Contenedor de la tabla */
 .table-container {
-    flex-grow: 1; /* Permite que la tabla crezca dentro del espacio disponible */
+    flex-grow: 1;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    overflow-x: hidden; /* Cambiado de auto a hidden para evitar scroll horizontal */
+}
+
+/* Ajustes de la tabla */
+table {
+    width: 98%; /* Reducido de 100% */
+    max-width: 98%; /* Reducido de 100% */
+    border-collapse: collapse;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(200, 201, 202, 0.5);
 }
 
 /* Encabezado */
@@ -71,39 +77,55 @@ thead {
 }
 
 thead th {
-    padding: 10px;
+    padding: 8px; /* Reducido de 10px */
     text-transform: uppercase;
-    font-size: 14px; /* Reduce el tamaño del texto */
+    font-size: 13px; /* Reducido de 14px */
 }
 
+/* Cuerpo de la tabla */
+tbody td {
+    padding: 6px; /* Reducido de 8px */
+    font-size: 13px; /* Reducido de 14px */
+    text-align: center;
+    border-bottom: 1px solid #c8c9ca;
+}
 
+/* Filas alternas */
 tbody tr:nth-child(even) {
-    background-color: #c8c9ca;
+    background-color: #f2f2f2;
 }
 
 tbody tr:hover {
     background-color: rgba(10, 37, 60, 0.1);
 }
 
-
-/* Cuerpo de la tabla */
-tbody td {
-    padding: 8px;
-    font-size: 14px; /* Reduce el tamaño del texto */
+/* Asegurar que los encabezados y celdas sean compactos */
+th, td {
+    padding: 6px; /* Reducido de 8px */
     text-align: center;
-    border-bottom: 1px solid #c8c9ca;
+    border: 1px solid #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 40px; /* Reducido de 45px */
+    font-size: 13px; /* Reducido de 14px */
 }
 
+th {
+    background-color: #0a253c;
+    color: white;
+}
 
-/* Filas alternas */
-tbody tr:nth-child(even) {
-    background-color: #f2f2f2;
-}   
-/* Botón de acción (si se agregan acciones como editar o eliminar) */
+/* Asegurar que todas las filas sean del mismo tamaño */
+tbody tr {
+    height: 45px; /* Reducido de 50px */
+}
+
+/* Botón de acción */
 .button-action {
     background-color: #0a253c;
     color: #ffffff;
-    padding: 8px 12px;
+    padding: 6px 10px; /* Reducido de 8px 12px */
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -114,79 +136,54 @@ tbody tr:nth-child(even) {
     background-color: #c8c9ca;
     color: #0a253c;
 }
-.titulo-productos, table {
-    margin-left: 250px; /* Ajusta según el ancho de tu menú lateral */
-    padding: 20px; /* Espaciado interno */
-}
 
-
-/* Ajuste para que las filas de la tabla sean del mismo tamaño */
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-/* Asegurar que los encabezados y celdas sean compactos */
-th, td {
-    padding: 8px; /* Reduce el padding */
-    text-align: center;
-    border: 1px solid #ddd;
-    white-space: nowrap; /* Evita saltos de línea */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Muestra "..." si el texto es muy largo */
-    height: 45px; /* Reduce la altura de las filas */
-    font-size: 14px; /* Hace el texto más compacto */
-}
-
-th {
-    background-color: #0a253c;
-    color: white;
-}
-
-/* Asegurar que todas las filas sean del mismo tamaño */
-tbody tr {
-    height: 50px;
-}
 /* Estilos generales para los botones */
 .btn {
-    padding: 8px 12px;
+    padding: 6px 10px; /* Reducido de 8px 12px */
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px; /* Reducido de 14px */
     transition: background-color 0.3s ease, transform 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px; /* Reducido de 5px */
 }
 
 /* Botón Enviar */
 .btn.enviar {
-    background-color: #0a253c; /* Azul oscuro */
+    background-color: #0a253c;
     color: #ffffff;
 }
 
 .btn.enviar:hover {
-    background-color: #081a2b; /* Un tono más oscuro */
+    background-color: #081a2b;
+}
+
+/* Botón Enviar desactivado */
+.btn.enviar:disabled {
+    background-color: #a8b1bb;
+    color: #f5f5f5;
+    cursor: not-allowed;
 }
 
 /* Botón Entregar */
 .btn.entregar {
-    background-color: #0a253c; /* Azul oscuro */
+    background-color: #0a253c;
     color: #ffffff;
 }
 
 .btn.entregar:hover {
-    background-color: #081a2b; /* Un tono más oscuro */
+    background-color: #081a2b;
 }
 
 /* Estilos para los botones de stock (+ y -) */
 .btn.stock {
     background-color: #ffffff;
     color: #0a253c;
-    font-size: 18px;
-    width: 32px;
-    height: 32px;
+    font-size: 16px; /* Reducido de 18px */
+    width: 28px; /* Reducido de 32px */
+    height: 28px; /* Reducido de 32px */
     display: inline-flex;
     justify-content: center;
     align-items: center;
@@ -202,7 +199,7 @@ tbody tr {
 
 /* Ajuste para que los botones de stock estén alineados con el número */
 td .btn.stock {
-    margin: 0 5px;
+    margin: 0 3px; /* Reducido de 5px */
 }
 
 /* Efecto de clic */
@@ -210,25 +207,16 @@ td .btn.stock {
     transform: scale(0.95);
 }
 
-.contenedor-titulo-busqueda {
-    display: flex;
-    align-items: center; /* Alinea verticalmente */
-    justify-content: space-between; /* Espaciado entre título y búsqueda */
-}
-
-.titulo-productos h1 {
-    margin: 0; /* Elimina márgenes extra */
-}
-
 .busqueda form {
     display: flex;
-    gap: 5px; /* Espacio entre el input y el botón */
+    gap: 4px; /* Reducido de 5px */
 }
+
 .busqueda {
-    background-color: #ffffff; /* Fondo blanco */
-    padding: 8px 12px; /* Espaciado interno */
-    border-radius: 8px; /* Bordes redondeados */
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+    background-color: #ffffff;
+    padding: 6px 10px; /* Reducido de 8px 12px */
+    border-radius: 8px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
 }
@@ -236,74 +224,76 @@ td .btn.stock {
 .busqueda form {
     display: flex;
     align-items: center;
-    gap: 8px; /* Espacio entre input y botón */
+    gap: 6px; /* Reducido de 8px */
     width: 100%;
 }
 
 .busqueda input[type="text"] {
-    flex-grow: 1; /* Permite que el input se expanda */
-    padding: 8px;
-    border: 1px solid #c8c9ca; /* Borde gris */
+    flex-grow: 1;
+    padding: 6px; /* Reducido de 8px */
+    border: 1px solid #c8c9ca;
     border-radius: 5px;
-    font-size: 14px;
-    outline: none; /* Quita el borde azul al hacer clic */
-    color: #0a253c; /* Texto azul oscuro */
-    background-color: #ffffff; /* Fondo blanco */
+    font-size: 13px; /* Reducido de 14px */
+    outline: none;
+    color: #0a253c;
+    background-color: #ffffff;
 }
 
 .busqueda input[type="text"]::placeholder {
-    color: #c8c9ca; /* Color del placeholder */
+    color: #c8c9ca;
 }
 
 .busqueda button {
-    background-color: #0a253c; /* Azul oscuro */
-    color: #ffffff; /* Texto blanco */
+    background-color: #0a253c;
+    color: #ffffff;
     border: none;
-    padding: 8px 12px;
+    padding: 6px 10px; /* Reducido de 8px 12px */
     border-radius: 5px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px; /* Reducido de 14px */
     transition: background 0.3s ease-in-out;
 }
 
 .busqueda button:hover {
-    background-color: #081d2d; /* Azul más oscuro al pasar el mouse */
+    background-color: #081d2d;
 }
 
 .busqueda button i {
-    font-size: 16px;
+    font-size: 14px; /* Reducido de 16px */
 }
+
 .busqueda select {
-    padding: 8px;
-    border: 2px solid #c8c9ca; /* Color gris claro */
+    padding: 6px; /* Reducido de 8px */
+    border: 2px solid #c8c9ca;
     border-radius: 5px;
-    background: #ffffff; /* Fondo blanco */
-    font-size: 14px;
-    color: #0a253c; /* Texto en azul oscuro */
+    background: #ffffff;
+    font-size: 13px; /* Reducido de 14px */
+    color: #0a253c;
     cursor: pointer;
     outline: none;
     transition: all 0.3s ease;
 }
 
 .busqueda select:hover {
-    border-color: #0a253c; /* Azul oscuro al pasar el mouse */
+    border-color: #0a253c;
 }
 
 .busqueda select:focus {
     border-color: #0a253c;
-    box-shadow: 0px 0px 5px rgba(10, 37, 60, 0.5); /* Sombra en azul oscuro */
+    box-shadow: 0px 0px 5px rgba(10, 37, 60, 0.5);
 }
+
 /* Estilos de la paginación */
 .pagination {
     width: 100%;
     text-align: center;
-    padding: 15px 0;
-    position: relative; /* Evita que se desplace */
+    padding: 12px 0; /* Reducido de 15px 0 */
+    position: relative;
     bottom: 0;
-    list-style: none; /* Quita los estilos de lista */
+    list-style: none;
     display: flex;
     justify-content: center;
-    gap: 8px; /* Espacio entre elementos */
+    gap: 6px; /* Reducido de 8px */
 }
 
 .pagination li {
@@ -312,7 +302,7 @@ td .btn.stock {
 
 .pagination a {
     display: inline-block;
-    padding: 10px 15px;
+    padding: 8px 12px; /* Reducido de 10px 15px */
     background-color: #0a253c;
     color: white;
     text-decoration: none;
@@ -330,5 +320,109 @@ td .btn.stock {
     background-color: #004080;
     color: white;
     cursor: default;
-    pointer-events: none; /* Evita que se pueda hacer clic */
+    pointer-events: none;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(10, 37, 60, 0.7);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-contenido {
+    background-color: #ffffff;
+    padding: 18px; /* Reducido de 20px */
+    width: 35%; /* Reducido de 40% */
+    max-width: 450px; /* Reducido de 500px */
+    border-radius: 12px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+    position: relative;
+    text-align: center;
+    animation: fadeIn 0.3s ease-in-out;
+    margin: auto;
+}
+
+/* Animación de entrada */
+@keyframes fadeIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px; /* Reducido de 10px */
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 18px; /* Reducido de 20px */
+}
+
+.cerrar {
+    font-size: 20px; /* Reducido de 22px */
+    color: #0a253c;
+    cursor: pointer;
+    transition: color 0.3s ease-in-out;
+}
+
+.cerrar:hover {
+    color: #c8c9ca;
+}
+
+.modal-body {
+    padding: 12px 0; /* Reducido de 15px 0 */
+}
+
+.modal-body label {
+    display: block;
+    font-weight: bold;
+    margin: 8px 0 4px; /* Reducido de 10px 0 5px */
+}
+
+.modal-body input,
+.modal-body select {
+    width: 100%;
+    padding: 6px; /* Reducido de 8px */
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.modal-footer {
+    margin-top: 12px; /* Reducido de 15px */
+}
+
+.btn.enviar {
+    background-color: #0a253c;
+    color: white;
+    padding: 8px 12px; /* Reducido de 10px 15px */
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+}
+
+.btn.enviar:hover {
+    background-color: #1d4f73;
+}
+
+/* Eliminar márgenes conflictivos */
+.titulo-productos, table {
+    margin-left: 0;
+    padding: 15px; /* Reducido de 20px */
 }

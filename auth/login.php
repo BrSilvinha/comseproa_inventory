@@ -12,7 +12,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
-    $sql = "SELECT id, nombre, apellidos, contrasena, rol FROM usuarios WHERE correo = ? AND estado = 'activo'";
+    // Modificado para incluir almacen_id en la consulta
+    $sql = "SELECT id, nombre, apellidos, contrasena, rol, almacen_id FROM usuarios WHERE correo = ? AND estado = 'activo'";
 
     $stmt = $conn->prepare($sql);
     
@@ -33,6 +34,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION["user_id"] = $user["id"];
             $_SESSION["user_name"] = $user["nombre"] . " " . $user["apellidos"];
             $_SESSION["user_role"] = $user["rol"];
+            // Agregar almacen_id a la sesión
+            $_SESSION["almacen_id"] = $user["almacen_id"];
+            // Para mantener compatibilidad con el código existente
+            $_SESSION["rol"] = $user["rol"];
 
             // Redirigir al dashboard
             header("Location: ../dashboard.php");

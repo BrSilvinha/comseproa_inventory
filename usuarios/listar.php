@@ -104,6 +104,7 @@ $conn->close();
     <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
     <link rel="stylesheet" href="../assets/css/styles-form.css">
     <link rel="stylesheet" href="../assets/css/styles-lista-usuarios.css">
+    <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
