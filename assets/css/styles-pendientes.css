@@ -6,12 +6,6 @@
     padding: 20px;
 }
 
-h1 {
-    margin-bottom: 20px;
-    color: #0a253c;
-    border-bottom: 2px solid #0a253c;
-    padding-bottom: 10px;
-}
 
 /* Estilos para el contenedor de notificaciones */
 #notificaciones-container {
