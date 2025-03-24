@@ -135,8 +135,7 @@ $conn->close();
                 <div class="form-group">
                     <select name="rol" required>
                         <option value="admin" <?= $usuario['rol'] == 'admin' ? 'selected' : ''; ?>>Administrador</option>
-                        <option value="doctor" <?= $usuario['rol'] == 'doctor' ? 'selected' : ''; ?>>Doctor</option>
-                        <option value="usuario" <?= $usuario['rol'] == 'usuario' ? 'selected' : ''; ?>>Usuario</option>
+                        <option value="almacenero" <?= $usuario['rol'] == 'almacenero' ? 'selected' : ''; ?>>Almacenero</option>
                     </select>
                     <select name="almacen_id">
                         <option value="">Seleccione un almacén</option>
@@ -149,8 +148,8 @@ $conn->close();
                 </div>
                 <div class="form-group">
                     <select name="estado">
-                        <option value="Activo" <?= $usuario['estado'] == 'Activo' ? 'selected' : ''; ?>>Activo</option>
-                        <option value="Inactivo" <?= $usuario['estado'] == 'Inactivo' ? 'selected' : ''; ?>>Inactivo</option>
+                        <option value="activo" <?= $usuario['estado'] == 'activo' ? 'selected' : ''; ?>>Activo</option>
+                        <option value="inactivo" <?= $usuario['estado'] == 'inactivo' ? 'selected' : ''; ?>>Inactivo</option>
                     </select>
                 </div>
                 <button type="submit" class="btn">Guardar Cambios</button>
