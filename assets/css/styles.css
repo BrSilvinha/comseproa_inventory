@@ -2,7 +2,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Poppins', sans-serif; /* Fuente */
+    font-family: 'Poppins', sans-serif;
 }
 
 body {
@@ -10,7 +10,7 @@ body {
     height: 100vh;
     justify-content: center;
     align-items: center;
-    background-color: #ffffff; /* Fondo blanco */
+    background-color: #ffffff;
 }
 
 /* Sección Izquierda */
@@ -24,23 +24,23 @@ body {
 }
 
 .left-section .logo {
-    width: 900px; /* Tamaño grande */
+    width: 900px;
     height: auto;
 }
 
 .left-section h2 {
-    font-size: 32px; /* Letras grandes */
+    font-size: 32px;
     font-weight: bold;
     margin-top: 15px;
     text-transform: uppercase;
-    color: #0a253c; /* Azul oscuro */
+    color: #0a253c;
 }
 
 /* Línea Vertical */
 .divider {
     width: 2px;
     height: 80%;
-    background-color: #c8c9ca; /* Gris claro */
+    background-color: #c8c9ca;
 }
 
 /* Sección Derecha (Formulario) */
@@ -55,9 +55,9 @@ body {
 }
 
 .right-section h2 {
-    font-size: 30px; /* Tamaño grande */
+    font-size: 30px;
     margin-bottom: 20px;
-    color: #0a253c; /* Azul oscuro */
+    color: #0a253c;
 }
 
 form {
@@ -71,27 +71,27 @@ label {
     font-weight: bold;
     margin-bottom: 5px;
     font-size: 16px;
-    color: #0a253c; /* Azul oscuro */
+    color: #0a253c;
 }
 
 input {
     width: 100%;
     padding: 10px;
     margin-bottom: 15px;
-    border: 1px solid #c8c9ca; /* Gris claro */
+    border: 1px solid #c8c9ca;
     border-radius: 5px;
     font-size: 16px;
-    background-color: #ffffff; /* Blanco */
-    color: #0a253c; /* Azul oscuro */
+    background-color: #ffffff;
+    color: #0a253c;
 }
 
 input::placeholder {
-    color: #c8c9ca; /* Gris claro */
+    color: #c8c9ca;
 }
 
 button {
-    background-color: #0a253c; /* Azul oscuro */
-    color: #ffffff; /* Blanco */
+    background-color: #0a253c;
+    color: #ffffff;
     padding: 12px;
     border: none;
     border-radius: 5px;
@@ -101,6 +101,59 @@ button {
 }
 
 button:hover {
-    background-color: #c8c9ca; /* Gris claro */
-    color: #0a253c; /* Azul oscuro */
+    background-color: #c8c9ca;
+    color: #0a253c;
+}
+
+/* Media query para dispositivos con pantalla mediana */
+@media screen and (max-width: 992px) {
+    .left-section .logo {
+        width: 500px;
+    }
+}
+
+/* Media query para dispositivos móviles */
+@media screen and (max-width: 768px) {
+    body {
+        flex-direction: column;
+    }
+    
+    .left-section {
+        display: none; /* Ocultar la sección izquierda completamente en dispositivos pequeños */
+    }
+    
+    .right-section {
+        width: 100%;
+        height: 100%;
+        padding: 20px;
+    }
+    
+    .divider {
+        display: none; /* Ocultar el divisor */
+    }
+    
+    form {
+        width: 90%;
+        max-width: 300px;
+    }
+    
+    .right-section h2 {
+        font-size: 28px;
+        margin-bottom: 30px;
+    }
+    
+    button {
+        margin-top: 10px;
+    }
+}
+
+/* Media query para dispositivos muy pequeños */
+@media screen and (max-width: 480px) {
+    .right-section h2 {
+        font-size: 24px;
+    }
+    
+    form {
+        width: 95%;
+    }
 }

@@ -28,8 +28,13 @@ require_once "config/database.php";
 </head>
 <body>
 
+<!-- Botón de hamburguesa para dispositivos móviles -->
+<button class="menu-toggle" id="menuToggle">
+    <i class="fas fa-bars"></i>
+</button>
+
 <!-- Menú Lateral -->
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
     <h2>GRUPO SEAL</h2>
     <ul>
         <li><a href="dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
@@ -139,6 +144,10 @@ require_once "config/database.php";
         </section>
     </div>
 </main>
+
+<!-- Contenedor para notificaciones dinámicas -->
+<div id="notificaciones-container"></div>
+
 <script src="assets/js/script.js"></script>
 </body>
 </html>

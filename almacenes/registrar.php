@@ -8,81 +8,76 @@ if (!isset($_SESSION["user_id"])) {
 // Evita secuestro de sesión
 session_regenerate_id(true);
 
+require_once "../config/database.php";
+
+$mensaje = "";
+$error = "";
+$nombre = "";
+$ubicacion = "";
+
 $user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
 $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
 $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
 
-require_once "../config/database.php"; 
-
-$mensaje = "";
-$error = "";
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $nombre = htmlspecialchars(trim($_POST["nombre"]));
-    $apellidos = htmlspecialchars(trim($_POST["apellidos"]));
-    $dni = trim($_POST["dni"]);
-    $celular = trim($_POST["celular"]);
-    $direccion = htmlspecialchars(trim($_POST["direccion"]));
-    $correo = trim($_POST["correo"]);
-    $contraseña = $_POST["contraseña"];
-    $confirmar_contraseña = $_POST["confirmar_contraseña"];
-    $rol = trim($_POST["rol"]);
-    $almacen_id = isset($_POST["almacen_id"]) ? intval($_POST["almacen_id"]) : NULL;
+    if (!empty($_POST["nombre"]) && !empty($_POST["ubicacion"])) {
+        $nombre = trim($_POST["nombre"]);
+        $ubicacion = trim($_POST["ubicacion"]);
 
-    if (
-        empty($nombre) || empty($apellidos) || empty($dni) || empty($celular) || empty($correo) || 
-        empty($contraseña) || empty($confirmar_contraseña) || empty($rol)
-    ) {
-        $error = "⚠️ Todos los campos son obligatorios.";
-    } elseif (strlen($dni) != 8 || !ctype_digit($dni)) {
-        $error = "⚠️ El DNI debe tener exactamente 8 números.";
-    } elseif (!preg_match("/^[0-9]{9,15}$/", $celular)) {
-        $error = "⚠️ El número de celular debe tener entre 9 y 15 dígitos.";
-    } elseif (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        $error = "⚠️ Formato de correo no válido.";
-    } elseif ($contraseña !== $confirmar_contraseña) {
-        $error = "⚠️ Las contraseñas no coinciden.";
-    } elseif ($rol === "almacenero" && empty($almacen_id)) {
-        $error = "⚠️ Debe asignar un almacén al almacenero.";
-    } else {
-        $stmt = $conn->prepare("SELECT id FROM usuarios WHERE correo = ? OR dni = ?");
-        $stmt->bind_param("ss", $correo, $dni);
-        $stmt->execute();
-        $stmt->store_result();
+        // Verificar si el almacén ya existe
+        $sql_check = "SELECT id FROM almacenes WHERE nombre = ?";
+        $stmt_check = $conn->prepare($sql_check);
+        $stmt_check->bind_param("s", $nombre);
+        $stmt_check->execute();
+        $stmt_check->store_result();
 
-        if ($stmt->num_rows > 0) {
-            $error = "⚠️ El usuario con este correo o DNI ya está registrado.";
+        if ($stmt_check->num_rows > 0) {
+            $error = "⚠️ El almacén ya existe.";
         } else {
-            $contrasena_hash = password_hash($contraseña, PASSWORD_BCRYPT);
-            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, apellidos, dni, celular, direccion, correo, contrasena, rol, estado, almacen_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?)");
-            $stmt->bind_param("ssssssssi", $nombre, $apellidos, $dni, $celular, $direccion, $correo, $contrasena_hash, $rol, $almacen_id);
+            // Insertar el nuevo almacén
+            $sql = "INSERT INTO almacenes (nombre, ubicacion) VALUES (?, ?)";
+            $stmt = $conn->prepare($sql);
 
-            if ($stmt->execute()) {
-                $mensaje = "✅ Usuario registrado exitosamente.";
+            if ($stmt) {
+                $stmt->bind_param("ss", $nombre, $ubicacion);
+                if ($stmt->execute()) {
+                    $mensaje = "✅ Almacén registrado con éxito.";
+                    // Limpiar valores después del registro exitoso
+                    $nombre = "";
+                    $ubicacion = "";
+                } else {
+                    $error = "❌ Error al registrar el almacén: " . $stmt->error;
+                }
+                $stmt->close();
             } else {
-                $error = "❌ Error al registrar el usuario: " . $stmt->error;
+                $error = "❌ Error en la consulta SQL: " . $conn->error;
             }
         }
-        $stmt->close();
+        $stmt_check->close();
+    } else {
+        $error = "⚠️ Todos los campos son obligatorios.";
     }
 }
-
-$almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Usuario - COMSEPROA</title>
+    <title>Registrar Almacén - COMSEPROA</title>
     <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
-    <link rel="stylesheet" href="../assets/css/styles-form.css">
+    <link rel="stylesheet" href="../assets/css/styles-almacenes.css">
     <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
+<!-- Botón de hamburguesa para dispositivos móviles -->
+<button class="menu-toggle" id="menuToggle">
+    <i class="fas fa-bars"></i>
+</button>
+
 <!-- Menú Lateral -->
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
     <h2>GRUPO SEAL</h2>
     <ul>
         <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
@@ -107,9 +102,9 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
             </a>
             <ul class="submenu">
                 <?php if ($usuario_rol == 'admin'): ?>
-                <li><a href="../almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                <li><a href="registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
                 <?php endif; ?>
-                <li><a href="../almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                <li><a href="listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
         
@@ -148,52 +143,34 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
         <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
     </ul>
 </nav>
-<main class="content">
-    <h1>Registrar Usuario</h1>
-    <div class="register-container">
-        <?php if (!empty($mensaje)): ?>
-            <p class="message"><?php echo $mensaje; ?></p>
-        <?php endif; ?>
-        
-        <?php if (!empty($error)): ?>
-            <p class="error"><?php echo $error; ?></p>
-        <?php endif; ?>
-        
+
+<!-- Contenido Principal -->
+<main class="content" id="main-content">
+    <h2>Registrar Nuevo Almacén</h2>
+
+    <?php if (!empty($mensaje)): ?>
+        <p class="message"><?php echo $mensaje; ?></p>
+    <?php endif; ?>
+    <?php if (!empty($error)): ?>
+        <p class="error"><?php echo $error; ?></p>
+    <?php endif; ?>
+
+    <div class="form-container">
         <form action="" method="POST">
-            <div class="form-group">
-                <input type="text" name="nombre" placeholder="Nombre" required>
-                <input type="text" name="apellidos" placeholder="Apellidos" required>
-            </div>
-            <div class="form-group">
-                <input type="text" name="dni" placeholder="DNI" maxlength="8" required>
-                <input type="text" name="celular" placeholder="Celular" required>
-            </div>
-            <div class="form-group">
-                <input type="email" name="correo" placeholder="Correo Electrónico" required>
-                <input type="text" name="direccion" placeholder="Dirección" required>
-            </div>
-            <div class="form-group">
-                <input type="password" name="contraseña" placeholder="Contraseña" required>
-                <input type="password" name="confirmar_contraseña" placeholder="Confirmar Contraseña" required>
-            </div>
-            <div class="form-group">
-                <select name="rol" required>
-                    <option value="">Seleccione un rol</option>
-                    <option value="admin">Administrador</option>
-                    <option value="almacenero">Almacenero</option>
-                </select>
-                <select name="almacen_id">
-                    <option value="">Seleccione un almacén</option>
-                    <?php while ($almacen = $almacenes_result->fetch_assoc()): ?>
-                        <option value="<?php echo $almacen["id"]; ?>"><?php echo htmlspecialchars($almacen["nombre"]); ?></option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            <button type="submit">Registrar</button>
+            <label for="nombre">Nombre del almacén:</label>
+            <input type="text" id="nombre" name="nombre" value="<?php echo htmlspecialchars($nombre); ?>" required>
+
+            <label for="ubicacion">Ubicación:</label>
+            <input type="text" id="ubicacion" name="ubicacion" value="<?php echo htmlspecialchars($ubicacion); ?>" required>
+
+            <button type="submit"><i class="fas fa-save"></i> Registrar</button>
         </form>
     </div>
 </main>
+
+<!-- Contenedor para notificaciones dinámicas -->
+<div id="notificaciones-container"></div>
+
 <script src="../assets/js/script.js"></script>
 </body>
 </html>
-<?php $conn->close(); ?>

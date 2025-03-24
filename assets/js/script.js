@@ -8,7 +8,24 @@ document.addEventListener("DOMContentLoaded", function () {
     const formEnviar = document.getElementById("formEnviar");
     const btnConfirmar = document.querySelector('.modal-footer .btn.enviar');
     const selectAlmacen = document.getElementById('almacen_destino');
+    // Control del menú hamburguesa para móviles
+    const menuToggle = document.getElementById("menuToggle");
+    const sidebar = document.getElementById("sidebar");
+    const mainContent = document.getElementById("main-content");
     
+    if (menuToggle && sidebar && mainContent) {
+        menuToggle.addEventListener("click", function() {
+            sidebar.classList.toggle("active");
+            mainContent.classList.toggle("with-sidebar");
+            
+            // Cambiar el icono del botón según el estado del menú
+            if (sidebar.classList.contains("active")) {
+                menuToggle.innerHTML = '<i class="fas fa-times"></i>'; // Icono de X para cerrar
+            } else {
+                menuToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Icono de hamburguesa
+            }
+        });
+    }
     // Desactivar el botón inicialmente
     if (btnConfirmar) {
         btnConfirmar.disabled = true;

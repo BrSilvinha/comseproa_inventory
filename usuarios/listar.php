@@ -9,7 +9,17 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 $user_name = $_SESSION["user_name"] ?? "Usuario";
+$usuario_rol = $_SESSION["user_role"] ?? "usuario";
+$usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
+
 session_regenerate_id(true);
+
+// Restricción de acceso basada en roles
+if ($usuario_rol !== 'admin') {
+    // Si no es admin, redirigir al dashboard
+    header("Location: ../dashboard.php");
+    exit();
+}
 
 // Manejo de AJAX para eliminar usuario o cambiar estado
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"], $_POST["id"])) {
@@ -34,7 +44,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"], $_POST["id"
     exit();
 }
 
-
 // Paginación
 $usuarios_por_pagina = 5;
 $pagina_actual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
@@ -45,11 +54,16 @@ $query_total = "SELECT COUNT(*) AS total FROM usuarios WHERE estado != 'Eliminad
 $result_total = $conn->query($query_total);
 $total_usuarios = $result_total->fetch_assoc()["total"];
 $total_paginas = ceil($total_usuarios / $usuarios_por_pagina);
+
+// Obtener los almacenes para la lista de selección
+$almacenes_query = "SELECT id, nombre FROM almacenes";
+$almacenes_result = $conn->query($almacenes_query);
+$almacenes = $almacenes_result->fetch_all(MYSQLI_ASSOC);
+
 // Obtener lista de usuarios con filtros
 $where = " WHERE u.estado != 'Eliminado' ";
 $params = [];
 $types = "";
-
 
 // Filtros dinámicos
 if (!empty($_GET["nombre"])) {
@@ -73,11 +87,6 @@ if (!empty($_GET["almacen"])) {
     $types .= "s";
 }
 
-// Obtener los almacenes para la lista de selección
-$almacenes_query = "SELECT id, nombre FROM almacenes";
-$almacenes_result = $conn->query($almacenes_query);
-$almacenes = $almacenes_result->fetch_all(MYSQLI_ASSOC);
-
 $query = "SELECT u.id, u.nombre, u.apellidos, u.dni, u.correo, u.rol, u.estado, a.nombre AS almacen 
           FROM usuarios u 
           LEFT JOIN almacenes a ON u.almacen_id = a.id
@@ -91,9 +100,14 @@ $stmt->execute();
 $result = $stmt->get_result();
 $usuarios = $result->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+
+// Contar solicitudes pendientes para mostrar en el badge
+$sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+$result_pendientes = $conn->query($sql_pendientes);
+$pendientes_count = $result_pendientes ? $result_pendientes->fetch_assoc()['total'] : 0;
+
 $conn->close();
 ?>
-
 
 <!DOCTYPE html>
 <html lang="es">
@@ -109,51 +123,59 @@ $conn->close();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
+    <!-- Botón de hamburguesa para dispositivos móviles -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
     <div class="dashboard-container">
-<!-- Menú Lateral -->
-<nav class="sidebar">
-        <h2>GRUPO SEAL</h2>
-        <ul>
-            <li><a href="http://localhost:3000/dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
+        <!-- Menú Lateral -->
+        <nav class="sidebar" id="sidebar">
+            <h2>GRUPO SEAL</h2>
+            <ul>
+                <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
 
-            <!-- Usuarios -->
-            <li class="submenu-container">
-                <a href="#" aria-label="Menú Usuarios">
-                    <i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i>
-                </a>
-                <ul class="submenu">
-                    <li><a href="/usuarios/registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
-                    <li><a href="/usuarios/listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
+                <!-- Usuarios - Solo visible para administradores -->
+                <li class="submenu-container">
+                    <a href="#" aria-label="Menú Usuarios">
+                        <i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i>
+                    </a>
+                    <ul class="submenu">
+                        <li><a href="registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
+                        <li><a href="listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
+                    </ul>
+                </li>
 
-                </ul>
-            </li>
+                <!-- Almacenes -->
+                <li class="submenu-container">
+                    <a href="#" aria-label="Menú Almacenes">
+                        <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
+                    </a>
+                    <ul class="submenu">
+                        <li><a href="../almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                        <li><a href="../almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                    </ul>
+                </li>
+                
+                <!-- Notificaciones -->
+                <li class="submenu-container">
+                    <a href="#" aria-label="Menú Notificaciones">
+                        <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
+                    </a>
+                    <ul class="submenu">
+                        <li><a href="../notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes 
+                            <span class="badge"><?= $pendientes_count ?></span>
+                        </a></li>
+                        <li><a href="../notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+                    </ul>
+                </li>
 
-            <!-- Almacenes -->
-            <li class="submenu-container">
-                <a href="#" aria-label="Menú Almacenes">
-                    <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
-                </a>
-                <ul class="submenu">
-                    <li><a href="/almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
-                    <li><a href="/almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
-                </ul>
-            </li>
-<!-- Notificaciones -->
-<li class="submenu-container">
-            <a href="#" aria-label="Menú Notificaciones">
-                <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
-            </a>
-            <ul class="submenu">
-                <li><a href="notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes <span class="badge">3</span></a></li>
-                <li><a href="notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+                <!-- Cerrar Sesión -->
+                <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
             </ul>
-        </li>
-            <!-- Cerrar Sesión -->
-            <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
-        </ul>
-    </nav>
+        </nav>
 
-        <main class="content">
+        <main class="content" id="main-content">
             <h1>Lista de Usuarios</h1>
 
             <!-- Formulario de Búsqueda -->
@@ -214,8 +236,9 @@ $conn->close();
                     <?php endforeach; ?>
                 </tbody>
             </table>
-                        <!-- Paginación -->
-                        <div class="pagination">
+
+            <!-- Paginación -->
+            <div class="pagination">
                 <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
                     <a href="?pagina=<?= $i ?>" class="<?= $i == $pagina_actual ? 'active' : '' ?>"><?= $i ?></a>
                 <?php endfor; ?>
@@ -250,8 +273,6 @@ $conn->close();
             }, "json");
         }
     </script>
-        <script src="../assets/js/script.js"></script>
+    <script src="../assets/js/script.js"></script>
 </body>
 </html>
-
-

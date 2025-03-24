@@ -78,6 +78,22 @@ body {
     color: #0a253c; /* Azul oscuro */
 }
 
+/* Botón de hamburguesa para móviles */
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1000;
+    background: #0a253c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
 /* Diseño del Menú Lateral */
 .sidebar {
     width: 250px;
@@ -88,6 +104,8 @@ body {
     top: 0;
     left: 0;
     padding-top: 20px;
+    transition: transform 0.3s ease-in-out;
+    z-index: 999;
 }
 
 .sidebar h2 {
@@ -123,6 +141,7 @@ body {
 .content {
     margin-left: 260px;
     padding: 20px;
+    transition: margin-left 0.3s ease-in-out;
 }
 
 /* Submenú oculto por defecto */
@@ -167,4 +186,73 @@ body {
 /* Mostrar submenú cuando está activo */
 .submenu.activo {
     display: block;
+}
+
+/* Badge para notificaciones */
+.badge {
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+/* Media queries para pantallas pequeñas */
+@media screen and (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        width: 100%; /* Cambiar a 100% para ocupar toda la pantalla */
+    }
+    
+    .sidebar.active {
+        transform: translateX(0);
+    }
+    
+    .content {
+        margin-left: 0;
+        padding: 60px 15px 15px 15px;
+        transition: margin-left 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    }
+    
+    /* Opcional: oscurecer o ajustar el contenido cuando el menú está activo */
+    .content.with-sidebar {
+        margin-left: 0; /* Ya no desplazar el contenido */
+        opacity: 0.3; /* Oscurecer el contenido para enfocar en el menú */
+        pointer-events: none; /* Desactivar interacciones con el contenido cuando el menú está abierto */
+    }
+    
+    .menu-toggle {
+        display: block;
+    }
+}@media screen and (max-width: 768px) {
+    .sidebar {
+        /* Estilos anteriores... */
+        padding-top: 50px; /* Dar espacio para el botón de cerrar */
+    }
+    
+    .sidebar h2 {
+        font-size: 24px; /* Titulo más grande */
+    }
+    
+    .sidebar ul li {
+        padding: 18px 25px; /* Elementos de menú más grandes */
+    }
+    
+    .sidebar ul li a {
+        font-size: 20px; /* Texto más grande */
+    }
+    
+    .sidebar ul li a i {
+        font-size: 22px; /* Iconos más grandes */
+    }
+    
+    /* Ajustar el submenú también */
+    .submenu-container .submenu li {
+        padding: 15px 30px;
+    }
+    
+    .submenu li a {
+        font-size: 18px !important;
+    }
 }

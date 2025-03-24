@@ -85,8 +85,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
+    <!-- Botón de hamburguesa para dispositivos móviles -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
     <!-- Menú Lateral -->
-    <nav class="sidebar">
+    <nav class="sidebar" id="sidebar">
         <h2>GRUPO SEAL</h2>
         <ul>
             <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
@@ -152,7 +157,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
         </ul>
     </nav>
-    <main class="content">
+    
+    <main class="content" id="main-content">
         <h1>Editar Usuario</h1>
         <div class="register-container">
             <form method="post">
@@ -188,6 +194,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </form>
         </div>
     </main>
+    
     <script src="../assets/js/script.js"></script>
+    <!-- Contenedor para notificaciones dinámicas -->
+    <div id="notificaciones-container"></div>
+
 </body>
 </html>
