@@ -13,12 +13,12 @@ body {
 /* Contenedor principal */
 .main-content {
     width: calc(100% - 260px);
-    margin-left: 250px; /* Reducido de 260px */
-    margin-top: 15px; /* Reducido de 20px */
+    margin-left: 250px;
+    margin-top: 15px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 75vh; /* Reducido de 80vh */
+    min-height: 75vh;
     justify-content: space-between;
 }
 
@@ -30,7 +30,7 @@ body {
     width: calc(100% - 260px);
     margin-left: 250px;
     margin-top: 15px;
-    padding: 0 10px; /* Reducido de 15px */
+    padding: 0 10px;
 }
 
 /* Estilo del título */
@@ -38,14 +38,14 @@ body {
     text-align: center;
     color: #ffffff;
     background-color: #0a253c;
-    padding: 8px; /* Reducido de 10px */
+    padding: 8px;
     border-radius: 5px;
-    font-size: 16px; /* Reducido de 18px */
+    font-size: 16px;
     margin: 0;
 }
 
 .titulo-productos h1 span {
-    font-size: 16px; /* Reducido de 18px */
+    font-size: 16px;
     font-weight: lighter;
     opacity: 0.9;
 }
@@ -57,13 +57,13 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow-x: hidden; /* Cambiado de auto a hidden para evitar scroll horizontal */
+    overflow-x: hidden;
 }
 
 /* Ajustes de la tabla */
 table {
-    width: 98%; /* Reducido de 100% */
-    max-width: 98%; /* Reducido de 100% */
+    width: 98%;
+    max-width: 98%;
     border-collapse: collapse;
     background-color: #ffffff;
     border-radius: 10px;
@@ -77,15 +77,15 @@ thead {
 }
 
 thead th {
-    padding: 8px; /* Reducido de 10px */
+    padding: 8px;
     text-transform: uppercase;
-    font-size: 13px; /* Reducido de 14px */
+    font-size: 13px;
 }
 
 /* Cuerpo de la tabla */
 tbody td {
-    padding: 6px; /* Reducido de 8px */
-    font-size: 13px; /* Reducido de 14px */
+    padding: 6px;
+    font-size: 13px;
     text-align: center;
     border-bottom: 1px solid #c8c9ca;
 }
@@ -101,14 +101,14 @@ tbody tr:hover {
 
 /* Asegurar que los encabezados y celdas sean compactos */
 th, td {
-    padding: 6px; /* Reducido de 8px */
+    padding: 6px;
     text-align: center;
     border: 1px solid #ddd;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    height: 40px; /* Reducido de 45px */
-    font-size: 13px; /* Reducido de 14px */
+    height: 40px;
+    font-size: 13px;
 }
 
 th {
@@ -118,14 +118,14 @@ th {
 
 /* Asegurar que todas las filas sean del mismo tamaño */
 tbody tr {
-    height: 45px; /* Reducido de 50px */
+    height: 45px;
 }
 
 /* Botón de acción */
 .button-action {
     background-color: #0a253c;
     color: #ffffff;
-    padding: 6px 10px; /* Reducido de 8px 12px */
+    padding: 6px 10px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -139,15 +139,15 @@ tbody tr {
 
 /* Estilos generales para los botones */
 .btn {
-    padding: 6px 10px; /* Reducido de 8px 12px */
+    padding: 6px 10px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 13px; /* Reducido de 14px */
+    font-size: 13px;
     transition: background-color 0.3s ease, transform 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 4px; /* Reducido de 5px */
+    gap: 4px;
 }
 
 /* Botón Enviar */
@@ -181,9 +181,9 @@ tbody tr {
 .btn.stock {
     background-color: #ffffff;
     color: #0a253c;
-    font-size: 16px; /* Reducido de 18px */
-    width: 28px; /* Reducido de 32px */
-    height: 28px; /* Reducido de 32px */
+    font-size: 16px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     justify-content: center;
     align-items: center;
@@ -199,7 +199,7 @@ tbody tr {
 
 /* Ajuste para que los botones de stock estén alineados con el número */
 td .btn.stock {
-    margin: 0 3px; /* Reducido de 5px */
+    margin: 0 3px;
 }
 
 /* Efecto de clic */
@@ -209,12 +209,12 @@ td .btn.stock {
 
 .busqueda form {
     display: flex;
-    gap: 4px; /* Reducido de 5px */
+    gap: 4px;
 }
 
 .busqueda {
     background-color: #ffffff;
-    padding: 6px 10px; /* Reducido de 8px 12px */
+    padding: 6px 10px;
     border-radius: 8px;
     box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
     display: flex;
@@ -224,16 +224,16 @@ td .btn.stock {
 .busqueda form {
     display: flex;
     align-items: center;
-    gap: 6px; /* Reducido de 8px */
+    gap: 6px;
     width: 100%;
 }
 
 .busqueda input[type="text"] {
     flex-grow: 1;
-    padding: 6px; /* Reducido de 8px */
+    padding: 6px;
     border: 1px solid #c8c9ca;
     border-radius: 5px;
-    font-size: 13px; /* Reducido de 14px */
+    font-size: 13px;
     outline: none;
     color: #0a253c;
     background-color: #ffffff;
@@ -247,10 +247,10 @@ td .btn.stock {
     background-color: #0a253c;
     color: #ffffff;
     border: none;
-    padding: 6px 10px; /* Reducido de 8px 12px */
+    padding: 6px 10px;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 13px; /* Reducido de 14px */
+    font-size: 13px;
     transition: background 0.3s ease-in-out;
 }
 
@@ -259,15 +259,15 @@ td .btn.stock {
 }
 
 .busqueda button i {
-    font-size: 14px; /* Reducido de 16px */
+    font-size: 14px;
 }
 
 .busqueda select {
-    padding: 6px; /* Reducido de 8px */
+    padding: 6px;
     border: 2px solid #c8c9ca;
     border-radius: 5px;
     background: #ffffff;
-    font-size: 13px; /* Reducido de 14px */
+    font-size: 13px;
     color: #0a253c;
     cursor: pointer;
     outline: none;
@@ -287,13 +287,13 @@ td .btn.stock {
 .pagination {
     width: 100%;
     text-align: center;
-    padding: 12px 0; /* Reducido de 15px 0 */
+    padding: 12px 0;
     position: relative;
     bottom: 0;
     list-style: none;
     display: flex;
     justify-content: center;
-    gap: 6px; /* Reducido de 8px */
+    gap: 6px;
 }
 
 .pagination li {
@@ -302,7 +302,7 @@ td .btn.stock {
 
 .pagination a {
     display: inline-block;
-    padding: 8px 12px; /* Reducido de 10px 15px */
+    padding: 8px 12px;
     background-color: #0a253c;
     color: white;
     text-decoration: none;
@@ -323,106 +323,147 @@ td .btn.stock {
     pointer-events: none;
 }
 
+/* Modal Overlay */
 .modal {
-    display: none;
     position: fixed;
-    z-index: 1000;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(10, 37, 60, 0.7);
+    display: none;
+    z-index: 1000;
     justify-content: center;
     align-items: center;
 }
 
+/* Modal Container */
 .modal-contenido {
     background-color: #ffffff;
-    padding: 18px; /* Reducido de 20px */
-    width: 35%; /* Reducido de 40% */
-    max-width: 450px; /* Reducido de 500px */
     border-radius: 12px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 24px rgba(10, 37, 60, 0.2);
+    width: 100%;
+    max-width: 500px;
+    padding: 24px;
     position: relative;
-    text-align: center;
-    animation: fadeIn 0.3s ease-in-out;
-    margin: auto;
+    overflow: hidden;
+    animation: modalSlideIn 0.3s ease-out;
 }
 
-/* Animación de entrada */
-@keyframes fadeIn {
+/* Modal Animation */
+@keyframes modalSlideIn {
     from {
-        transform: translateY(-50px);
         opacity: 0;
+        transform: translateY(-30px);
     }
     to {
-        transform: translateY(0);
         opacity: 1;
+        transform: translateY(0);
     }
 }
 
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 8px; /* Reducido de 10px */
-}
-
-.modal-header h2 {
-    margin: 0;
-    font-size: 18px; /* Reducido de 20px */
-}
-
-.cerrar {
-    font-size: 20px; /* Reducido de 22px */
+/* Modal Header */
+.modal-contenido h2 {
     color: #0a253c;
-    cursor: pointer;
-    transition: color 0.3s ease-in-out;
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    text-align: left;
+    border-bottom: 2px solid #c8c9ca;
+    padding-bottom: 10px;
 }
 
-.cerrar:hover {
+/* Close Button */
+.modal-contenido .cerrar {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    color: #0a253c;
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.modal-contenido .cerrar:hover {
     color: #c8c9ca;
 }
 
-.modal-body {
-    padding: 12px 0; /* Reducido de 15px 0 */
+/* Form Styles */
+.modal-contenido .form-group {
+    margin-bottom: 15px;
 }
 
-.modal-body label {
+.modal-contenido label {
     display: block;
-    font-weight: bold;
-    margin: 8px 0 4px; /* Reducido de 10px 0 5px */
+    margin-bottom: 8px;
+    color: #0a253c;
+    font-weight: 600;
 }
 
-.modal-body input,
-.modal-body select {
+.modal-contenido input, 
+.modal-contenido select {
     width: 100%;
-    padding: 6px; /* Reducido de 8px */
-    border: 1px solid #ddd;
+    padding: 10px;
+    border: 1px solid #c8c9ca;
     border-radius: 6px;
+    font-size: 14px;
+    color: #0a253c;
+    transition: border-color 0.3s ease;
 }
 
+.modal-contenido input:focus, 
+.modal-contenido select:focus {
+    outline: none;
+    border-color: #0a253c;
+    box-shadow: 0 0 0 2px rgba(10, 37, 60, 0.1);
+}
+
+/* Modal Footer */
 .modal-footer {
-    margin-top: 12px; /* Reducido de 15px */
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #c8c9ca;
 }
 
-.btn.enviar {
-    background-color: #0a253c;
-    color: white;
-    padding: 8px 12px; /* Reducido de 10px 15px */
-    border: none;
+.modal-footer .btn {
+    padding: 10px 20px;
     border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.3s ease-in-out;
+    font-size: 14px;
+    transition: all 0.3s ease;
 }
 
-.btn.enviar:hover {
-    background-color: #1d4f73;
+.modal-footer .btn.btn-secundario {
+    background-color: #c8c9ca;
+    color: #0a253c;
+    border: 1px solid #c8c9ca;
+}
+
+.modal-footer .btn.btn-secundario:hover {
+    background-color: #0a253c;
+    color: #ffffff;
+}
+
+.modal-footer .btn.enviar {
+    background-color: #0a253c;
+    color: #ffffff;
+    border: 1px solid #0a253c;
+}
+
+.modal-footer .btn.enviar:hover {
+    background-color: #ffffff;
+    color: #0a253c;
+}
+
+/* Additional Text Styles */
+.modal-contenido p {
+    color: #0a253c;
+    margin-bottom: 15px;
+    line-height: 1.5;
 }
 
 /* Eliminar márgenes conflictivos */
 .titulo-productos, table {
     margin-left: 0;
-    padding: 15px; /* Reducido de 20px */
+    padding: 15px;
 }

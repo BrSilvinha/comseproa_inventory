@@ -83,28 +83,37 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
-<body>
+<body data-almacen-id="<?php echo $almacen_id; ?>">
+
+<!-- Botón de hamburguesa para dispositivos móviles -->
+<button class="menu-toggle" id="menuToggle">
+    <i class="fas fa-bars"></i>
+</button>
 
 <!-- Menú Lateral -->
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
     <h2>GRUPO SEAL</h2>
     <ul>
         <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
-        
+
         <!-- Usuarios - Solo visible para administradores -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
-            <a href="#"><i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i></a>
+            <a href="#" aria-label="Menú Usuarios">
+                <i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i>
+            </a>
             <ul class="submenu">
                 <li><a href="../usuarios/registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
                 <li><a href="../usuarios/listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
             </ul>
         </li>
         <?php endif; ?>
-        
+
         <!-- Almacenes - Ajustado según permisos -->
         <li class="submenu-container">
-            <a href="#"><i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i></a>
+            <a href="#" aria-label="Menú Almacenes">
+                <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
+            </a>
             <ul class="submenu">
                 <?php if ($usuario_rol == 'admin'): ?>
                 <li><a href="registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
@@ -119,17 +128,24 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu">
-                <li><a href="../notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes <span class="badge"><?php echo $total_pendientes; ?></span></a></li>
+                <li><a href="../notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes 
+                <?php 
+                if ($total_pendientes > 0) {
+                    echo '<span class="badge">' . $total_pendientes . '</span>';
+                }
+                ?>
+                </a></li>
                 <li><a href="../notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
             </ul>
         </li>
-        
+
+        <!-- Cerrar Sesión -->
         <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
     </ul>
 </nav>
 
 <!-- Contenido Principal -->
-<div class="main-content">
+<main class="content" id="main-content">
     <h2><?php echo htmlspecialchars($almacen['nombre']); ?></h2>
     <h3>Categorías en este almacén</h3>
     <div class="categorias-container">
@@ -152,7 +168,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             <p>No hay categorías registradas.</p>
         <?php endif; ?>
     </div>
-</div>
+</main>
 
 <script src="../assets/js/script.js"></script>
 </body>

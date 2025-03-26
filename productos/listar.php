@@ -127,11 +127,16 @@ $stmt_productos->close();
     <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
     <link rel="stylesheet" href="../assets/css/styles-cantidad.css">
     <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
+    <link rel="stylesheet" href="../assets/css/styles-entrega-uniforme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body data-almacen-id="<?php echo intval($almacen_id); ?>">
+<button class="menu-toggle" id="menuToggle">
+    <i class="fas fa-bars"></i>
+</button>
+
 <!-- Menú Lateral -->
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
     <h2>GRUPO SEAL</h2>
     <ul>
         <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
@@ -173,9 +178,9 @@ $stmt_productos->close();
                 // Contar solicitudes pendientes para mostrar en el badge
                 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
                 
-                // Si el usuario no es admin, filtrar por su almacén - usando la misma lógica que pendientes.php
+                // Si el usuario no es admin, filtrar por su almacén
                 if ($usuario_rol != 'admin') {
-                    $sql_pendientes .= " AND almacen_destino = ?";  // Filtrar por almacén destino
+                    $sql_pendientes .= " AND almacen_destino = ?";
                     $stmt_pendientes = $conn->prepare($sql_pendientes);
                     $stmt_pendientes->bind_param("i", $usuario_almacen_id);
                     $stmt_pendientes->execute();
@@ -220,6 +225,9 @@ $stmt_productos->close();
             <!-- Campo de búsqueda -->
             <input type="text" name="busqueda" placeholder="Buscar producto" value="<?php echo htmlspecialchars($busqueda); ?>">
             <button type="submit"><i class="fas fa-search"></i></button>
+            
+            <!-- Entregar button -->
+            <button type="button" class="btn entregar"><i class="fas fa-truck"></i> Entregar</button>
         </form>
     </div>
 </div>
@@ -240,6 +248,25 @@ $stmt_productos->close();
                 <span class="cerrar">&times;</span>
             </div>
         <?php endif; ?>
+    </div>
+
+    <!-- Zona de productos seleccionados -->
+    <div id="zona-seleccionados" class="zona-seleccionados" style="display: none;">
+        <div class="header-seleccionados">
+            <h3>Productos Seleccionados</h3>
+            <span id="contador-seleccionados">0</span>
+            <button id="btn-limpiar-seleccion" class="btn btn-secundario">
+                <i class="fas fa-times"></i> Limpiar
+            </button>
+        </div>
+        <div id="lista-seleccionados" class="lista-seleccionados">
+            <!-- Los productos seleccionados se mostrarán aquí dinámicamente -->
+        </div>
+        <div class="acciones-seleccionados">
+            <button id="btn-continuar-entrega" class="btn btn-principal">
+                <i class="fas fa-truck"></i> Continuar Entrega
+            </button>
+        </div>
     </div>
 
     <div class="table-container">
@@ -286,9 +313,12 @@ $stmt_productos->close();
                                         data-cantidad="<?php echo intval($producto['cantidad']); ?>">
                                         <i class="fas fa-paper-plane"></i> Enviar
                                     </button>
-                                    <button class="btn entregar"><i class="fas fa-truck"></i> Entregar</button>
                                 <?php endif; ?>
-                                <button class="btn solicitar"><i class="fas fa-hand-paper"></i> Solicitar</button>
+                                <button class="btn solicitar" 
+                                    data-id="<?php echo intval($producto['id']); ?>"
+                                    data-nombre="<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fas fa-hand-paper"></i> Solicitar
+                                </button>
                             </td>
                         </tr>
                     <?php endwhile; ?>
@@ -298,83 +328,112 @@ $stmt_productos->close();
             <p>No hay productos registrados en esta categoría.</p>
         <?php endif; ?>
     </div>
-<!-- Modal para enviar productos -->
+
+    <!-- Paginación -->
+    <?php if ($mostrar_paginacion): ?>
+    <nav>
+        <ul class="pagination">
+            <?php if ($pagina_actual > 1): ?>
+                <li>
+                    <a href="?pagina=<?= $pagina_actual - 1 ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>" 
+                       class="mantener-seleccion">
+                        Anterior
+                    </a>
+                </li>
+            <?php endif; ?>
+
+            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                <li class="<?= ($i == $pagina_actual) ? 'active' : '' ?>">
+                    <a href="?pagina=<?= $i ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>" 
+                       class="mantener-seleccion">
+                        <?= $i ?>
+                    </a>
+                </li>
+            <?php endfor; ?>
+
+            <?php if ($pagina_actual < $total_paginas): ?>
+                <li>
+                    <a href="?pagina=<?= $pagina_actual + 1 ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>" 
+                       class="mantener-seleccion">
+                        Siguiente
+                    </a>
+                </li>
+            <?php endif; ?>
+        </ul>
+    </nav>
+    <?php endif; ?>
+</div>
+
+<!-- Modal de Formulario de Envío -->
 <div id="modalFormulario" class="modal">
     <div class="modal-contenido">
-        <div class="modal-header">
-            <h2>Enviar Producto</h2>
-            <span class="cerrar">&times;</span>
-        </div>
-        <div class="modal-body">
-            <p id="producto_nombre"></p>
-            <p>Stock disponible: <span id="stock_disponible"></span></p>
-            <form action="procesar_formulario.php" method="POST" id="formEnviar">
-                <input type="hidden" name="producto_id" id="producto_id">
-                <input type="hidden" name="almacen_origen" id="almacen_origen">
-
-                <label for="almacen_destino">Selecciona el almacén destino:</label>
-                <select name="almacen_destino" id="almacen_destino" required>
-                    <option value="">-- Seleccionar --</option>
+        <span class="cerrar">&times;</span>
+        <h2>Enviar Producto</h2>
+        <form id="formEnviar" method="POST">
+            <input type="hidden" id="producto_id" name="producto_id">
+            <input type="hidden" id="almacen_origen" name="almacen_origen">
+            
+            <p id="producto_nombre">Producto: </p>
+            <p>Stock Disponible: <span id="stock_disponible"></span></p>
+            
+            <div class="form-group">
+                <label for="cantidad">Cantidad:</label>
+                <input type="number" id="cantidad" name="cantidad" min="1" value="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="almacen_destino">Almacén de Destino:</label>
+                <select id="almacen_destino" name="almacen_destino" required>
+                    <option value="">Seleccione un almacén</option>
                     <?php
-                    $query = "SELECT id, nombre FROM almacenes WHERE id != ?";
-                    $stmt = $conn->prepare($query);
-                    $stmt->bind_param("i", $almacen_id);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-
-                    if ($result) {
-                        while ($row = $result->fetch_assoc()) {
-                            echo "<option value='" . intval($row['id']) . "'>" . htmlspecialchars($row['nombre'], ENT_QUOTES, 'UTF-8') . "</option>";
-                        }
-                    } else {
-                        echo "<option value=''>Error al cargar almacenes</option>";
+                    // Obtener lista de almacenes, excluyendo el almacén actual
+                    $sql_almacenes = "SELECT id, nombre FROM almacenes WHERE id != ?";
+                    $stmt_almacenes = $conn->prepare($sql_almacenes);
+                    $stmt_almacenes->bind_param("i", $almacen_id);
+                    $stmt_almacenes->execute();
+                    $result_almacenes = $stmt_almacenes->get_result();
+                    
+                    while ($almacen_destino = $result_almacenes->fetch_assoc()) {
+                        echo "<option value='{$almacen_destino['id']}'>{$almacen_destino['nombre']}</option>";
                     }
+                    $stmt_almacenes->close();
                     ?>
                 </select>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secundario cerrar">Cancelar</button>
+                <button type="submit" class="btn enviar">Enviar Producto</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-                <label for="cantidad">Cantidad a enviar:</label>
-                <input type="number" name="cantidad" id="cantidad" min="1" required>
-
-                <div class="modal-footer">
-                    <button type="submit" class="btn enviar">
-                        <i class="fas fa-paper-plane"></i> Confirmar Envío
-                    </button>
-                </div>
-            </form>
+<!-- Modal de Lista de Uniformes -->
+<div id="modalListaUniformes" class="zona-seleccionados" style="display: none;">
+    <div class="modal-seleccion">
+        <div class="header-seleccionados">
+            <h3>Lista de Uniformes a Entregar</h3>
+            <span id="contador-uniformes">0</span>
+            <button id="btn-limpiar-uniformes" class="btn-limpiar-seleccion">
+                <i class="fas fa-times"></i> Limpiar
+            </button>
+        </div>
+        <div id="lista-uniformes" class="lista-seleccionados">
+            <!-- Los uniformes se mostrarán aquí dinámicamente -->
+        </div>
+        <div class="acciones-seleccionados">
+            <button id="btn-seguir-agregando" class="btn btn-secundario">
+                <i class="fas fa-plus"></i> Seguir Agregando
+            </button>
+            <button id="btn-completar-entrega" class="btn btn-principal">
+                <i class="fas fa-check"></i> Completar Entrega
+            </button>
         </div>
     </div>
 </div>
-    <!-- Paginación Fija -->
-    <?php if ($mostrar_paginacion): ?>
-        <nav>
-            <ul class="pagination">
-                <?php if ($pagina_actual > 1): ?>
-                    <li>
-                        <a href="?pagina=<?= $pagina_actual - 1 ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>">
-                            Anterior
-                        </a>
-                    </li>
-                <?php endif; ?>
 
-                <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-                    <li class="<?= ($i == $pagina_actual) ? 'active' : '' ?>">
-                        <a href="?pagina=<?= $i ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>">
-                            <?= $i ?>
-                        </a>
-                    </li>
-                <?php endfor; ?>
-
-                <?php if ($pagina_actual < $total_paginas): ?>
-                    <li>
-                        <a href="?pagina=<?= $pagina_actual + 1 ?>&busqueda=<?= urlencode($busqueda) ?>&almacen_id=<?= $almacen_id ?>&categoria_id=<?= $categoria_id ?>&campo_filtro=<?= urlencode($campo_filtro) ?>">
-                            Siguiente
-                        </a>
-                    </li>
-                <?php endif; ?>
-            </ul>
-        </nav>
-    <?php endif; ?>
-</div>
 <script src="../assets/js/script.js"></script>
+<script src="../assets/js/entregas.js"></script>
 </body>
 </html>

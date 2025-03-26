@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 22-03-2025 a las 19:47:05
+-- Tiempo de generación: 25-03-2025 a las 14:33:18
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -38,8 +38,8 @@ CREATE TABLE `almacenes` (
 --
 
 INSERT INTO `almacenes` (`id`, `nombre`, `ubicacion`) VALUES
-(1, 'Grupo Sael - Lambayeque', 'Lambayeque - Chiclayo'),
-(2, 'Grupo Sael - Olmos', 'Olmos - Lambayeque');
+(3, 'Grupo Seal - Motupe', 'Motupe - Lambayeque'),
+(4, 'Grupo Sael - Olmos', 'Olmos - Lambayeque');
 
 -- --------------------------------------------------------
 
@@ -96,6 +96,14 @@ CREATE TABLE `movimientos` (
   `estado` enum('pendiente','completado','rechazado') DEFAULT 'pendiente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Volcado de datos para la tabla `movimientos`
+--
+
+INSERT INTO `movimientos` (`id`, `producto_id`, `almacen_origen`, `almacen_destino`, `cantidad`, `tipo`, `fecha`, `usuario_id`, `estado`) VALUES
+(1, 183, 3, NULL, 1, 'entrada', '2025-03-24 18:01:56', 8, 'completado'),
+(2, 182, 3, NULL, 1, 'salida', '2025-03-24 18:02:01', 8, 'completado');
+
 -- --------------------------------------------------------
 
 --
@@ -122,40 +130,37 @@ CREATE TABLE `productos` (
 --
 
 INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripcion`, `modelo`, `color`, `talla_dimensiones`, `cantidad`, `unidad_medida`, `estado`, `observaciones`) VALUES
-(51, 1, 1, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', ''),
-(52, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 1, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(53, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 6, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(54, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'S', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(55, 1, 1, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 1, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(56, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 1, 'Unidad', 'Nuevo', ''),
-(57, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 3, 'Unidad', 'Nuevo', ''),
-(58, 1, 1, 'Pantalon drill', NULL, 'Varon', 'Azul', '38', 3, 'Unidad', 'Nuevo', ''),
-(59, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 2, 'Unidad', 'Nuevo', ''),
-(60, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', 'Nuevo', ''),
-(61, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '34', 2, 'Unidad', 'Nuevo', ''),
-(62, 1, 1, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 119, 'Unidad', 'Nuevo', 'SIN BOTON'),
-(63, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'M', 20, 'Unidad', 'Nuevo', ''),
-(64, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'L', 59, 'Unidad', 'Nuevo', ''),
-(65, 1, 1, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'XL', 15, 'Unidad', 'Nuevo', ''),
-(66, 1, 1, 'Polo camisero TACTICO M/L', NULL, 'Varon', 'Azul', 'L', 7, 'Unidad', 'Nuevo', ''),
-(67, 1, 1, 'Chaleco supervisor', NULL, 'Varon', 'Plomo', 'L', 1, 'Unidad', 'Nuevo', ''),
-(68, 1, 1, 'Casaca Drill', NULL, 'Varon', 'Azul', 'L', 10, 'Unidad', 'Nuevo', ''),
-(69, 1, 1, 'Gorras', NULL, 'Varon', 'Azul', NULL, 13, 'Unidad', 'Nuevo', ''),
-(70, 1, 1, 'Corbatas', NULL, 'Varon', 'Guinda', NULL, 19, 'Unidad', 'Nuevo', ''),
-(71, 1, 1, 'Corbatas', NULL, 'Varon', 'Marrones', NULL, 21, 'Unidad', 'Nuevo', ''),
-(72, 1, 1, 'Borseguis', NULL, 'Varon', 'Negro', '41', 2, 'Pares', 'Nuevo', ''),
-(73, 1, 1, 'Borseguis', NULL, 'Varon', 'Negro', '43', 1, 'Pares', 'Nuevo', 'Ingreso el 17/03'),
-(74, 2, 1, 'Portapistola', NULL, NULL, 'Negro', NULL, 2, 'Unidad', 'Nuevo', ''),
-(75, 2, 1, 'Correajes', NULL, NULL, 'Negro', NULL, 14, 'Unidad', 'Nuevo', ''),
-(76, 2, 1, 'Cascos de Seguridad', NULL, NULL, 'Blanco', NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
-(77, 2, 1, 'Lentes', NULL, NULL, NULL, NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
-(78, 2, 1, 'Guantes', NULL, NULL, NULL, NULL, 2, 'Pares', 'Nuevo', 'INGRESO EL 17/03'),
-(79, 3, 1, 'Fundas', NULL, NULL, 'Azul', 'L', 16, 'Unidad', 'Nuevo', ''),
-(80, 1, 2, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(81, 1, 2, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(82, 1, 2, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', ''),
-(83, 1, 2, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 1, 'Unidad', 'Nuevo', ''),
-(84, 1, 2, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 2, 'Unidad', 'Nuevo', 'SIN BOTON');
+(129, 2, 3, 'Portapistola', NULL, NULL, 'Negro', NULL, 2, 'Unidad', 'Nuevo', ''),
+(130, 2, 3, 'Correajes', NULL, NULL, 'Negro', NULL, 14, 'Unidad', 'Nuevo', ''),
+(131, 2, 3, 'Cascos de Seguridad', NULL, NULL, 'Blanco', NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
+(132, 2, 3, 'Lentes', NULL, NULL, NULL, NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
+(133, 2, 3, 'Guantes', NULL, NULL, NULL, NULL, 2, 'Pares', 'Nuevo', 'INGRESO EL 17/03'),
+(134, 3, 3, 'Fundas', NULL, NULL, 'Azul', 'L', 16, 'Unidad', 'Nuevo', ''),
+(161, 1, 3, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', NULL),
+(162, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 5, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(163, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 5, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(164, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'S', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(165, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 3, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(166, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 4, 'Unidad', 'Nuevo', NULL),
+(167, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 3, 'Unidad', 'Nuevo', NULL),
+(168, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '38', 3, 'Unidad', 'Nuevo', NULL),
+(169, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 2, 'Unidad', 'Nuevo', NULL),
+(170, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', 'Nuevo', NULL),
+(171, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '34', 2, 'Unidad', 'Nuevo', NULL),
+(172, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 126, 'Unidad', 'Nuevo', 'SIN BOTON'),
+(173, 1, 3, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'M', 20, 'Unidad', 'Nuevo', NULL),
+(174, 1, 3, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'L', 59, 'Unidad', 'Nuevo', NULL),
+(175, 1, 3, 'Pantalon azul c/r', NULL, 'Varon', 'Azul', 'XL', 15, 'Unidad', 'Nuevo', NULL),
+(176, 1, 3, 'Polo camisero TACTICO M/L', NULL, 'Varon', 'Azul', 'L', 7, 'Unidad', 'Nuevo', NULL),
+(177, 1, 3, 'Chaleco supervisor', NULL, 'Varon', 'Plomo', 'L', 1, 'Unidad', 'Nuevo', NULL),
+(178, 1, 3, 'Casaca Drill', NULL, 'Varon', 'Azul', 'L', 10, 'Unidad', 'Nuevo', NULL),
+(179, 1, 3, 'Gorras', NULL, 'Varon', 'Azul', NULL, 13, 'Unidad', 'Nuevo', NULL),
+(180, 1, 3, 'Corbatas', NULL, 'Varon', 'Guinda', NULL, 19, 'Unidad', 'Nuevo', NULL),
+(181, 1, 3, 'Corbatas', NULL, 'Varon', 'Marrones', NULL, 21, 'Unidad', 'Nuevo', NULL),
+(182, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '41', 1, 'pares', 'Nuevo', NULL),
+(183, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '43', 2, 'par', 'Nuevo', 'Ingreso el 17/03'),
+(184, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '42', 2, 'Pares', 'Nuevo', ''),
+(185, 1, 3, 'Zapatos Corfan', NULL, 'Varon', 'Negro', '42', 2, 'pares', 'Usado', '');
 
 -- --------------------------------------------------------
 
@@ -201,10 +206,7 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nombre`, `apellidos`, `dni`, `celular`, `direccion`, `correo`, `contrasena`, `almacen_id`, `rol`, `estado`, `fecha_registro`) VALUES
-(2, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'jhamirsilva@gmail.com', 'jhamirsilva@gmail.com', '$2y$10$1yejJGgM2shtBXIq9WfuaO8E1hF7ksm6h.LoDvoCvkI2nLcXqir0S', 1, 'admin', 'activo', '2025-03-19 14:47:41'),
-(4, 'Javier Agustin', 'Silva De La Cruz', '17577855', '987654321', 'Garcilazo de la vega 673', 'javier@gmail.com', '$2y$10$Rfyl9ZC1ZFn.E0kKA812gOMvlAXF2bApclsA/wC7fBMoeQHold4PS', 2, 'admin', 'activo', '2025-03-22 14:56:42'),
-(5, 'almacenero', 'chicalyo', '12343234', '123443234', 'prueba01', 'almacenerocix@gmail.com', '$2y$10$jqBJ8SejYjG1TCKjitkp/uekhDC5c9OhJf6gTW2xsDpvZWD1daEHO', 1, 'almacenero', 'activo', '2025-03-22 16:17:37'),
-(6, 'almacenero', 'olmos', '12312323', '543234321', 'prueba02', 'almaceneroolmos@gmail.com', '$2y$10$rOQK2skh5H/Iqtgeas.qIeC90k9dyXFCb2J19z0r/Y/eA6GXeYQBy', 2, 'almacenero', 'activo', '2025-03-22 16:19:28');
+(8, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'San Julian 664 - Motupe', 'jhamirsilva@gmail.com', '$2y$10$yG9ldNFttY94fCt/FZXx/OTuaBGPmD/rkvniTmpYFa9ZPotDIRfZ.', 3, 'admin', 'activo', '2025-03-24 13:38:41');
 
 --
 -- Índices para tablas volcadas
@@ -279,7 +281,7 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `almacenes`
 --
 ALTER TABLE `almacenes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
@@ -297,13 +299,13 @@ ALTER TABLE `entrega_uniformes`
 -- AUTO_INCREMENT de la tabla `movimientos`
 --
 ALTER TABLE `movimientos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=85;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=186;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_transferencia`
@@ -315,7 +317,7 @@ ALTER TABLE `solicitudes_transferencia`
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- Restricciones para tablas volcadas

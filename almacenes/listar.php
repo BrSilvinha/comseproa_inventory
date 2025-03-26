@@ -47,8 +47,13 @@ if ($usuario_rol == 'admin') {
 </head>
 <body>
 
+<!-- Botón de hamburguesa para dispositivos móviles -->
+<button class="menu-toggle" id="menuToggle">
+    <i class="fas fa-bars"></i>
+</button>
+
 <!-- Menú Lateral -->
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
     <h2>GRUPO SEAL</h2>
     <ul>
         <li><a href="/dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
@@ -111,23 +116,22 @@ if ($usuario_rol == 'admin') {
 </nav>
 
 <!-- Contenido Principal -->
+<main class="content" id="main-content">
+    <!-- Mensajes de éxito o error -->
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="alert success">
+            <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success']; ?>
+            <?php unset($_SESSION['success']); ?>
+        </div>
+    <?php endif; ?>
 
-<!-- Mensajes de éxito o error -->
-<?php if (isset($_SESSION['success'])): ?>
-    <div class="alert success">
-        <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success']; ?>
-        <?php unset($_SESSION['success']); ?>
-    </div>
-<?php endif; ?>
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="alert error">
+            <i class="fas fa-exclamation-circle"></i> <?php echo $_SESSION['error']; ?>
+            <?php unset($_SESSION['error']); ?>
+        </div>
+    <?php endif; ?>
 
-<?php if (isset($_SESSION['error'])): ?>
-    <div class="alert error">
-        <i class="fas fa-exclamation-circle"></i> <?php echo $_SESSION['error']; ?>
-        <?php unset($_SESSION['error']); ?>
-    </div>
-<?php endif; ?>
-
-<div class="main-content">
     <h2><?php echo ($usuario_rol == 'admin') ? 'Almacenes Registrados' : 'Mi Almacén Asignado'; ?></h2>
 
     <div class="almacenes-container">
@@ -149,7 +153,7 @@ if ($usuario_rol == 'admin') {
             <?php endif; ?>
         <?php endif; ?>
     </div>
-</div>
+</main>
 
 <script src="../assets/js/script.js"></script>
 </body>

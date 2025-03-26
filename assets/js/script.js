@@ -8,11 +8,15 @@ document.addEventListener("DOMContentLoaded", function () {
     const formEnviar = document.getElementById("formEnviar");
     const btnConfirmar = document.querySelector('.modal-footer .btn.enviar');
     const selectAlmacen = document.getElementById('almacen_destino');
+    const cancelarModalBtn = document.querySelector('.modal-footer .btn-secundario.cerrar');
+    
     // Control del menú hamburguesa para móviles
     const menuToggle = document.getElementById("menuToggle");
     const sidebar = document.getElementById("sidebar");
     const mainContent = document.getElementById("main-content");
-    
+    if (cancelarModalBtn) {
+        cancelarModalBtn.addEventListener("click", cerrarModal);
+    }
     if (menuToggle && sidebar && mainContent) {
         menuToggle.addEventListener("click", function() {
             sidebar.classList.toggle("active");
@@ -26,6 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+    
     // Desactivar el botón inicialmente
     if (btnConfirmar) {
         btnConfirmar.disabled = true;
@@ -98,6 +103,51 @@ document.addEventListener("DOMContentLoaded", function () {
         const almacenId = boton.getAttribute("data-almacen");
         const stockDisponible = boton.getAttribute("data-cantidad");
         
+        // Debug: Log all attributes
+        console.log("Producto ID:", productoId);
+        console.log("Producto Nombre:", productoNombre);
+        console.log("Almacen ID:", almacenId);
+        console.log("Stock Disponible:", stockDisponible);
+        
+        // Verificar elementos clave con un método más robusto
+        const modal = document.getElementById("modalFormulario");
+        const inputProductoId = document.getElementById("producto_id");
+        const inputAlmacenOrigen = document.getElementById("almacen_origen");
+        const spanProductoNombre = document.getElementById("producto_nombre");
+        const spanStockDisponible = document.getElementById("stock_disponible");
+        const inputCantidad = document.getElementById("cantidad");
+        const selectAlmacenDestino = document.getElementById("almacen_destino");
+        
+        // Debug: Log each element
+        console.log("Modal:", modal);
+        console.log("Input Producto ID:", inputProductoId);
+        console.log("Input Almacen Origen:", inputAlmacenOrigen);
+        console.log("Span Producto Nombre:", spanProductoNombre);
+        console.log("Span Stock Disponible:", spanStockDisponible);
+        console.log("Input Cantidad:", inputCantidad);
+        console.log("Select Almacen Destino:", selectAlmacenDestino);
+        
+        // Verificar la existencia de elementos con un mensaje de error más descriptivo
+        const elementosRequeridos = [
+            { elemento: modal, nombre: "Modal" },
+            { elemento: inputProductoId, nombre: "Input Producto ID" },
+            { elemento: inputAlmacenOrigen, nombre: "Input Almacen Origen" },
+            { elemento: spanProductoNombre, nombre: "Span Producto Nombre" },
+            { elemento: spanStockDisponible, nombre: "Span Stock Disponible" },
+            { elemento: inputCantidad, nombre: "Input Cantidad" },
+            { elemento: selectAlmacenDestino, nombre: "Select Almacen Destino" }
+        ];
+        
+        const elementosFaltantes = elementosRequeridos.filter(item => !item.elemento);
+        
+        if (elementosFaltantes.length > 0) {
+            console.error("Elementos no encontrados:", 
+                elementosFaltantes.map(item => item.nombre).join(", ")
+            );
+            mostrarNotificacion("Error: Algunos elementos del formulario no se encontraron", "error");
+            return;
+        }
+        
         // Verificar que los datos existen antes de continuar
         if (!productoId || !productoNombre || !almacenId || !stockDisponible) {
             console.error("Datos faltantes para el producto:", { 
@@ -111,18 +161,20 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // Establecer los valores en el formulario
-        document.getElementById("producto_id").value = productoId;
-        document.getElementById("almacen_origen").value = almacenId;
-        document.getElementById("producto_nombre").textContent = `Producto: ${productoNombre}`;
-        document.getElementById("stock_disponible").textContent = stockDisponible;
+        inputProductoId.value = productoId;
+        inputAlmacenOrigen.value = almacenId;
+        spanProductoNombre.textContent = `Producto: ${productoNombre}`;
+        spanStockDisponible.textContent = stockDisponible;
         
         // Establecer el máximo para el campo de cantidad
-        const inputCantidad = document.getElementById("cantidad");
         inputCantidad.setAttribute("max", stockDisponible);
         inputCantidad.value = "1";
         
-        // Reiniciar el estado del botón y el select
-        document.getElementById("almacen_destino").value = "";
+        // Reiniciar el estado del select de almacén destino
+        selectAlmacenDestino.value = "";
+        
+        // Desactivar el botón de confirmar
+        const btnConfirmar = document.querySelector('.modal-footer .btn.enviar');
         if (btnConfirmar) {
             btnConfirmar.disabled = true;
             btnConfirmar.style.opacity = '0.6';
@@ -130,12 +182,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // Mostrar el modal
-        modal.style.display = "flex";
+        if (modal) {
+            modal.style.display = "flex";
+        }
     }
 
     // Evento para cerrar el modal
     function cerrarModal() {
-        modal.style.display = "none";
+        if (modal) {
+            modal.style.display = "none";
+        }
     }
 
     // Función para adjuntar evento a botones de enviar
@@ -148,6 +204,17 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+
+    // Inicialmente adjuntar eventos a los botones existentes
+    adjuntarEventosEnviar();
+
+    if (cerrarModalBtn) {
+        cerrarModalBtn.addEventListener("click", cerrarModal);
+    }
+
+    window.addEventListener("click", function(event) {
+        if (event.target === modal) cerrarModal();
+    });
 
     // Inicialmente adjuntar eventos a los botones existentes
     adjuntarEventosEnviar();
