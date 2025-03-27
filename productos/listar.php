@@ -56,7 +56,7 @@ $campos_por_categoria = [
 $campos_seleccionados = $campos_por_categoria[$categoria_id] ?? ["nombre", "cantidad", "estado"];
 
 // Paginación
-$productos_por_pagina = 12;
+$productos_por_pagina = 10;
 $pagina_actual = isset($_GET['pagina']) && filter_var($_GET['pagina'], FILTER_VALIDATE_INT) ? $_GET['pagina'] : 1;
 $inicio = ($pagina_actual - 1) * $productos_por_pagina;
 
@@ -127,7 +127,7 @@ $stmt_productos->close();
     <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
     <link rel="stylesheet" href="../assets/css/styles-cantidad.css">
     <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
-    <link rel="stylesheet" href="../assets/css/styles-entrega-uniforme.css">
+    <link rel="stylesheet" href="../assets/css/entregas-styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body data-almacen-id="<?php echo intval($almacen_id); ?>">
@@ -195,6 +195,7 @@ $stmt_productos->close();
                 ?>
                 </a></li>
                 <li><a href="../notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+                <li><a href="../uniformes/historial_entregas_uniformes.php"><i class="fas fa-tshirt"></i> Historial de Entregas de Uniformes</a></li>
             </ul>
         </li>
         
@@ -226,8 +227,13 @@ $stmt_productos->close();
             <input type="text" name="busqueda" placeholder="Buscar producto" value="<?php echo htmlspecialchars($busqueda); ?>">
             <button type="submit"><i class="fas fa-search"></i></button>
             
-            <!-- Entregar button -->
-            <button type="button" class="btn entregar"><i class="fas fa-truck"></i> Entregar</button>
+            <!-- Botón de entregar uniforme solo para almaceneros -->
+            <?php if ($usuario_rol == 'almacenero'): ?>
+                <button type="button" class="btn entregar-uniforme"><i class="fas fa-truck"></i> Entregar Uniforme</button>
+            <?php endif; ?>
+            
+            <!-- Solicitar button -->
+            <button type="button" class="btn solicitar-global"><i class="fas fa-hand-paper"></i> Solicitar</button>
         </form>
     </div>
 </div>
@@ -314,11 +320,6 @@ $stmt_productos->close();
                                         <i class="fas fa-paper-plane"></i> Enviar
                                     </button>
                                 <?php endif; ?>
-                                <button class="btn solicitar" 
-                                    data-id="<?php echo intval($producto['id']); ?>"
-                                    data-nombre="<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>">
-                                    <i class="fas fa-hand-paper"></i> Solicitar
-                                </button>
                             </td>
                         </tr>
                     <?php endwhile; ?>
@@ -409,30 +410,46 @@ $stmt_productos->close();
     </div>
 </div>
 
-<!-- Modal de Lista de Uniformes -->
-<div id="modalListaUniformes" class="zona-seleccionados" style="display: none;">
-    <div class="modal-seleccion">
-        <div class="header-seleccionados">
-            <h3>Lista de Uniformes a Entregar</h3>
-            <span id="contador-uniformes">0</span>
-            <button id="btn-limpiar-uniformes" class="btn-limpiar-seleccion">
-                <i class="fas fa-times"></i> Limpiar
-            </button>
-        </div>
-        <div id="lista-uniformes" class="lista-seleccionados">
-            <!-- Los uniformes se mostrarán aquí dinámicamente -->
-        </div>
-        <div class="acciones-seleccionados">
-            <button id="btn-seguir-agregando" class="btn btn-secundario">
-                <i class="fas fa-plus"></i> Seguir Agregando
-            </button>
-            <button id="btn-completar-entrega" class="btn btn-principal">
-                <i class="fas fa-check"></i> Completar Entrega
-            </button>
-        </div>
+<!-- Agregar después del modal de envío de producto, un nuevo modal para entrega de uniformes -->
+<div id="modalEntregaUniforme" class="modal">
+    <div class="modal-contenido">
+        <span class="cerrar">&times;</span>
+        <h2>Confirmar Entrega de Uniformes</h2>
+        <form id="formEntregaUniforme" method="POST">
+            <input type="hidden" name="almacen_id" id="almacen_id" value="3">
+            
+            <div class="form-grupo">
+                <label for="nombre_destinatario">Nombre Completo del Destinatario</label>
+                <input 
+                    type="text" 
+                    id="nombre_destinatario" 
+                    name="nombre_destinatario" 
+                    placeholder="Nombre completo" 
+                    required
+                >
+            </div>
+            
+            <div class="form-grupo">
+                <label for="dni_destinatario">DNI del Destinatario</label>
+                <input 
+                    type="text" 
+                    id="dni_destinatario" 
+                    name="dni_destinatario" 
+                    placeholder="8 dígitos" 
+                    pattern="\d{8}" 
+                    maxlength="8" 
+                    required
+                >
+            </div>
+            
+            <div id="lista-uniformes-entrega">
+                <!-- Productos seleccionados se insertarán dinámicamente -->
+            </div>
+            
+            <button type="submit" class="btn btn-primario">Confirmar Entrega</button>
+        </form>
     </div>
 </div>
-
 <script src="../assets/js/script.js"></script>
 <script src="../assets/js/entregas.js"></script>
 </body>

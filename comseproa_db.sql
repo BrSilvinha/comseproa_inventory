@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 25-03-2025 a las 14:33:18
+-- Tiempo de generación: 27-03-2025 a las 18:48:53
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -69,12 +69,12 @@ INSERT INTO `categorias` (`id`, `nombre`) VALUES
 
 CREATE TABLE `entrega_uniformes` (
   `id` int(11) NOT NULL,
-  `usuario_id` int(11) DEFAULT NULL,
-  `nombre_destinatario` varchar(100) DEFAULT NULL,
-  `dni_destinatario` varchar(8) DEFAULT NULL,
-  `almacen_id` int(11) NOT NULL,
+  `usuario_responsable_id` int(11) NOT NULL,
+  `nombre_destinatario` varchar(100) NOT NULL,
+  `dni_destinatario` varchar(8) NOT NULL,
   `producto_id` int(11) NOT NULL,
   `cantidad` int(11) NOT NULL,
+  `almacen_id` int(11) NOT NULL,
   `fecha_entrega` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -95,14 +95,6 @@ CREATE TABLE `movimientos` (
   `usuario_id` int(11) NOT NULL,
   `estado` enum('pendiente','completado','rechazado') DEFAULT 'pendiente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Volcado de datos para la tabla `movimientos`
---
-
-INSERT INTO `movimientos` (`id`, `producto_id`, `almacen_origen`, `almacen_destino`, `cantidad`, `tipo`, `fecha`, `usuario_id`, `estado`) VALUES
-(1, 183, 3, NULL, 1, 'entrada', '2025-03-24 18:01:56', 8, 'completado'),
-(2, 182, 3, NULL, 1, 'salida', '2025-03-24 18:02:01', 8, 'completado');
 
 -- --------------------------------------------------------
 
@@ -138,13 +130,13 @@ INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripc
 (134, 3, 3, 'Fundas', NULL, NULL, 'Azul', 'L', 16, 'Unidad', 'Nuevo', ''),
 (161, 1, 3, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', NULL),
 (162, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 5, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(163, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 5, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(164, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'S', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(163, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 1, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(164, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'S', 3, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
 (165, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 3, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(166, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 4, 'Unidad', 'Nuevo', NULL),
+(166, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 5, 'Unidad', 'Nuevo', NULL),
 (167, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 3, 'Unidad', 'Nuevo', NULL),
 (168, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '38', 3, 'Unidad', 'Nuevo', NULL),
-(169, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 2, 'Unidad', 'Nuevo', NULL),
+(169, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 1, 'Unidad', 'Nuevo', NULL),
 (170, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', 'Nuevo', NULL),
 (171, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '34', 2, 'Unidad', 'Nuevo', NULL),
 (172, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 126, 'Unidad', 'Nuevo', 'SIN BOTON'),
@@ -160,7 +152,10 @@ INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripc
 (182, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '41', 1, 'pares', 'Nuevo', NULL),
 (183, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '43', 2, 'par', 'Nuevo', 'Ingreso el 17/03'),
 (184, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '42', 2, 'Pares', 'Nuevo', ''),
-(185, 1, 3, 'Zapatos Corfan', NULL, 'Varon', 'Negro', '42', 2, 'pares', 'Usado', '');
+(185, 1, 3, 'Zapatos Corfan', NULL, 'Varon', 'Negro', '42', 2, 'pares', 'Usado', ''),
+(186, 1, 4, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 1, 'Unidad', 'Nuevo', NULL),
+(187, 1, 4, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 8, 'Unidad', 'Nuevo', 'SIN BOTON'),
+(188, 1, 4, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025');
 
 -- --------------------------------------------------------
 
@@ -230,9 +225,9 @@ ALTER TABLE `categorias`
 --
 ALTER TABLE `entrega_uniformes`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `usuario_id` (`usuario_id`),
-  ADD KEY `almacen_id` (`almacen_id`),
-  ADD KEY `producto_id` (`producto_id`);
+  ADD KEY `usuario_responsable_id` (`usuario_responsable_id`),
+  ADD KEY `producto_id` (`producto_id`),
+  ADD KEY `almacen_id` (`almacen_id`);
 
 --
 -- Indices de la tabla `movimientos`
@@ -299,13 +294,13 @@ ALTER TABLE `entrega_uniformes`
 -- AUTO_INCREMENT de la tabla `movimientos`
 --
 ALTER TABLE `movimientos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=186;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=189;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_transferencia`
@@ -327,9 +322,9 @@ ALTER TABLE `usuarios`
 -- Filtros para la tabla `entrega_uniformes`
 --
 ALTER TABLE `entrega_uniformes`
-  ADD CONSTRAINT `entrega_uniformes_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `entrega_uniformes_ibfk_2` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `entrega_uniformes_ibfk_3` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `entrega_uniformes_ibfk_1` FOREIGN KEY (`usuario_responsable_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `entrega_uniformes_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `entrega_uniformes_ibfk_3` FOREIGN KEY (`almacen_id`) REFERENCES `almacenes` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `movimientos`

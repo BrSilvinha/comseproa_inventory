@@ -5,15 +5,14 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-// Evita secuestro de sesión
+// Prevent session hijacking
 session_regenerate_id(true);
 
 $user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
 $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
-// Corregido: usar la misma variable que en pendientes.php
 $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
 
-// Requerir la conexión a la base de datos
+// Require database connection
 require_once "config/database.php";
 ?>
 <!DOCTYPE html>
@@ -28,18 +27,18 @@ require_once "config/database.php";
 </head>
 <body>
 
-<!-- Botón de hamburguesa para dispositivos móviles -->
+<!-- Mobile hamburger menu button -->
 <button class="menu-toggle" id="menuToggle">
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- Menú Lateral -->
+<!-- Side Menu -->
 <nav class="sidebar" id="sidebar">
     <h2>GRUPO SEAL</h2>
     <ul>
         <li><a href="dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
 
-        <!-- Usuarios - Solo visible para administradores -->
+        <!-- Users - Only visible to administrators -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
             <a href="#" aria-label="Menú Usuarios">
@@ -52,7 +51,7 @@ require_once "config/database.php";
         </li>
         <?php endif; ?>
 
-        <!-- Almacenes - Ajustado según permisos -->
+        <!-- Warehouses - Adjusted according to permissions -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Almacenes">
                 <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
@@ -65,7 +64,7 @@ require_once "config/database.php";
             </ul>
         </li>
         
-        <!-- Notificaciones -->
+        <!-- Notifications -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones">
                 <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
@@ -73,12 +72,12 @@ require_once "config/database.php";
             <ul class="submenu">
                 <li><a href="notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes 
                 <?php 
-                // Contar solicitudes pendientes para mostrar en el badge
+                // Count pending requests to show in badge
                 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
                 
-                // Si el usuario no es admin, filtrar por su almacén - usando la misma lógica que pendientes.php
+                // If user is not admin, filter by their warehouse
                 if ($usuario_rol != 'admin') {
-                    $sql_pendientes .= " AND almacen_destino = ?";  // Corregido: filtrar por almacén destino
+                    $sql_pendientes .= " AND almacen_destino = ?";
                     $stmt_pendientes = $conn->prepare($sql_pendientes);
                     $stmt_pendientes->bind_param("i", $usuario_almacen_id);
                     $stmt_pendientes->execute();
@@ -93,21 +92,22 @@ require_once "config/database.php";
                 ?>
                 </a></li>
                 <li><a href="notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+                <li><a href="uniformes/historial_entregas_uniformes.php"><i class="fas fa-tshirt"></i> Historial de Entregas de Uniformes</a></li>
             </ul>
         </li>
 
-        <!-- Cerrar Sesión -->
+        <!-- Logout -->
         <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
     </ul>
 </nav>
 
-<!-- Contenido Principal -->
+<!-- Main Content -->
 <main class="content" id="main-content">
     <h1>Bienvenido, <?php echo htmlspecialchars($user_name, ENT_QUOTES, 'UTF-8'); ?></h1>
     <div id="contenido-dinamico">
         <section class="dashboard-grid">
             <?php if ($usuario_rol == 'admin'): ?>
-            <!-- Tarjetas solo para administradores -->
+            <!-- Cards for administrators -->
             <article class="card">
                 <h3>Usuarios</h3>
                 <p>Administrar usuarios del sistema</p>
@@ -124,7 +124,7 @@ require_once "config/database.php";
                 <a href="usuarios/registrar.php">Registrar</a>
             </article>
             <?php else: ?>
-            <!-- Tarjetas para usuarios normales -->
+            <!-- Cards for regular users -->
             <article class="card">
                 <h3>Mi Almacén</h3>
                 <p>Ver información de tu almacén asignado</p>
@@ -145,7 +145,7 @@ require_once "config/database.php";
     </div>
 </main>
 
-<!-- Contenedor para notificaciones dinámicas -->
+<!-- Container for dynamic notifications -->
 <div id="notificaciones-container"></div>
 
 <script src="assets/js/script.js"></script>

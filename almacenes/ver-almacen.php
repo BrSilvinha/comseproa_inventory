@@ -96,7 +96,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <ul>
         <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
 
-        <!-- Usuarios - Solo visible para administradores -->
+        <!-- Users - Only visible to administrators -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
             <a href="#" aria-label="Menú Usuarios">
@@ -109,7 +109,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
         </li>
         <?php endif; ?>
 
-        <!-- Almacenes - Ajustado según permisos -->
+        <!-- Warehouses - Adjusted according to permissions -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Almacenes">
                 <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
@@ -122,7 +122,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </ul>
         </li>
         
-        <!-- Notificaciones -->
+        <!-- Notifications -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones">
                 <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
@@ -136,10 +136,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 ?>
                 </a></li>
                 <li><a href="../notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+                <li><a href="../uniformes/historial_entregas_uniformes.php"><i class="fas fa-tshirt"></i> Historial de Entregas de Uniformes</a></li>
             </ul>
         </li>
 
-        <!-- Cerrar Sesión -->
+        <!-- Logout -->
         <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
     </ul>
 </nav>

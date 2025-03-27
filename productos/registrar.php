@@ -140,6 +140,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 ?>
                 </a></li>
                 <li><a href="../notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+                <li><a href="../uniformes/historial_entregas_uniformes.php"><i class="fas fa-tshirt"></i> Historial de Entregas de Uniformes</a></li>
             </ul>
         </li>
         

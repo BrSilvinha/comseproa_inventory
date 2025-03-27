@@ -92,71 +92,72 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <!-- Menú Lateral -->
     <nav class="sidebar" id="sidebar">
-        <h2>GRUPO SEAL</h2>
-        <ul>
-            <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
+    <h2>GRUPO SEAL</h2>
+    <ul>
+        <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
 
-            <!-- Usuarios - Solo visible para administradores -->
-            <?php if ($usuario_rol == 'admin'): ?>
-            <li class="submenu-container">
-                <a href="#" aria-label="Menú Usuarios">
-                    <i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i>
-                </a>
-                <ul class="submenu">
-                    <li><a href="../usuarios/registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
-                    <li><a href="../usuarios/listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
-                </ul>
-            </li>
-            <?php endif; ?>
+        <!-- Usuarios - Solo visible para administradores -->
+        <?php if ($usuario_rol == 'admin'): ?>
+        <li class="submenu-container">
+            <a href="#" aria-label="Menú Usuarios">
+                <i class="fas fa-users"></i> Usuarios <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu">
+                <li><a href="registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
+                <li><a href="listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
 
-            <!-- Almacenes - Ajustado según permisos -->
-            <li class="submenu-container">
-                <a href="#" aria-label="Menú Almacenes">
-                    <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
-                </a>
-                <ul class="submenu">
-                    <?php if ($usuario_rol == 'admin'): ?>
-                    <li><a href="../almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
-                    <?php endif; ?>
-                    <li><a href="../almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
-                </ul>
-            </li>
-            
-            <!-- Notificaciones -->
-            <li class="submenu-container">
-                <a href="#" aria-label="Menú Notificaciones">
-                    <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
-                </a>
-                <ul class="submenu">
-                    <li><a href="../notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes 
-                    <?php 
-                    // Contar solicitudes pendientes para mostrar en el badge
-                    $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
-                    
-                    // Si el usuario no es admin, filtrar por su almacén
-                    if ($usuario_rol != 'admin') {
-                        $sql_pendientes .= " AND almacen_destino = ?";
-                        $stmt_pendientes = $conn->prepare($sql_pendientes);
-                        $stmt_pendientes->bind_param("i", $usuario_almacen_id);
-                        $stmt_pendientes->execute();
-                        $result_pendientes = $stmt_pendientes->get_result();
-                    } else {
-                        $result_pendientes = $conn->query($sql_pendientes);
-                    }
-                    
-                    if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
-                        echo '<span class="badge">' . $row_pendientes['total'] . '</span>';
-                    }
-                    ?>
-                    </a></li>
-                    <li><a href="../notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
-                </ul>
-            </li>
+        <!-- Almacenes -->
+        <li class="submenu-container">
+            <a href="#" aria-label="Menú Almacenes">
+                <i class="fas fa-warehouse"></i> Almacenes <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu">
+                <?php if ($usuario_rol == 'admin'): ?>
+                <li><a href="../almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                <?php endif; ?>
+                <li><a href="../almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+            </ul>
+        </li>
+        
+        <!-- Notificaciones -->
+        <li class="submenu-container">
+            <a href="#" aria-label="Menú Notificaciones">
+                <i class="fas fa-bell"></i> Notificaciones <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu">
+                <li><a href="../notificaciones/pendientes.php"><i class="fas fa-clock"></i> Solicitudes Pendientes 
+                <?php 
+                // Contar solicitudes pendientes para mostrar en el badge
+                $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+                
+                // Si el usuario no es admin, filtrar por su almacén
+                if ($usuario_rol != 'admin') {
+                    $sql_pendientes .= " AND almacen_destino = ?";
+                    $stmt_pendientes = $conn->prepare($sql_pendientes);
+                    $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+                    $stmt_pendientes->execute();
+                    $result_pendientes = $stmt_pendientes->get_result();
+                } else {
+                    $result_pendientes = $conn->query($sql_pendientes);
+                }
+                
+                if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+                    echo '<span class="badge">' . $row_pendientes['total'] . '</span>';
+                }
+                ?>
+                </a></li>
+                <li><a href="../notificaciones/historial.php"><i class="fas fa-list"></i> Historial de Solicitudes</a></li>
+                <li><a href="../uniformes/historial_entregas_uniformes.php"><i class="fas fa-tshirt"></i> Historial de Entregas de Uniformes</a></li>
+            </ul>
+        </li>
 
-            <!-- Cerrar Sesión -->
-            <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
-        </ul>
-    </nav>
+        <!-- Cerrar Sesión -->
+        <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a></li>
+    </ul>
+</nav>
     
     <main class="content" id="main-content">
         <h1>Editar Usuario</h1>

@@ -3,7 +3,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const submenuLinks = document.querySelectorAll(".submenu-container > a");
     const modal = document.getElementById("modalFormulario");
     const cerrarModalBtn = document.querySelector(".modal-contenido .cerrar");
-    const botonesEnviar = document.querySelectorAll(".btn.enviar");
     const botonesEliminar = document.querySelectorAll(".btn-eliminar");
     const formEnviar = document.getElementById("formEnviar");
     const btnConfirmar = document.querySelector('.modal-footer .btn.enviar');
@@ -14,9 +13,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const menuToggle = document.getElementById("menuToggle");
     const sidebar = document.getElementById("sidebar");
     const mainContent = document.getElementById("main-content");
+
     if (cancelarModalBtn) {
         cancelarModalBtn.addEventListener("click", cerrarModal);
     }
+
     if (menuToggle && sidebar && mainContent) {
         menuToggle.addEventListener("click", function() {
             sidebar.classList.toggle("active");
@@ -103,13 +104,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const almacenId = boton.getAttribute("data-almacen");
         const stockDisponible = boton.getAttribute("data-cantidad");
         
-        // Debug: Log all attributes
-        console.log("Producto ID:", productoId);
-        console.log("Producto Nombre:", productoNombre);
-        console.log("Almacen ID:", almacenId);
-        console.log("Stock Disponible:", stockDisponible);
-        
-        // Verificar elementos clave con un método más robusto
+        // Verificar la existencia de elementos con un mensaje de error más descriptivo
         const modal = document.getElementById("modalFormulario");
         const inputProductoId = document.getElementById("producto_id");
         const inputAlmacenOrigen = document.getElementById("almacen_origen");
@@ -117,36 +112,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const spanStockDisponible = document.getElementById("stock_disponible");
         const inputCantidad = document.getElementById("cantidad");
         const selectAlmacenDestino = document.getElementById("almacen_destino");
-        
-        // Debug: Log each element
-        console.log("Modal:", modal);
-        console.log("Input Producto ID:", inputProductoId);
-        console.log("Input Almacen Origen:", inputAlmacenOrigen);
-        console.log("Span Producto Nombre:", spanProductoNombre);
-        console.log("Span Stock Disponible:", spanStockDisponible);
-        console.log("Input Cantidad:", inputCantidad);
-        console.log("Select Almacen Destino:", selectAlmacenDestino);
-        
-        // Verificar la existencia de elementos con un mensaje de error más descriptivo
-        const elementosRequeridos = [
-            { elemento: modal, nombre: "Modal" },
-            { elemento: inputProductoId, nombre: "Input Producto ID" },
-            { elemento: inputAlmacenOrigen, nombre: "Input Almacen Origen" },
-            { elemento: spanProductoNombre, nombre: "Span Producto Nombre" },
-            { elemento: spanStockDisponible, nombre: "Span Stock Disponible" },
-            { elemento: inputCantidad, nombre: "Input Cantidad" },
-            { elemento: selectAlmacenDestino, nombre: "Select Almacen Destino" }
-        ];
-        
-        const elementosFaltantes = elementosRequeridos.filter(item => !item.elemento);
-        
-        if (elementosFaltantes.length > 0) {
-            console.error("Elementos no encontrados:", 
-                elementosFaltantes.map(item => item.nombre).join(", ")
-            );
-            mostrarNotificacion("Error: Algunos elementos del formulario no se encontraron", "error");
-            return;
-        }
         
         // Verificar que los datos existen antes de continuar
         if (!productoId || !productoNombre || !almacenId || !stockDisponible) {
@@ -204,17 +169,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
-
-    // Inicialmente adjuntar eventos a los botones existentes
-    adjuntarEventosEnviar();
-
-    if (cerrarModalBtn) {
-        cerrarModalBtn.addEventListener("click", cerrarModal);
-    }
-
-    window.addEventListener("click", function(event) {
-        if (event.target === modal) cerrarModal();
-    });
 
     // Inicialmente adjuntar eventos a los botones existentes
     adjuntarEventosEnviar();
@@ -286,7 +240,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             btn.setAttribute('data-cantidad', nuevaCantidad);
                         });
                         
-                        // Verificar si los botones deben ocultarse
+                        // Actualizar visualización de botones según la nueva cantidad
                         actualizarBotonesProducto(productoId, nuevaCantidad);
                     } else {
                         mostrarNotificacion(data.message || "Error al procesar la solicitud", "error");
@@ -374,41 +328,23 @@ document.addEventListener("DOMContentLoaded", function () {
         const filaProd = document.querySelector(`span#cantidad-${productoId}`).closest('tr');
         const celdaAcciones = filaProd.querySelector('td:last-child');
         
-        // Si la cantidad cambia de 0 a positivo, mostrar los botones
+        // Limpiar todos los botones existentes
+        celdaAcciones.innerHTML = '';
+        
+        // Solo mostrar el botón de Enviar si la cantidad es mayor a 0
         if (cantidad > 0) {
-            // Verificar si los botones ya existen
-            if (!celdaAcciones.querySelector('.btn.enviar')) {
-                // Crear botón Enviar si no existe
-                const btnEnviar = document.createElement('button');
-                btnEnviar.className = 'btn enviar';
-                btnEnviar.setAttribute('data-id', productoId);
-                btnEnviar.setAttribute('data-nombre', filaProd.querySelector('td:first-child').textContent);
-                btnEnviar.setAttribute('data-almacen', document.body.getAttribute('data-almacen-id'));
-                btnEnviar.setAttribute('data-cantidad', cantidad);
-                btnEnviar.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar';
-                
-                // Crear botón Entregar si no existe
-                const btnEntregar = document.createElement('button');
-                btnEntregar.className = 'btn entregar';
-                btnEntregar.innerHTML = '<i class="fas fa-truck"></i> Entregar';
-                
-                // Insertar al inicio de la celda
-                celdaAcciones.insertBefore(btnEntregar, celdaAcciones.firstChild);
-                celdaAcciones.insertBefore(btnEnviar, celdaAcciones.firstChild);
-                
-                // Adjuntar eventos a los nuevos botones
-                adjuntarEventosEnviar();
-            } else {
-                // Actualizar atributo de cantidad
-                celdaAcciones.querySelector('.btn.enviar').setAttribute('data-cantidad', cantidad);
-            }
-        } else if (cantidad <= 0) {
-            // Si la cantidad es 0 o menos, quitar los botones de Enviar y Entregar
-            const btnEnviar = celdaAcciones.querySelector('.btn.enviar');
-            const btnEntregar = celdaAcciones.querySelector('.btn.entregar');
+            const btnEnviar = document.createElement('button');
+            btnEnviar.className = 'btn enviar';
+            btnEnviar.setAttribute('data-id', productoId);
+            btnEnviar.setAttribute('data-nombre', filaProd.querySelector('td:first-child').textContent);
+            btnEnviar.setAttribute('data-almacen', document.body.getAttribute('data-almacen-id'));
+            btnEnviar.setAttribute('data-cantidad', cantidad);
+            btnEnviar.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar';
             
-            if (btnEnviar) btnEnviar.remove();
-            if (btnEntregar) btnEntregar.remove();
+            celdaAcciones.appendChild(btnEnviar);
+            
+            // Adjuntar eventos al nuevo botón
+            adjuntarEventosEnviar();
         }
     }
 
@@ -460,12 +396,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         });
                         
                         // Actualizar visualización de botones según la nueva cantidad
-                        // Si antes era 0 y ahora es > 0, mostrar botones
-                        // Si antes era > 0 y ahora es 0, ocultar botones
-                        if ((cantidadOriginal <= 0 && nuevaCantidad > 0) || 
-                            (cantidadOriginal > 0 && nuevaCantidad <= 0)) {
-                            actualizarBotonesProducto(productoId, nuevaCantidad);
-                        }
+                        actualizarBotonesProducto(productoId, nuevaCantidad);
                     } else {
                         spanCantidad.textContent = cantidadOriginal;
                         mostrarNotificacion(data.message || 'Error al actualizar la cantidad', 'error');
