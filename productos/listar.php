@@ -1,3 +1,4 @@
+
 <?php
 session_start();
 
@@ -130,7 +131,8 @@ $stmt_productos->close();
     <link rel="stylesheet" href="../assets/css/entregas-styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
-<body data-almacen-id="<?php echo intval($almacen_id); ?>">
+<body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" data-almacen-id="<?php echo intval($almacen_id); ?>">
+
 <button class="menu-toggle" id="menuToggle">
     <i class="fas fa-bars"></i>
 </button>
