@@ -33,24 +33,19 @@ try {
     $dniDestinatario = $_POST['dni_destinatario'] ?? '';
     $productoIds = $_POST['producto_id'] ?? [];
     $productoCantidades = $_POST['producto_cantidad'] ?? [];
+    $productoAlmacenes = $_POST['producto_almacen'] ?? [];  // Nueva línea para obtener IDs de almacenes
 
     // Debug: Log processed data
     error_log('Nombre Destinatario: ' . $nombreDestinatario);
     error_log('DNI Destinatario: ' . $dniDestinatario);
     error_log('Producto IDs: ' . print_r($productoIds, true));
     error_log('Producto Cantidades: ' . print_r($productoCantidades, true));
+    error_log('Producto Almacenes: ' . print_r($productoAlmacenes, true));
 
     // Validate required fields
     if (empty($nombreDestinatario) || empty($dniDestinatario) || empty($productoIds)) {
         throw new Exception('Datos incompletos para la entrega');
     }
-
-    // Get the user's warehouse
-    $stmtAlmacen = $conn->prepare('SELECT almacen_id FROM usuarios WHERE id = ?');
-    $stmtAlmacen->execute([$usuarioResponsableId]);
-    $almacenId = $stmtAlmacen->fetchColumn();
-
-    error_log('Almacen ID: ' . $almacenId);
 
     // Prepare statements
     $stmtEntregaUniforme = $conn->prepare('
@@ -71,8 +66,9 @@ try {
     // Process each product
     foreach ($productoIds as $index => $productoId) {
         $cantidad = intval($productoCantidades[$index]);
+        $productoAlmacenId = intval($productoAlmacenes[$index]);  // Usar el ID de almacén específico del producto
 
-        error_log("Procesando producto: ID $productoId, Cantidad $cantidad");
+        error_log("Procesando producto: ID $productoId, Cantidad $cantidad, Almacén $productoAlmacenId");
 
         // Insert delivery record
         $stmtEntregaUniforme->execute([
@@ -81,11 +77,11 @@ try {
             $dniDestinatario, 
             $productoId, 
             $cantidad, 
-            $almacenId
+            $productoAlmacenId  // Usar el ID de almacén del producto
         ]);
 
         // Update product stock
-        $stmtActualizarStock->execute([$cantidad, $productoId, $almacenId]);
+        $stmtActualizarStock->execute([$cantidad, $productoId, $productoAlmacenId]);  // Usar el ID de almacén del producto
     }
 
     // Commit transaction

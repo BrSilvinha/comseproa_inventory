@@ -157,9 +157,12 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <h4><?php echo htmlspecialchars($categoria['nombre']); ?></h4>
                     <p>Productos: <?php echo $categoria['total_productos']; ?></p>
 
+                    <?php if ($usuario_rol == 'admin'): ?>
                     <button class="btn-registrar" onclick="location.href='../productos/registrar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
                         <i class="fas fa-plus"></i> Registrar Producto
                     </button>
+                    <?php endif; ?>
+                    
                     <button class="btn-lista" onclick="location.href='../productos/listar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
                         <i class="fas fa-list"></i> Lista de Productos
                     </button>

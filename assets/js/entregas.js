@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const productoId = botonEnviar.getAttribute('data-id');
                     const productoNombre = botonEnviar.getAttribute('data-nombre');
                     const productoCantidad = botonEnviar.getAttribute('data-cantidad');
+                    const productoAlmacen = botonEnviar.getAttribute('data-almacen');
 
                     const btnEntregarUniformeClicked = localStorage.getItem('entregaUniformeActive') === 'true';
                     
@@ -76,6 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         checkbox.setAttribute('data-id', productoId);
                         checkbox.setAttribute('data-nombre', productoNombre);
                         checkbox.setAttribute('data-cantidad', productoCantidad);
+                        checkbox.setAttribute('data-almacen', productoAlmacen);
 
                         // Restaurar estado de selección
                         if (selectedProductIds.has(productoId)) {
@@ -88,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 id: productoId,
                                 nombre: productoNombre,
                                 cantidad: productoCantidad,
+                                almacen: productoAlmacen,
                                 cantidadSeleccionada: 1 // Por defecto 1
                             };
 
@@ -189,6 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             id: productoId,
                             nombre: productoNombre,
                             cantidad: productoCantidad,
+                            almacen: productoAlmacen,
                             cantidadSeleccionada: 1 // Por defecto 1
                         };
 
@@ -363,6 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="uniforme-entrega" data-id="${producto.id}">
                 <input type="hidden" name="producto_id[]" value="${producto.id}">
                 <input type="hidden" name="producto_cantidad[]" value="${producto.cantidadSeleccionada || 1}">
+                <input type="hidden" name="producto_almacen[]" value="${producto.almacen}">
                 <span>${producto.nombre}</span>
                 <span>Cantidad: ${producto.cantidadSeleccionada || 1}</span>
             </div>
