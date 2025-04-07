@@ -1,8 +1,8 @@
 <?php
 $host = "localhost";
-$usuario = "root"; // Cambia si usas otro usuario
-$contraseña = "";  // Cambia si tu MySQL tiene contraseña
-$base_datos = "comseproa_db";
+$usuario = "u797525844_comseproa_db"; // Cambia si usas otro usuario
+$contraseña = "Dh0OzyUE*6c+";  // Cambia si tu MySQL tiene contraseña
+$base_datos = "u797525844_comseproa_db";
 
 // Conectar a la base de datos
 $conn = new mysqli($host, $usuario, $contraseña, $base_datos);

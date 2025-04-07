@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 27-03-2025 a las 18:48:53
+-- Tiempo de generación: 07-04-2025 a las 16:28:18
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de datos: `comseproa_db`
+-- Base de datos: `u797525844_comseproa_db`
 --
 
 -- --------------------------------------------------------
@@ -122,19 +122,19 @@ CREATE TABLE `productos` (
 --
 
 INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripcion`, `modelo`, `color`, `talla_dimensiones`, `cantidad`, `unidad_medida`, `estado`, `observaciones`) VALUES
-(129, 2, 3, 'Portapistola', NULL, NULL, 'Negro', NULL, 2, 'Unidad', 'Nuevo', ''),
-(130, 2, 3, 'Correajes', NULL, NULL, 'Negro', NULL, 14, 'Unidad', 'Nuevo', ''),
+(129, 2, 3, 'Portapistola', NULL, NULL, 'Negro', NULL, 0, 'Unidad', 'Nuevo', ''),
+(130, 2, 3, 'Correajes', NULL, NULL, 'Negro', NULL, 11, 'Unidad', 'Nuevo', ''),
 (131, 2, 3, 'Cascos de Seguridad', NULL, NULL, 'Blanco', NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
 (132, 2, 3, 'Lentes', NULL, NULL, NULL, NULL, 6, 'Unidad', 'Nuevo', 'INGRESO EL 17/03'),
 (133, 2, 3, 'Guantes', NULL, NULL, NULL, NULL, 2, 'Pares', 'Nuevo', 'INGRESO EL 17/03'),
 (134, 3, 3, 'Fundas', NULL, NULL, 'Azul', 'L', 16, 'Unidad', 'Nuevo', ''),
-(161, 1, 3, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', NULL),
-(162, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 5, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(163, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 1, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(164, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'S', 3, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(165, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 3, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
-(166, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 5, 'Unidad', 'Nuevo', NULL),
-(167, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 3, 'Unidad', 'Nuevo', NULL),
+(161, 1, 3, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 0, 'Unidad', 'Nuevo', NULL),
+(162, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'M', 0, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(163, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 0, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(164, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'S', 0, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(165, 1, 3, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'XL', 0, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(166, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '34', 3, 'Unidad', 'Nuevo', NULL),
+(167, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', 'Nuevo', NULL),
 (168, 1, 3, 'Pantalon drill', NULL, 'Varon', 'Azul', '38', 3, 'Unidad', 'Nuevo', NULL),
 (169, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 1, 'Unidad', 'Nuevo', NULL),
 (170, 1, 3, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '36', 1, 'Unidad', 'Nuevo', NULL),
@@ -153,9 +153,10 @@ INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripc
 (183, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '43', 2, 'par', 'Nuevo', 'Ingreso el 17/03'),
 (184, 1, 3, 'Borseguis', NULL, 'Varon', 'Negro', '42', 2, 'Pares', 'Nuevo', ''),
 (185, 1, 3, 'Zapatos Corfan', NULL, 'Varon', 'Negro', '42', 2, 'pares', 'Usado', ''),
-(186, 1, 4, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 1, 'Unidad', 'Nuevo', NULL),
-(187, 1, 4, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 8, 'Unidad', 'Nuevo', 'SIN BOTON'),
-(188, 1, 4, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 2, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025');
+(186, 1, 4, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', '32', 0, 'Unidad', 'Nuevo', NULL),
+(187, 1, 4, 'Pantalon tactico cargo', NULL, 'Varon', 'Azul', 'L', 1, 'Unidad', 'Nuevo', 'SIN BOTON'),
+(188, 1, 4, 'Polera M/L', NULL, 'Manga larga', 'Plomo', 'L', 1, 'Unidad', 'Nuevo', 'INGRESO 21/03/2025'),
+(189, 1, 4, 'Camisa Polipima', NULL, 'Manga larga', 'Blanco', 'XXL', 1, 'Unidad', 'Nuevo', NULL);
 
 -- --------------------------------------------------------
 
@@ -201,7 +202,9 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nombre`, `apellidos`, `dni`, `celular`, `direccion`, `correo`, `contrasena`, `almacen_id`, `rol`, `estado`, `fecha_registro`) VALUES
-(8, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'San Julian 664 - Motupe', 'jhamirsilva@gmail.com', '$2y$10$yG9ldNFttY94fCt/FZXx/OTuaBGPmD/rkvniTmpYFa9ZPotDIRfZ.', 3, 'admin', 'activo', '2025-03-24 13:38:41');
+(8, 'Jhamir Alexander', 'Silva Baldera', '71749437', '982566142', 'San Julian 664 - Motupe', 'jhamirsilva@gmail.com', '$2y$10$yG9ldNFttY94fCt/FZXx/OTuaBGPmD/rkvniTmpYFa9ZPotDIRfZ.', 3, 'admin', 'activo', '2025-03-24 13:38:41'),
+(9, 'prueba', 'chicalyo', '12341234', '987654321', 'Calle San Julian - 664', 'almacenerocix@gmail.com', '$2y$10$j1xXEGliZcoQemnMt7BWkO5SCmSoXaK6A3XvqmuxSUgeah4fNO23.', 3, 'almacenero', 'activo', '2025-03-27 21:41:40'),
+(10, 'prueba', 'olmos', '76787652', '987654321', 'omos', 'almaceneroolmos@gmail.com', '$2y$10$8h7JB5WqwWiUupnV27y1f.9EmL2nYxHsa3L8dNkYuwDJ6YprEOopm', 4, 'almacenero', 'activo', '2025-04-07 02:36:31');
 
 --
 -- Índices para tablas volcadas
@@ -300,7 +303,7 @@ ALTER TABLE `movimientos`
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=189;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=190;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_transferencia`
@@ -312,7 +315,7 @@ ALTER TABLE `solicitudes_transferencia`
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Restricciones para tablas volcadas

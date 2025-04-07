@@ -5,8 +5,8 @@ ini_set('display_errors', 1);
 
 // Database connection configuration
 $host = 'localhost';
-$dbname = 'comseproa_db';
-$username = 'root';  // Update with your database username
+$dbname = 'u797525844_comseproa_db';
+$username = 'u797525844_comseproa_db';  // Update with your database username
 $password = '';      // Update with your database password
 
 // Response array
