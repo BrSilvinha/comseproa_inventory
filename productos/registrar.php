@@ -27,7 +27,8 @@ $categorias = [
     1 => "Ropa",
     2 => "Accesorios de seguridad",
     3 => "Kebras y fundas nuevas",
-    4 => "Armas" // Nueva categoría añadida
+    4 => "Armas",
+    6 => "Walkie-Talkie" // Añadimos la categoría Walkie-Talkie
 ];
 
 $nombre_categoria = $categorias[$categoria_id] ?? "Desconocida";
@@ -136,7 +137,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
                 
                 if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
-                    echo '<span class="badge">' . $row_pendientes['total'] . '</span>';
+                    if ($row_pendientes['total'] > 0) {
+                        echo '<span class="badge">' . $row_pendientes['total'] . '</span>';
+                    }
                 }
                 ?>
                 </a></li>
@@ -171,19 +174,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <input type="text" id="nombre" name="nombre" required>
             </div>
             
-            <?php if ($categoria_id == 1 || $categoria_id == 2 || $categoria_id == 4): // Añadimos la categoría 4 (Armas) ?>
+            <?php if ($categoria_id == 1 || $categoria_id == 2 || $categoria_id == 4 || $categoria_id == 6): // Incluimos categoría 6 (Walkie-Talkie) para mostrar modelo ?>
             <div class="form-group">
                 <label for="modelo">Modelo:</label>
                 <input type="text" id="modelo" name="modelo">
             </div>
             <?php endif; ?>
         
+            <?php if ($categoria_id == 1 || $categoria_id == 2 || $categoria_id == 3 || $categoria_id == 4 || $categoria_id == 6): // Incluimos categoría 6 para mostrar color ?>
             <div class="form-group">
                 <label for="color">Color:</label>
                 <input type="text" id="color" name="color">
             </div>
+            <?php endif; ?>
         
-            <?php if ($categoria_id != 4): // No mostrar talla/dimensiones para armas ?>
+            <?php if ($categoria_id != 4 && $categoria_id != 6): // No mostrar talla/dimensiones para armas ni walkie-talkies ?>
             <div class="form-group">
                 <label for="talla_dimensiones">Talla / Dimensiones:</label>
                 <input type="text" id="talla_dimensiones" name="talla_dimensiones">
@@ -234,6 +239,10 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("campo-modelo").style.display = "block";
         document.getElementById("campo-color").style.display = "block";
         // No mostramos campo-talla para armas
+    } else if (categoria === "6") { // Walkie-Talkie
+        document.getElementById("campo-modelo").style.display = "block";
+        document.getElementById("campo-color").style.display = "block";
+        // No mostramos campo-talla para Walkie-Talkie
     }
 });
 </script>
