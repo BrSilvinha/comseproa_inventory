@@ -26,7 +26,8 @@ $categoria_id = $_GET['categoria_id'];
 $categorias = [
     1 => "Ropa",
     2 => "Accesorios de seguridad",
-    3 => "Kebras y fundas nuevas"
+    3 => "Kebras y fundas nuevas",
+    4 => "Armas" // Nueva categoría añadida
 ];
 
 $nombre_categoria = $categorias[$categoria_id] ?? "Desconocida";
@@ -170,7 +171,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <input type="text" id="nombre" name="nombre" required>
             </div>
             
-            <?php if ($categoria_id == 1 || $categoria_id == 2): ?>
+            <?php if ($categoria_id == 1 || $categoria_id == 2 || $categoria_id == 4): // Añadimos la categoría 4 (Armas) ?>
             <div class="form-group">
                 <label for="modelo">Modelo:</label>
                 <input type="text" id="modelo" name="modelo">
@@ -182,10 +183,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <input type="text" id="color" name="color">
             </div>
         
+            <?php if ($categoria_id != 4): // No mostrar talla/dimensiones para armas ?>
             <div class="form-group">
                 <label for="talla_dimensiones">Talla / Dimensiones:</label>
                 <input type="text" id="talla_dimensiones" name="talla_dimensiones">
             </div>
+            <?php endif; ?>
         
             <div class="form-group">
                 <label for="cantidad">Cantidad:</label>
@@ -227,6 +230,10 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (categoria === "3") {
         document.getElementById("campo-color").style.display = "block";
         document.getElementById("campo-talla").style.display = "block";
+    } else if (categoria === "4") { // Armas
+        document.getElementById("campo-modelo").style.display = "block";
+        document.getElementById("campo-color").style.display = "block";
+        // No mostramos campo-talla para armas
     }
 });
 </script>
