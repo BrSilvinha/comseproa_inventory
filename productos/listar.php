@@ -1,4 +1,3 @@
-
 <?php
 session_start();
 
@@ -52,6 +51,8 @@ $campos_por_categoria = [
     1 => ["nombre", "modelo", "color", "talla_dimensiones", "cantidad", "unidad_medida", "estado", "observaciones"],
     2 => ["nombre", "modelo", "color", "cantidad", "unidad_medida", "estado", "observaciones"],
     3 => ["nombre", "color", "talla_dimensiones", "cantidad", "unidad_medida", "estado", "observaciones"],
+    4 => ["nombre", "modelo", "color", "cantidad", "unidad_medida", "estado", "observaciones"],
+    6 => ["nombre", "modelo", "color", "cantidad", "unidad_medida", "estado", "observaciones"],
 ];
 
 $campos_seleccionados = $campos_por_categoria[$categoria_id] ?? ["nombre", "cantidad", "estado"];
