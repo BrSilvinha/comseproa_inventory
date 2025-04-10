@@ -25,21 +25,12 @@ body {
 /* Contenedor título y búsqueda */
 .contenedor-titulo-busqueda {
     display: flex;
-    flex-direction: column; /* Cambio de row a column para pantallas pequeñas */
-    align-items: stretch;
+    align-items: center;
+    justify-content: space-between;
     width: calc(100% - 260px);
     margin-left: 250px;
     margin-top: 15px;
     padding: 0 10px;
-    gap: 10px; /* Espacio entre título y búsqueda */
-}
-
-@media (min-width: 768px) {
-    .contenedor-titulo-busqueda {
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-    }
 }
 
 /* Estilo del título */
@@ -51,7 +42,6 @@ body {
     border-radius: 5px;
     font-size: 16px;
     margin: 0;
-    white-space: normal; /* Permitir que el título se ajuste */
 }
 
 .titulo-productos h1 span {
@@ -67,17 +57,17 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow-x: auto; /* Cambio de hidden a auto para permitir scroll solo cuando sea necesario */
+    overflow-x: hidden;
 }
 
 /* Ajustes de la tabla */
 table {
     width: 98%;
+    max-width: 98%;
     border-collapse: collapse;
     background-color: #ffffff;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(200, 201, 202, 0.5);
-    table-layout: auto; /* Cambio para permitir adaptabilidad */
 }
 
 /* Encabezado */
@@ -109,16 +99,15 @@ tbody tr:hover {
     background-color: rgba(10, 37, 60, 0.1);
 }
 
-/* Asegurar que los encabezados y celdas sean adaptables */
+/* Asegurar que los encabezados y celdas sean compactos */
 th, td {
     padding: 6px;
     text-align: center;
     border: 1px solid #ddd;
-    white-space: normal; /* Permitir que el texto se ajuste */
-    max-width: 150px; /* Ancho máximo para las celdas */
-    word-wrap: break-word; /* Permite que las palabras se corten */
-    height: auto; /* Altura automática basada en contenido */
-    min-height: 40px; /* Altura mínima */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 40px;
     font-size: 13px;
 }
 
@@ -127,10 +116,9 @@ th {
     color: white;
 }
 
-/* Ajustar el tamaño de las filas según el contenido */
+/* Asegurar que todas las filas sean del mismo tamaño */
 tbody tr {
-    height: auto;
-    min-height: 45px;
+    height: 45px;
 }
 
 /* Botón de acción */
@@ -160,7 +148,6 @@ tbody tr {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    white-space: nowrap; /* Mantener los botones en una línea */
 }
 
 /* Botón Enviar */
@@ -220,17 +207,8 @@ td .btn.stock {
     transform: scale(0.95);
 }
 
-/* Control de cantidad más compacto */
-.control-cantidad {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-}
-
 .busqueda form {
     display: flex;
-    flex-wrap: wrap; /* Permitir que los elementos se envuelvan */
     gap: 4px;
 }
 
@@ -241,7 +219,6 @@ td .btn.stock {
     box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
-    width: 100%; /* Asegurar que ocupe todo el ancho disponible */
 }
 
 .busqueda form {
@@ -260,7 +237,6 @@ td .btn.stock {
     outline: none;
     color: #0a253c;
     background-color: #ffffff;
-    min-width: 100px; /* Ancho mínimo */
 }
 
 .busqueda input[type="text"]::placeholder {
@@ -296,8 +272,6 @@ td .btn.stock {
     cursor: pointer;
     outline: none;
     transition: all 0.3s ease;
-    width: auto; /* Ajustar al contenido */
-    min-width: 100px; /* Ancho mínimo */
 }
 
 .busqueda select:hover {
@@ -320,12 +294,10 @@ td .btn.stock {
     display: flex;
     justify-content: center;
     gap: 6px;
-    flex-wrap: wrap; /* Permitir que los elementos de paginación se envuelvan */
 }
 
 .pagination li {
     display: inline-block;
-    margin-bottom: 5px; /* Espacio entre filas si se envuelven */
 }
 
 .pagination a {
@@ -370,13 +342,12 @@ td .btn.stock {
     background-color: #ffffff;
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(10, 37, 60, 0.2);
-    width: 95%; /* Reducido para pantallas pequeñas */
+    width: 100%;
     max-width: 500px;
     padding: 24px;
     position: relative;
     overflow: hidden;
     animation: modalSlideIn 0.3s ease-out;
-    margin: 10px; /* Margen para pantallas pequeñas */
 }
 
 /* Modal Animation */
@@ -453,8 +424,6 @@ td .btn.stock {
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid #c8c9ca;
-    flex-wrap: wrap; /* Permitir que los botones se envuelvan en pantallas pequeñas */
-    gap: 10px;
 }
 
 .modal-footer .btn {
@@ -462,10 +431,6 @@ td .btn.stock {
     border-radius: 6px;
     font-size: 14px;
     transition: all 0.3s ease;
-    flex: 1; /* Distribuir el espacio disponible */
-    min-width: 100px; /* Ancho mínimo para botones */
-    text-align: center;
-    justify-content: center;
 }
 
 .modal-footer .btn.btn-secundario {
@@ -501,36 +466,4 @@ td .btn.stock {
 .titulo-productos, table {
     margin-left: 0;
     padding: 15px;
-}
-
-/* Responsive del sidebar */
-@media (max-width: 768px) {
-    .sidebar {
-        width: 0;
-        overflow: hidden;
-        transition: width 0.3s ease;
-    }
-    
-    .sidebar.active {
-        width: 250px;
-    }
-    
-    .main-content, .contenedor-titulo-busqueda {
-        width: 100%;
-        margin-left: 0;
-        transition: margin-left 0.3s ease;
-    }
-    
-    .main-content.sidebar-active, .contenedor-titulo-busqueda.sidebar-active {
-        margin-left: 250px;
-        width: calc(100% - 250px);
-    }
-    
-    .menu-toggle {
-        display: block;
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        z-index: 1001;
-    }
 }
