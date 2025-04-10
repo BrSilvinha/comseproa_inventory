@@ -8,6 +8,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-height: 100vh;
 }
 
 /* Contenedor principal */
@@ -20,6 +21,7 @@ body {
     align-items: center;
     min-height: 75vh;
     justify-content: space-between;
+    transition: all 0.3s ease;
 }
 
 /* Contenedor título y búsqueda */
@@ -31,6 +33,8 @@ body {
     margin-left: 250px;
     margin-top: 15px;
     padding: 0 10px;
+    transition: all 0.3s ease;
+    flex-wrap: wrap;
 }
 
 /* Estilo del título */
@@ -42,6 +46,7 @@ body {
     border-radius: 5px;
     font-size: 16px;
     margin: 0;
+    width: 100%;
 }
 
 .titulo-productos h1 span {
@@ -57,7 +62,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow-x: hidden;
+    overflow-x: auto; /* Permite desplazamiento horizontal en pantallas pequeñas */
+    padding: 10px;
 }
 
 /* Ajustes de la tabla */
@@ -68,6 +74,7 @@ table {
     background-color: #ffffff;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(200, 201, 202, 0.5);
+    table-layout: auto; /* Cambio para mejorar responsividad */
 }
 
 /* Encabezado */
@@ -80,6 +87,9 @@ thead th {
     padding: 8px;
     text-transform: uppercase;
     font-size: 13px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 /* Cuerpo de la tabla */
@@ -109,6 +119,21 @@ th, td {
     text-overflow: ellipsis;
     height: 40px;
     font-size: 13px;
+    min-width: 80px; /* Ancho mínimo para todas las celdas */
+}
+
+/* Establecer anchos específicos para columnas comunes */
+th:nth-child(1), td:nth-child(1) { /* Nombre */
+    min-width: 150px;
+}
+
+th:nth-child(2), td:nth-child(2) { /* Modelo, etc */
+    min-width: 120px;
+}
+
+/* Columna de acciones siempre con ancho fijo */
+th:last-child, td:last-child {
+    min-width: 100px;
 }
 
 th {
@@ -202,6 +227,14 @@ td .btn.stock {
     margin: 0 3px;
 }
 
+/* Control de cantidad responsive */
+.control-cantidad {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
 /* Efecto de clic */
 .btn:active {
     transform: scale(0.95);
@@ -210,6 +243,7 @@ td .btn.stock {
 .busqueda form {
     display: flex;
     gap: 4px;
+    flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
 }
 
 .busqueda {
@@ -219,6 +253,8 @@ td .btn.stock {
     box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
+    width: 100%;
+    margin: 10px 0;
 }
 
 .busqueda form {
@@ -230,6 +266,7 @@ td .btn.stock {
 
 .busqueda input[type="text"] {
     flex-grow: 1;
+    min-width: 120px;
     padding: 6px;
     border: 1px solid #c8c9ca;
     border-radius: 5px;
@@ -252,6 +289,7 @@ td .btn.stock {
     cursor: pointer;
     font-size: 13px;
     transition: background 0.3s ease-in-out;
+    white-space: nowrap;
 }
 
 .busqueda button:hover {
@@ -272,6 +310,7 @@ td .btn.stock {
     cursor: pointer;
     outline: none;
     transition: all 0.3s ease;
+    min-width: 120px;
 }
 
 .busqueda select:hover {
@@ -294,10 +333,13 @@ td .btn.stock {
     display: flex;
     justify-content: center;
     gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 15px;
 }
 
 .pagination li {
     display: inline-block;
+    margin: 3px;
 }
 
 .pagination a {
@@ -342,11 +384,12 @@ td .btn.stock {
     background-color: #ffffff;
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(10, 37, 60, 0.2);
-    width: 100%;
+    width: 90%;
     max-width: 500px;
     padding: 24px;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
+    max-height: 90vh;
     animation: modalSlideIn 0.3s ease-out;
 }
 
@@ -424,6 +467,8 @@ td .btn.stock {
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid #c8c9ca;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .modal-footer .btn {
@@ -431,6 +476,9 @@ td .btn.stock {
     border-radius: 6px;
     font-size: 14px;
     transition: all 0.3s ease;
+    flex: 1;
+    text-align: center;
+    justify-content: center;
 }
 
 .modal-footer .btn.btn-secundario {
@@ -462,8 +510,156 @@ td .btn.stock {
     line-height: 1.5;
 }
 
-/* Eliminar márgenes conflictivos */
+/* Zona de productos seleccionados */
+.zona-seleccionados {
+    width: 95%;
+    margin: 15px auto;
+    padding: 10px;
+    background-color: #f5f7fa;
+    border: 1px solid #c8c9ca;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.header-seleccionados {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #c8c9ca;
+}
+
+.header-seleccionados h3 {
+    margin: 0;
+    color: #0a253c;
+}
+
+#contador-seleccionados {
+    background-color: #0a253c;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 50%;
+    font-size: 14px;
+}
+
+/* Media queries para responsividad */
+
+/* Pantallas medianas (tablets, 768px y superior) */
+@media screen and (max-width: 992px) {
+    .main-content {
+        width: 100%;
+        margin-left: 0;
+        padding: 10px;
+    }
+
+    .contenedor-titulo-busqueda {
+        width: 100%;
+        margin-left: 0;
+        flex-direction: column;
+        padding: 0 10px;
+    }
+
+    .titulo-productos {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .busqueda form {
+        flex-wrap: wrap;
+    }
+
+    .busqueda input[type="text"],
+    .busqueda select {
+        flex: 1 1 100%;
+        margin-bottom: 5px;
+    }
+
+    .busqueda button {
+        flex: 1 1 auto;
+    }
+}
+
+/* Pantallas pequeñas (móviles, inferior a 768px) */
+@media screen and (max-width: 768px) {
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    table {
+        width: 100%;
+        min-width: 600px; /* Garantiza que todas las columnas sean visibles */
+    }
+    
+    .btn.entregar-uniforme, .btn.solicitar-global {
+        width: 100%;
+        margin-top: 5px;
+        justify-content: center;
+    }
+    
+    .modal-contenido {
+        width: 95%;
+        padding: 15px;
+    }
+    
+    .pagination {
+        gap: 2px;
+    }
+    
+    .pagination a {
+        padding: 5px 8px;
+        font-size: 12px;
+    }
+    
+    /* Ajustes para el sidebar */
+    .sidebar {
+        transform: translateX(-100%);
+        position: fixed;
+        z-index: 1000;
+    }
+    
+    .sidebar.active {
+        transform: translateX(0);
+    }
+    
+    .menu-toggle {
+        display: block;
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1001;
+    }
+}
+
+/* Para evitar conflictos con otros estilos */
 .titulo-productos, table {
     margin-left: 0;
     padding: 15px;
+}
+
+/* Soporte para pantallas muy pequeñas (menos de 480px) */
+@media screen and (max-width: 480px) {
+    th, td {
+        padding: 4px;
+        font-size: 12px;
+    }
+    
+    .btn {
+        padding: 4px 6px;
+        font-size: 12px;
+    }
+    
+    .control-cantidad {
+        gap: 2px;
+    }
+    
+    .btn.stock {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .modal-footer .btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
 }

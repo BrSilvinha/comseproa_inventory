@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1:3306
--- Tiempo de generación: 09-04-2025 a las 16:57:46
+-- Tiempo de generación: 10-04-2025 a las 13:54:37
 -- Versión del servidor: 10.11.10-MariaDB-log
 -- Versión de PHP: 7.2.34
 
@@ -98,6 +98,19 @@ CREATE TABLE `movimientos` (
   `estado` enum('pendiente','completado','rechazado') DEFAULT 'pendiente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Volcado de datos para la tabla `movimientos`
+--
+
+INSERT INTO `movimientos` (`id`, `producto_id`, `almacen_origen`, `almacen_destino`, `cantidad`, `tipo`, `fecha`, `usuario_id`, `estado`) VALUES
+(1, 196, 3, NULL, 1, 'entrada', '2025-04-09 17:23:42', 8, 'completado'),
+(2, 205, 3, NULL, 1, 'entrada', '2025-04-09 20:51:22', 8, 'completado'),
+(3, 205, 3, NULL, 1, 'entrada', '2025-04-09 20:51:23', 8, 'completado'),
+(4, 205, 3, NULL, 1, 'entrada', '2025-04-09 20:51:23', 8, 'completado'),
+(5, 205, 3, NULL, 1, 'entrada', '2025-04-09 20:51:23', 8, 'completado'),
+(6, 205, 3, NULL, 1, 'entrada', '2025-04-09 20:51:24', 8, 'completado'),
+(7, 205, 3, NULL, 1, 'entrada', '2025-04-09 20:51:25', 8, 'completado');
+
 -- --------------------------------------------------------
 
 --
@@ -118,6 +131,31 @@ CREATE TABLE `productos` (
   `estado` enum('Nuevo','Usado','Dañado') NOT NULL,
   `observaciones` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `productos`
+--
+
+INSERT INTO `productos` (`id`, `categoria_id`, `almacen_id`, `nombre`, `descripcion`, `modelo`, `color`, `talla_dimensiones`, `cantidad`, `unidad_medida`, `estado`, `observaciones`) VALUES
+(191, 6, 3, 'Icom', NULL, 'IC-F3003', 'Negro', '', 5, 'unidad', 'Nuevo', 'EN CAJA'),
+(196, 6, 3, 'Icom-sueltas', NULL, 'IC-F3003', 'Negro', '', 9, 'unidad', 'Nuevo', 'c/u con sus respectivos accesorios completos'),
+(197, 6, 3, 'Talkabout', NULL, 'T200PE', 'Verde', '', 2, 'unidad', 'Nuevo', 'En caja'),
+(198, 6, 3, 'Talkabout-Sueltas', NULL, 'T200PE', 'Verde', '', 3, 'unidad', 'Usado', ''),
+(199, 6, 3, 'SPM', NULL, '1230S', 'Negro', '', 14, 'unidad', 'Nuevo', ''),
+(200, 1, 3, 'Camisa Blanca', NULL, 'Comseproa SAC', 'Blanca', 'XL', 1, 'unidad', 'Nuevo', ''),
+(201, 1, 3, 'Camisa Blanca', NULL, 'Comseproa SAC', 'Blanca', 'M', 4, 'unidad', 'Nuevo', ''),
+(202, 1, 3, 'Camisa Blanca', NULL, 'Grupo Seal', 'Blanca', 'XXL', 1, 'unidad', 'Nuevo', ''),
+(203, 1, 3, 'Chaleco', NULL, 'Grupo Seal', 'Plomo', 'L', 1, 'unidad', 'Nuevo', ''),
+(204, 1, 3, 'Pantalon', NULL, '', 'Azul', '38', 2, 'unidad', 'Nuevo', ''),
+(205, 1, 3, 'Cascos', NULL, 'Bellsafe', 'Blanco', '', 8, 'unidad', 'Nuevo', ''),
+(206, 1, 3, 'Zapatos de Charol', NULL, '', 'negros', '42', 2, 'unidad', 'Nuevo', ''),
+(207, 1, 3, 'Botas de seguridad', NULL, '', 'Negro', '43', 1, 'unidad', 'Nuevo', ''),
+(208, 1, 3, 'Polera Manga', NULL, 'Larga', 'Plomo', 'M', 6, 'unidad', 'Nuevo', ''),
+(209, 1, 3, 'Polera Manga', NULL, 'Larga', 'Plomo', 'L', 6, 'unidad', 'Nuevo', ''),
+(210, 1, 3, 'Polera Manga', NULL, 'Larga', 'Plomo', 'XL', 6, 'unidad', 'Nuevo', ''),
+(211, 1, 3, 'Chaleco', NULL, 'Grupo Seal', 'Azul', 'M', 4, 'unidad', 'Nuevo', ''),
+(212, 1, 3, 'Chaleco', NULL, 'Grupo Seal', 'Azul', 'XL', 4, 'unidad', 'Nuevo', ''),
+(213, 1, 3, 'Chaleco', NULL, 'Grupo Seal', 'Azul', 'L', 4, 'unidad', 'Nuevo', '');
 
 -- --------------------------------------------------------
 
@@ -258,13 +296,13 @@ ALTER TABLE `entrega_uniformes`
 -- AUTO_INCREMENT de la tabla `movimientos`
 --
 ALTER TABLE `movimientos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=191;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=214;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_transferencia`
