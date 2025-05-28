@@ -5,53 +5,91 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-// Evita secuestro de sesión
+// Evitar secuestro de sesión
 session_regenerate_id(true);
 
 require_once "../config/database.php";
 
+$user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
+$usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
+$usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
+
+// Verificar que el usuario sea administrador
+if ($usuario_rol !== 'admin') {
+    $_SESSION['error'] = "No tiene permisos para editar almacenes.";
+    header("Location: listar.php");
+    exit();
+}
+
+// Validar el ID del almacén
+if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
+    $_SESSION['error'] = "ID de almacén no válido.";
+    header("Location: listar.php");
+    exit();
+}
+
+$almacen_id = $_GET['id'];
+
+// Obtener información del almacén
+$sql = "SELECT * FROM almacenes WHERE id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $almacen_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$almacen = $result->fetch_assoc();
+$stmt->close();
+
+if (!$almacen) {
+    $_SESSION['error'] = "Almacén no encontrado.";
+    header("Location: listar.php");
+    exit();
+}
+
 $mensaje = "";
 $error = "";
-$nombre = "";
-$ubicacion = "";
+$nombre = $almacen['nombre'];
+$ubicacion = $almacen['ubicacion'];
 
-$user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
-$usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
-$usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
-
+// Procesar formulario
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!empty($_POST["nombre"]) && !empty($_POST["ubicacion"])) {
-        $nombre = trim($_POST["nombre"]);
-        $ubicacion = trim($_POST["ubicacion"]);
+        $nuevo_nombre = trim($_POST["nombre"]);
+        $nueva_ubicacion = trim($_POST["ubicacion"]);
 
-        // Verificar si el almacén ya existe
-        $sql_check = "SELECT id FROM almacenes WHERE nombre = ?";
+        // Verificar si el nuevo nombre ya existe (excepto el actual)
+        $sql_check = "SELECT id FROM almacenes WHERE nombre = ? AND id != ?";
         $stmt_check = $conn->prepare($sql_check);
-        $stmt_check->bind_param("s", $nombre);
+        $stmt_check->bind_param("si", $nuevo_nombre, $almacen_id);
         $stmt_check->execute();
         $stmt_check->store_result();
 
         if ($stmt_check->num_rows > 0) {
-            $error = "⚠️ El almacén ya existe.";
+            $error = "⚠️ Ya existe un almacén con ese nombre.";
         } else {
-            // Insertar el nuevo almacén
-            $sql = "INSERT INTO almacenes (nombre, ubicacion) VALUES (?, ?)";
-            $stmt = $conn->prepare($sql);
+            // Actualizar el almacén
+            $sql_update = "UPDATE almacenes SET nombre = ?, ubicacion = ? WHERE id = ?";
+            $stmt_update = $conn->prepare($sql_update);
 
-            if ($stmt) {
-                $stmt->bind_param("ss", $nombre, $ubicacion);
-                if ($stmt->execute()) {
-                    $_SESSION['success'] = "✅ Almacén registrado con éxito.";
-                    // Limpiar valores después del registro exitoso
-                    $nombre = "";
-                    $ubicacion = "";
-                    // Redirigir para evitar reenvío del formulario
-                    header("Location: registrar.php");
+            if ($stmt_update) {
+                $stmt_update->bind_param("ssi", $nuevo_nombre, $nueva_ubicacion, $almacen_id);
+                if ($stmt_update->execute()) {
+                    // Registrar la acción en logs (opcional)
+                    $usuario_id = $_SESSION["user_id"];
+                    $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
+                                VALUES (?, 'EDITAR_ALMACEN', ?, NOW())";
+                    $stmt_log = $conn->prepare($sql_log);
+                    $detalle = "Editó el almacén ID {$almacen_id}: '{$nombre}' -> '{$nuevo_nombre}'";
+                    $stmt_log->bind_param("is", $usuario_id, $detalle);
+                    $stmt_log->execute();
+                    $stmt_log->close();
+                    
+                    $_SESSION['success'] = "✅ Almacén actualizado con éxito.";
+                    header("Location: ver-almacen.php?id=" . $almacen_id);
                     exit();
                 } else {
-                    $error = "❌ Error al registrar el almacén: " . $stmt->error;
+                    $error = "❌ Error al actualizar el almacén: " . $stmt_update->error;
                 }
-                $stmt->close();
+                $stmt_update->close();
             } else {
                 $error = "❌ Error en la consulta SQL: " . $conn->error;
             }
@@ -67,10 +105,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Almacén - COMSEPROA</title>
+    <title>Editar Almacén - <?php echo htmlspecialchars($almacen['nombre']); ?> - COMSEPROA</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Registrar nuevo almacén en el sistema COMSEPROA">
+    <meta name="description" content="Editar información del almacén <?php echo htmlspecialchars($almacen['nombre']); ?>">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -82,9 +120,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS específico para registrar almacenes -->
+    <!-- CSS específico para editar almacenes -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    <link rel="stylesheet" href="../assets/css/almacenes-registrar.css">
+    <link rel="stylesheet" href="../assets/css/almacenes-editar.css">
 </head>
 <body>
 
@@ -124,9 +162,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                <?php if ($usuario_rol == 'admin'): ?>
-                <li class="active"><a href="registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
-                <?php endif; ?>
+                <li><a href="registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
                 <li><a href="listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
@@ -156,16 +192,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <i class="fas fa-clock"></i> Solicitudes Pendientes 
                         <?php 
                         $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
-                        if ($usuario_rol != 'admin') {
-                            $sql_pendientes .= " AND almacen_destino = ?";
-                            $stmt_pendientes = $conn->prepare($sql_pendientes);
-                            $stmt_pendientes->bind_param("i", $usuario_almacen_id);
-                            $stmt_pendientes->execute();
-                            $result_pendientes = $stmt_pendientes->get_result();
-                        } else {
-                            $result_pendientes = $conn->query($sql_pendientes);
-                        }
-                        
+                        $result_pendientes = $conn->query($sql_pendientes);
                         if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             $total_pendientes = $row_pendientes['total'];
                             if ($total_pendientes > 0) {
@@ -181,7 +208,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </li>
 
         <!-- Reports Section (Admin only) -->
-        <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
             <a href="#" aria-label="Menú Reportes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-chart-bar"></i> Reportes</span>
@@ -193,7 +219,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <li><a href="../reportes/usuarios.php" role="menuitem"><i class="fas fa-users"></i> Actividad de Usuarios</a></li>
             </ul>
         </li>
-        <?php endif; ?>
 
         <!-- User Profile -->
         <li class="submenu-container">
@@ -219,13 +244,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!-- Contenido Principal -->
 <main class="content" id="main-content" role="main">
     <!-- Mensajes de éxito o error -->
-    <?php if (isset($_SESSION['success'])): ?>
-        <div class="alert success">
-            <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success']; ?>
-            <?php unset($_SESSION['success']); ?>
-        </div>
-    <?php endif; ?>
-
     <?php if (!empty($error)): ?>
         <div class="alert error">
             <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
@@ -233,29 +251,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <?php endif; ?>
 
     <header class="page-header">
-        <h1>Registrar Nuevo Almacén</h1>
+        <h1>Editar Almacén</h1>
         <p class="page-description">
-            Ingresa la información del nuevo almacén que deseas agregar al sistema
+            Modifica la información del almacén "<?php echo htmlspecialchars($almacen['nombre']); ?>"
         </p>
         <nav class="breadcrumb" aria-label="Ruta de navegación">
             <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
             <span><i class="fas fa-chevron-right"></i></span>
             <a href="listar.php">Almacenes</a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <span class="current">Registrar</span>
+            <a href="ver-almacen.php?id=<?php echo $almacen_id; ?>"><?php echo htmlspecialchars($almacen['nombre']); ?></a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Editar</span>
         </nav>
     </header>
 
-    <div class="register-container">
+    <div class="edit-container">
         <div class="form-header">
             <div class="form-icon">
-                <i class="fas fa-warehouse"></i>
+                <i class="fas fa-edit"></i>
             </div>
-            <h2>Información del Almacén</h2>
-            <p>Complete los campos requeridos para registrar el almacén</p>
+            <h2>Editar Información del Almacén</h2>
+            <p>Actualice los campos que desea modificar</p>
         </div>
 
-        <form id="formRegistrarAlmacen" action="" method="POST" autocomplete="off">
+        <form id="formEditarAlmacen" action="" method="POST" autocomplete="off">
             <div class="form-group">
                 <label for="nombre" class="form-label">
                     <i class="fas fa-building"></i>
@@ -301,12 +321,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn-submit" id="btnRegistrar">
+                <button type="submit" class="btn-submit" id="btnGuardar">
                     <i class="fas fa-save"></i>
-                    Registrar Almacén
+                    Guardar Cambios
                 </button>
                 
-                <a href="listar.php" class="btn-cancel">
+                <a href="ver-almacen.php?id=<?php echo $almacen_id; ?>" class="btn-cancel">
                     <i class="fas fa-times"></i>
                     Cancelar
                 </a>
@@ -315,26 +335,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         <div class="additional-actions">
             <div class="action-item">
-                <a href="listar.php" class="action-link">
-                    <i class="fas fa-list"></i>
+                <a href="ver-almacen.php?id=<?php echo $almacen_id; ?>" class="action-link">
+                    <i class="fas fa-eye"></i>
                     <div>
-                        <strong>Ver Lista de Almacenes</strong>
-                        <small>Consultar todos los almacenes registrados</small>
+                        <strong>Ver Detalle del Almacén</strong>
+                        <small>Volver a la vista detallada del almacén</small>
                     </div>
                 </a>
             </div>
             
-            <?php if ($usuario_rol == 'admin'): ?>
             <div class="action-item">
-                <a href="../usuarios/registrar.php" class="action-link">
-                    <i class="fas fa-user-plus"></i>
+                <a href="listar.php" class="action-link">
+                    <i class="fas fa-list"></i>
                     <div>
-                        <strong>Registrar Usuario</strong>
-                        <small>Agregar nuevo usuario al sistema</small>
+                        <strong>Lista de Almacenes</strong>
+                        <small>Ver todos los almacenes registrados</small>
                     </div>
                 </a>
             </div>
-            <?php endif; ?>
+            
+            <div class="action-item">
+                <a href="#" onclick="eliminarAlmacen(<?php echo $almacen_id; ?>, '<?php echo htmlspecialchars($almacen['nombre']); ?>')" class="action-link danger">
+                    <i class="fas fa-trash"></i>
+                    <div>
+                        <strong>Eliminar Almacén</strong>
+                        <small>Eliminar permanentemente este almacén</small>
+                    </div>
+                </a>
+            </div>
         </div>
     </div>
 </main>
@@ -351,7 +379,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('main-content');
     const submenuContainers = document.querySelectorAll('.submenu-container');
-    const formRegistrar = document.getElementById('formRegistrarAlmacen');
+    const formEditar = document.getElementById('formEditarAlmacen');
+    
+    // Valores originales para detectar cambios
+    const valoresOriginales = {
+        nombre: document.getElementById('nombre').value,
+        ubicacion: document.getElementById('ubicacion').value
+    };
     
     // Toggle del menú móvil
     if (menuToggle) {
@@ -429,9 +463,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Detectar cambios en el formulario
+    function detectarCambios() {
+        const nombre = document.getElementById('nombre').value;
+        const ubicacion = document.getElementById('ubicacion').value;
+        
+        return nombre !== valoresOriginales.nombre || ubicacion !== valoresOriginales.ubicacion;
+    }
+    
     // Validación y envío del formulario con confirmación
-    if (formRegistrar) {
-        formRegistrar.addEventListener('submit', async function(e) {
+    if (formEditar) {
+        formEditar.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const nombre = document.getElementById('nombre').value.trim();
@@ -453,15 +495,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Confirmación antes de registrar
-            const confirmado = await confirmarRegistroAlmacen(nombre, ubicacion);
+            // Verificar si hay cambios
+            if (!detectarCambios()) {
+                mostrarNotificacion('No se han realizado cambios', 'warning');
+                return;
+            }
+            
+            // Confirmación antes de guardar
+            const confirmado = await confirmarEdicionUsuario('<?php echo htmlspecialchars($almacen['nombre']); ?>');
             
             if (confirmado) {
-                const btnSubmit = document.getElementById('btnRegistrar');
+                const btnSubmit = document.getElementById('btnGuardar');
                 const originalText = btnSubmit.innerHTML;
                 
                 // Mostrar estado de carga
-                btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+                btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
                 btnSubmit.disabled = true;
                 
                 // Enviar formulario
@@ -485,6 +533,32 @@ document.addEventListener('DOMContentLoaded', function() {
             validarCampo(this, 5, 'La ubicación debe tener al menos 5 caracteres');
         });
     }
+    
+    // Indicador visual de cambios
+    [nombreInput, ubicacionInput].forEach(input => {
+        if (input) {
+            input.addEventListener('input', function() {
+                const hasChanges = detectarCambios();
+                const btnGuardar = document.getElementById('btnGuardar');
+                
+                if (hasChanges) {
+                    btnGuardar.classList.add('has-changes');
+                    document.title = '* Editar Almacén - COMSEPROA';
+                } else {
+                    btnGuardar.classList.remove('has-changes');
+                    document.title = 'Editar Almacén - COMSEPROA';
+                }
+            });
+        }
+    });
+    
+    // Advertencia al salir sin guardar
+    window.addEventListener('beforeunload', function(e) {
+        if (detectarCambios()) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
     
     // Auto-cerrar alertas
     const alerts = document.querySelectorAll('.alert');
@@ -535,13 +609,36 @@ async function manejarCerrarSesion(event) {
     }
 }
 
-// Función para limpiar formulario
-function limpiarFormulario() {
-    document.getElementById('formRegistrarAlmacen').reset();
-    document.querySelectorAll('.field-error').forEach(error => error.remove());
-    document.querySelectorAll('input').forEach(input => {
-        input.classList.remove('valid', 'invalid');
-    });
+// Función para eliminar almacén
+async function eliminarAlmacen(id, nombre) {
+    const confirmado = await confirmarEliminacion('Almacén', nombre);
+    
+    if (confirmado) {
+        mostrarNotificacion('Eliminando almacén...', 'info');
+        
+        fetch('eliminar_almacen.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarNotificacion('Almacén eliminado correctamente', 'exito');
+                setTimeout(() => {
+                    window.location.href = 'listar.php';
+                }, 2000);
+            } else {
+                mostrarNotificacion(data.message || 'Error al eliminar el almacén', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mostrarNotificacion('Error de conexión al eliminar el almacén', 'error');
+        });
+    }
 }
 
 // Atajos de teclado
@@ -549,12 +646,12 @@ document.addEventListener('keydown', function(e) {
     // Ctrl + S para guardar
     if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
-        document.getElementById('btnRegistrar').click();
+        document.getElementById('btnGuardar').click();
     }
     
     // Esc para cancelar
     if (e.key === 'Escape') {
-        window.location.href = 'listar.php';
+        window.location.href = 'ver-almacen.php?id=<?php echo $almacen_id; ?>';
     }
 });
 
@@ -611,6 +708,35 @@ input.valid {
 input.invalid {
     border-color: var(--list-danger) !important;
     background: rgba(220, 53, 69, 0.05);
+}
+
+.btn-submit.has-changes {
+    background: linear-gradient(135deg, var(--list-warning), #e0a800);
+    animation: pulseWarning 2s infinite;
+}
+
+@keyframes pulseWarning {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.3);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 8px 25px rgba(255, 193, 7, 0.4);
+    }
+}
+
+.action-link.danger {
+    border-color: var(--list-danger);
+}
+
+.action-link.danger:hover {
+    border-color: var(--list-danger);
+    background: rgba(220, 53, 69, 0.05);
+}
+
+.action-link.danger i {
+    color: var(--list-danger);
 }
 </style>
 </body>
