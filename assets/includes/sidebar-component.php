@@ -1,6 +1,6 @@
 <?php
 // ===================================================================
-// COMPONENTE SIDEBAR REUTILIZABLE PARA TODAS LAS VISTAS
+// COMPONENTE SIDEBAR ESTANDARIZADO PARA TODAS LAS VISTAS
 // ===================================================================
 
 // Obtener datos de sesión si no están disponibles
@@ -9,6 +9,9 @@ if (!isset($usuario_rol)) {
 }
 if (!isset($usuario_almacen_id)) {
     $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
+}
+if (!isset($user_name)) {
+    $user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
 }
 
 // Contar solicitudes pendientes para el badge
@@ -54,7 +57,7 @@ function getRelativePath($targetDir = '') {
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- Sidebar Navigation -->
+<!-- Sidebar Navigation Estandarizado -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
     <div class="sidebar-header">
         <h2>COMSEPROA</h2>
@@ -128,12 +131,14 @@ function getRelativePath($targetDir = '') {
                 <i class="fas fa-chevron-down submenu-arrow"></i>
             </a>
             <ul class="submenu <?= ($current_dir == 'productos') ? 'activo' : '' ?>" role="menu">
+                <?php if ($usuario_rol == 'admin'): ?>
                 <li class="<?= ($current_page == 'registrar.php' && $current_dir == 'productos') ? 'active' : '' ?>">
                     <a href="<?= getRelativePath('productos') ?>registrar.php" role="menuitem">
                         <i class="fas fa-plus"></i>
                         <span>Registrar Producto</span>
                     </a>
                 </li>
+                <?php endif; ?>
                 <li class="<?= ($current_page == 'listar.php' && $current_dir == 'productos') ? 'active' : '' ?>">
                     <a href="<?= getRelativePath('productos') ?>listar.php" role="menuitem">
                         <i class="fas fa-list"></i>
@@ -244,14 +249,14 @@ function getRelativePath($targetDir = '') {
         <div class="user-info">
             <i class="fas fa-user-circle"></i>
             <div class="user-details">
-                <span class="user-name"><?= htmlspecialchars(isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario") ?></span>
+                <span class="user-name"><?= htmlspecialchars($user_name) ?></span>
                 <span class="user-role"><?= ucfirst($usuario_rol) ?></span>
             </div>
         </div>
         
         <a href="<?= getRelativePath() ?>logout.php" 
            class="logout-btn" 
-           onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?')"
+           onclick="return confirmarCerrarSesion()"
            aria-label="Cerrar sesión">
             <i class="fas fa-sign-out-alt"></i>
             <span>Cerrar Sesión</span>
