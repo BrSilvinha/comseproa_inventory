@@ -84,7 +84,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Usuario - COMSEPROA</title>
+    <title>Editar Usuario - GRUPO SEAL</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,11 +94,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS específico para editar usuario -->
+    <!-- CSS -->
+    <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
     <link rel="stylesheet" href="../assets/css/editar-usuario.css">
+    <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Editar información de usuario en el sistema COMSEPROA">
+    <meta name="description" content="Editar información de usuario en el sistema GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -113,7 +115,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <!-- Menú Lateral -->
     <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
-        <h2>COMSEPROA</h2>
+        <h2>GRUPO SEAL</h2>
         <ul>
             <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
 
@@ -142,6 +144,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <li><a href="../almacenes/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
                     <?php endif; ?>
                     <li><a href="../almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                </ul>
+            </li>
+            
+            <!-- Productos -->
+            <li class="submenu-container">
+                <a href="#" aria-label="Menú Productos" aria-expanded="false" role="button" tabindex="0">
+                    <span><i class="fas fa-boxes"></i> Productos</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu" role="menu">
+                    <li><a href="../productos/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Producto</a></li>
+                    <li><a href="../productos/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Productos</a></li>
                 </ul>
             </li>
             
@@ -262,522 +276,46 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <!-- Contenedor para notificaciones dinámicas -->
     <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-    <!-- JavaScript con sistema de confirmaciones integrado -->
+    <!-- JavaScript -->
+    <script src="../assets/js/script.js"></script>
+    <script src="../assets/js/universal-confirmation-system.js"></script>
+    
     <script>
-    // ===================================================================
-    // SISTEMA DE CONFIRMACIONES PERSONALIZADO
-    // ===================================================================
-
-    /**
-     * Sistema de confirmaciones elegante y personalizable
-     */
-    class ConfirmationSystem {
-        constructor() {
-            this.createModal();
-            this.bindEvents();
-        }
-
-        createModal() {
-            const modalHTML = `
-                <div id="confirmation-modal" class="confirmation-modal" role="dialog" aria-modal="true">
-                    <div class="confirmation-overlay"></div>
-                    <div class="confirmation-container">
-                        <div class="confirmation-header">
-                            <div class="confirmation-icon">
-                                <i class="fas fa-question-circle"></i>
-                            </div>
-                            <h3 class="confirmation-title">Confirmar Acción</h3>
-                        </div>
-                        <div class="confirmation-body">
-                            <p class="confirmation-message">¿Estás seguro de que deseas realizar esta acción?</p>
-                            <div class="confirmation-details" style="display: none;"></div>
-                        </div>
-                        <div class="confirmation-footer">
-                            <button type="button" class="btn-cancel">
-                                <i class="fas fa-times"></i> Cancelar
-                            </button>
-                            <button type="button" class="btn-confirm">
-                                <i class="fas fa-check"></i> Confirmar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
-            this.addStyles();
-        }
-
-        addStyles() {
-            const styles = `
-                <style id="confirmation-styles">
-                .confirmation-modal {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    z-index: 9999;
-                    display: none;
-                    align-items: center;
-                    justify-content: center;
-                    opacity: 0;
-                    transition: opacity 0.3s ease;
-                }
-
-                .confirmation-modal.show {
-                    display: flex;
-                    opacity: 1;
-                }
-
-                .confirmation-overlay {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(10, 37, 60, 0.8);
-                    backdrop-filter: blur(5px);
-                }
-
-                .confirmation-container {
-                    background: white;
-                    border-radius: 15px;
-                    box-shadow: 0 20px 40px rgba(10, 37, 60, 0.3);
-                    max-width: 500px;
-                    width: 90%;
-                    overflow: hidden;
-                    position: relative;
-                    transform: scale(0.8);
-                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-
-                .confirmation-modal.show .confirmation-container {
-                    transform: scale(1);
-                }
-
-                .confirmation-header {
-                    background: linear-gradient(135deg, #0a253c 0%, #164463 100%);
-                    color: white;
-                    padding: 25px;
-                    text-align: center;
-                }
-
-                .confirmation-icon {
-                    font-size: 48px;
-                    margin-bottom: 15px;
-                    opacity: 0.9;
-                }
-
-                .confirmation-icon.warning { color: #ffc107; }
-                .confirmation-icon.danger { color: #dc3545; }
-                .confirmation-icon.success { color: #28a745; }
-                .confirmation-icon.info { color: #17a2b8; }
-
-                .confirmation-title {
-                    font-size: 22px;
-                    font-weight: 700;
-                    margin: 0;
-                    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-                }
-
-                .confirmation-body {
-                    padding: 30px;
-                    text-align: center;
-                }
-
-                .confirmation-message {
-                    font-size: 16px;
-                    color: #0a253c;
-                    margin: 0 0 15px 0;
-                    line-height: 1.6;
-                    font-weight: 500;
-                }
-
-                .confirmation-details {
-                    background: #f8f9fa;
-                    border-left: 4px solid #0a253c;
-                    padding: 15px;
-                    margin: 15px 0;
-                    border-radius: 0 8px 8px 0;
-                    text-align: left;
-                }
-
-                .confirmation-details h4 {
-                    margin: 0 0 10px 0;
-                    color: #0a253c;
-                    font-size: 14px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                }
-
-                .confirmation-details p {
-                    margin: 5px 0;
-                    font-size: 14px;
-                    color: #666;
-                }
-
-                .confirmation-footer {
-                    padding: 20px 30px 30px;
-                    display: flex;
-                    gap: 15px;
-                    justify-content: center;
-                }
-
-                .confirmation-footer button {
-                    padding: 12px 25px;
-                    border: none;
-                    border-radius: 8px;
-                    font-size: 16px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    min-width: 120px;
-                    justify-content: center;
-                }
-
-                .btn-cancel {
-                    background: #6c757d;
-                    color: white;
-                }
-
-                .btn-cancel:hover {
-                    background: #5a6268;
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
-                }
-
-                .btn-confirm {
-                    background: linear-gradient(135deg, #0a253c 0%, #164463 100%);
-                    color: white;
-                }
-
-                .btn-confirm:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(10, 37, 60, 0.3);
-                }
-
-                .btn-confirm.warning {
-                    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-                    color: #0a253c;
-                }
-
-                @media (max-width: 768px) {
-                    .confirmation-container {
-                        width: 95%;
-                        margin: 20px;
-                    }
-                    .confirmation-footer {
-                        flex-direction: column;
-                    }
-                    .confirmation-footer button {
-                        width: 100%;
-                    }
-                }
-                </style>
-            `;
-            document.head.insertAdjacentHTML('beforeend', styles);
-        }
-
-        bindEvents() {
-            const modal = document.getElementById('confirmation-modal');
-            const cancelBtn = modal.querySelector('.btn-cancel');
-            const overlay = modal.querySelector('.confirmation-overlay');
-
-            cancelBtn.addEventListener('click', () => this.hide());
-            overlay.addEventListener('click', () => this.hide());
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && modal.classList.contains('show')) {
-                    this.hide();
-                }
-            });
-        }
-
-        show(options = {}) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('confirmation-modal');
-                const title = modal.querySelector('.confirmation-title');
-                const message = modal.querySelector('.confirmation-message');
-                const details = modal.querySelector('.confirmation-details');
-                const confirmBtn = modal.querySelector('.btn-confirm');
-                const icon = modal.querySelector('.confirmation-icon i');
-                const iconContainer = modal.querySelector('.confirmation-icon');
-
-                title.textContent = options.title || 'Confirmar Acción';
-                message.textContent = options.message || '¿Estás seguro de que deseas realizar esta acción?';
-
-                if (options.details) {
-                    details.innerHTML = options.details;
-                    details.style.display = 'block';
-                } else {
-                    details.style.display = 'none';
-                }
-
-                const type = options.type || 'info';
-                iconContainer.className = `confirmation-icon ${type}`;
-
-                const icons = {
-                    danger: 'fa-exclamation-triangle',
-                    warning: 'fa-exclamation-circle',
-                    success: 'fa-check-circle',
-                    info: 'fa-question-circle'
-                };
-                icon.className = `fas ${icons[type] || icons.info}`;
-
-                confirmBtn.className = `btn-confirm ${type !== 'info' ? type : ''}`;
-                confirmBtn.innerHTML = `<i class="fas fa-check"></i> ${options.confirmText || 'Confirmar'}`;
-
-                modal.classList.add('show');
-                confirmBtn.focus();
-
-                const handleConfirm = () => {
-                    confirmBtn.removeEventListener('click', handleConfirm);
-                    this.hide();
-                    resolve(true);
-                };
-
-                const handleCancel = () => {
-                    modal.removeEventListener('hidden', handleCancel);
-                    resolve(false);
-                };
-
-                confirmBtn.addEventListener('click', handleConfirm);
-                modal.addEventListener('hidden', handleCancel, { once: true });
-            });
-        }
-
-        hide() {
-            const modal = document.getElementById('confirmation-modal');
-            modal.classList.remove('show');
-            setTimeout(() => {
-                modal.dispatchEvent(new CustomEvent('hidden'));
-            }, 300);
-        }
-    }
-
-    // Instancia global del sistema de confirmaciones
-    const confirmationSystem = new ConfirmationSystem();
-
-    // ===== FUNCIONES DE CONFIRMACIÓN ESPECÍFICAS =====
-
-    async function confirmarGuardarCambios(nombreUsuario = '') {
-        const details = nombreUsuario ? `
-            <h4>Usuario a modificar:</h4>
-            <p><strong>${nombreUsuario}</strong></p>
-            <p><small>Los cambios se aplicarán inmediatamente y no se pueden deshacer.</small></p>
-        ` : '';
-
-        return await confirmationSystem.show({
-            title: 'Guardar Cambios',
-            message: '¿Estás seguro de que deseas guardar los cambios realizados?',
-            details: details,
-            type: 'warning',
-            confirmText: 'Guardar Cambios'
-        });
-    }
-
-    async function confirmarCerrarSesion() {
-        return await confirmationSystem.show({
-            title: 'Cerrar Sesión',
-            message: '¿Estás seguro de que deseas cerrar tu sesión?',
-            details: '<p><small>Tendrás que iniciar sesión nuevamente para acceder al sistema.</small></p>',
-            type: 'info',
-            confirmText: 'Cerrar Sesión'
-        });
-    }
-
-    // ===== SISTEMA DE NOTIFICACIONES =====
-
-    function mostrarNotificacionMejorada(mensaje, tipo = 'info', duracion = 5000) {
-        let container = document.getElementById('notificaciones-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'notificaciones-container';
-            container.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 10000;
-                max-width: 400px;
-            `;
-            document.body.appendChild(container);
-        }
-
-        const iconos = {
-            exito: 'fa-check-circle',
-            error: 'fa-exclamation-triangle',
-            warning: 'fa-exclamation-circle',
-            info: 'fa-info-circle'
-        };
-
-        const notificacion = document.createElement('div');
-        notificacion.className = `notificacion ${tipo}`;
-        notificacion.style.cssText = `
-            background: white;
-            border-left: 5px solid ${tipo === 'exito' ? '#28a745' : tipo === 'error' ? '#dc3545' : tipo === 'warning' ? '#ffc107' : '#0a253c'};
-            padding: 15px 20px;
-            margin-bottom: 10px;
-            border-radius: 0 8px 8px 0;
-            box-shadow: 0 4px 12px rgba(10, 37, 60, 0.15);
-            position: relative;
-            animation: slideInRight 0.4s ease;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        `;
-
-        notificacion.innerHTML = `
-            <i class="fas ${iconos[tipo] || iconos.info}" style="font-size: 20px; color: ${tipo === 'exito' ? '#28a745' : tipo === 'error' ? '#dc3545' : tipo === 'warning' ? '#ffc107' : '#0a253c'};"></i>
-            <span style="flex: 1; color: #0a253c; font-weight: 500;">${mensaje}</span>
-            <button class="cerrar" aria-label="Cerrar notificación" style="background: none; border: none; font-size: 16px; cursor: pointer; color: #666; padding: 0;">&times;</button>
-        `;
-
-        container.appendChild(notificacion);
-
-        const cerrarBtn = notificacion.querySelector('.cerrar');
-        cerrarBtn.addEventListener('click', () => {
-            notificacion.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => notificacion.remove(), 300);
-        });
-
-        if (duracion > 0) {
-            setTimeout(() => {
-                if (notificacion.parentNode) {
-                    notificacion.style.animation = 'slideOutRight 0.3s ease';
-                    setTimeout(() => notificacion.remove(), 300);
-                }
-            }, duracion);
-        }
-
-        // Agregar animaciones CSS si no existen
-        if (!document.getElementById('notification-animations')) {
-            const animationStyles = document.createElement('style');
-            animationStyles.id = 'notification-animations';
-            animationStyles.textContent = `
-                @keyframes slideInRight {
-                    from { opacity: 0; transform: translateX(30px); }
-                    to { opacity: 1; transform: translateX(0); }
-                }
-                @keyframes slideOutRight {
-                    from { opacity: 1; transform: translateX(0); }
-                    to { opacity: 0; transform: translateX(30px); }
-                }
-            `;
-            document.head.appendChild(animationStyles);
-        }
-    }
-
-    // ===== FUNCIONES PRINCIPALES =====
-
     document.addEventListener('DOMContentLoaded', function() {
-        // Elementos principales
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('main-content');
-        const submenuContainers = document.querySelectorAll('.submenu-container');
-        
-        // Toggle del menú móvil
-        if (menuToggle) {
-            menuToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('active');
-                if (mainContent) {
-                    mainContent.classList.toggle('with-sidebar');
-                }
+        // Auto-expandir el submenú de usuarios
+        setTimeout(() => {
+            const usuariosSubmenu = document.querySelector('.submenu-container');
+            if (usuariosSubmenu) {
+                const link = usuariosSubmenu.querySelector('a');
+                const submenu = usuariosSubmenu.querySelector('.submenu');
+                const chevron = usuariosSubmenu.querySelector('.fa-chevron-down');
                 
-                const icon = this.querySelector('i');
-                if (sidebar.classList.contains('active')) {
-                    icon.classList.remove('fa-bars');
-                    icon.classList.add('fa-times');
-                    this.setAttribute('aria-label', 'Cerrar menú de navegación');
-                } else {
-                    icon.classList.remove('fa-times');
-                    icon.classList.add('fa-bars');
-                    this.setAttribute('aria-label', 'Abrir menú de navegación');
-                }
-            });
-        }
-        
-        // Funcionalidad de submenús
-        submenuContainers.forEach(container => {
-            const link = container.querySelector('a');
-            const submenu = container.querySelector('.submenu');
-            const chevron = link.querySelector('.fa-chevron-down');
-            
-            if (link && submenu) {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Cerrar otros submenús
-                    submenuContainers.forEach(otherContainer => {
-                        if (otherContainer !== container) {
-                            const otherSubmenu = otherContainer.querySelector('.submenu');
-                            const otherChevron = otherContainer.querySelector('.fa-chevron-down');
-                            const otherLink = otherContainer.querySelector('a');
-                            
-                            if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
-                                otherSubmenu.classList.remove('activo');
-                                if (otherChevron) {
-                                    otherChevron.style.transform = 'rotate(0deg)';
-                                }
-                                if (otherLink) {
-                                    otherLink.setAttribute('aria-expanded', 'false');
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Toggle del submenú actual
-                    submenu.classList.toggle('activo');
-                    const isExpanded = submenu.classList.contains('activo');
-                    
+                if (link && submenu) {
+                    submenu.classList.add('activo');
                     if (chevron) {
-                        chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                        chevron.style.transform = 'rotate(180deg)';
                     }
-                    
-                    link.setAttribute('aria-expanded', isExpanded.toString());
-                });
-            }
-        });
-        
-        // Cerrar menú móvil al hacer clic fuera
-        document.addEventListener('click', function(e) {
-            if (window.innerWidth <= 768) {
-                if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
-                    sidebar.classList.remove('active');
-                    if (mainContent) {
-                        mainContent.classList.remove('with-sidebar');
-                    }
-                    
-                    const icon = menuToggle.querySelector('i');
-                    icon.classList.remove('fa-times');
-                    icon.classList.add('fa-bars');
-                    menuToggle.setAttribute('aria-label', 'Abrir menú de navegación');
+                    link.setAttribute('aria-expanded', 'true');
                 }
             }
-        });
-        
-        // Navegación por teclado
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-                sidebar.classList.remove('active');
-                if (mainContent) {
-                    mainContent.classList.remove('with-sidebar');
-                }
-                menuToggle.focus();
-            }
-            
-            if (e.key === 'Tab') {
-                document.body.classList.add('keyboard-navigation');
+        }, 100);
+
+        // Mostrar mensajes de sesión
+        const mensajes = document.querySelectorAll('.mensaje');
+        mensajes.forEach(mensaje => {
+            const texto = mensaje.textContent.trim();
+            if (texto) {
+                const tipo = mensaje.classList.contains('exito') ? 'exito' : 'error';
+                setTimeout(() => {
+                    mostrarNotificacion(texto, tipo);
+                }, 500);
             }
         });
-        
-        document.addEventListener('mousedown', function() {
-            document.body.classList.remove('keyboard-navigation');
-        });
+
+        // Mostrar notificación de bienvenida
+        setTimeout(() => {
+            mostrarNotificacion('Editando usuario: <?= htmlspecialchars($usuario['nombre'] . ' ' . $usuario['apellidos']) ?>', 'info', 3000);
+        }, 1000);
         
         // Validación de formularios
         const inputs = document.querySelectorAll('input, select');
@@ -840,48 +378,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 errorDiv.remove();
             }
         }
-        
-        // Auto-expandir el submenú de usuarios
-        setTimeout(() => {
-            const usuariosSubmenu = document.querySelector('.submenu-container');
-            if (usuariosSubmenu) {
-                const link = usuariosSubmenu.querySelector('a');
-                const submenu = usuariosSubmenu.querySelector('.submenu');
-                const chevron = usuariosSubmenu.querySelector('.fa-chevron-down');
-                
-                if (link && submenu) {
-                    submenu.classList.add('activo');
-                    if (chevron) {
-                        chevron.style.transform = 'rotate(180deg)';
-                    }
-                    link.setAttribute('aria-expanded', 'true');
-                }
-            }
-        }, 100);
-
-        // Mostrar mensajes de sesión
-        const mensajes = document.querySelectorAll('.mensaje');
-        mensajes.forEach(mensaje => {
-            const texto = mensaje.textContent.trim();
-            if (texto) {
-                const tipo = mensaje.classList.contains('exito') ? 'exito' : 'error';
-                setTimeout(() => {
-                    mostrarNotificacionMejorada(texto, tipo);
-                }, 500);
-            }
-        });
-
-        // Mostrar notificación de bienvenida
-        setTimeout(() => {
-            mostrarNotificacionMejorada('Editando usuario: <?= htmlspecialchars($usuario['nombre'] . ' ' . $usuario['apellidos']) ?>', 'info', 3000);
-        }, 1000);
     });
 
-    // ===== FUNCIONES DE CONFIRMACIÓN =====
-
-    /**
-     * Manejar guardar cambios con confirmación
-     */
+    // Funciones de confirmación
     async function manejarGuardarCambios() {
         const form = document.getElementById('formEditarUsuario');
         
@@ -897,7 +396,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         });
         
         if (!isFormValid) {
-            mostrarNotificacionMejorada('Por favor, completa todos los campos requeridos', 'error');
+            mostrarNotificacion('Por favor, completa todos los campos requeridos', 'error');
             return;
         }
 
@@ -906,7 +405,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         const nombreCompleto = `${formData.get('nombre')} ${formData.get('apellidos')}`;
         
         // Mostrar confirmación
-        const confirmado = await confirmarGuardarCambios(nombreCompleto);
+        const confirmado = await confirmarEdicionUsuario(nombreCompleto);
         
         if (confirmado) {
             // Mostrar indicador de carga
@@ -920,9 +419,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
-    /**
-     * Manejar cerrar sesión con confirmación
-     */
     async function manejarCerrarSesion(event) {
         event.preventDefault();
         
@@ -930,7 +426,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         
         if (confirmado) {
             // Mostrar mensaje de despedida
-            mostrarNotificacionMejorada('Cerrando sesión...', 'info', 2000);
+            mostrarNotificacion('Cerrando sesión...', 'info', 2000);
             
             setTimeout(() => {
                 window.location.href = '../logout.php';

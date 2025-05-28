@@ -77,7 +77,7 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Usuario - COMSEPROA</title>
+    <title>Registrar Usuario - GRUPO SEAL</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -87,12 +87,13 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS estandarizado -->
-    <link rel="stylesheet" href="../assets/css/sidebar-styles.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
     <link rel="stylesheet" href="../assets/css/registrar-usuario.css">
+    <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Registrar nuevo usuario en el sistema COMSEPROA">
+    <meta name="description" content="Registrar nuevo usuario en el sistema GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -100,8 +101,104 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
 </head>
 <body>
-    <!-- Incluir sidebar estandarizado -->
-    <?php include '../assets/includes/sidebar-component.php'; ?>
+    <!-- Botón de hamburguesa para dispositivos móviles -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Menú Lateral -->
+    <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
+        <h2>GRUPO SEAL</h2>
+        <ul>
+            <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
+
+            <!-- Usuarios - Solo visible para administradores -->
+            <?php if ($usuario_rol == 'admin'): ?>
+            <li class="submenu-container">
+                <a href="#" aria-label="Menú Usuarios" aria-expanded="false" role="button" tabindex="0">
+                    <span><i class="fas fa-users"></i> Usuarios</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu" role="menu">
+                    <li><a href="registrar.php" role="menuitem"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
+                    <li><a href="listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
+                </ul>
+            </li>
+            <?php endif; ?>
+
+            <!-- Almacenes - Ajustado según permisos -->
+            <li class="submenu-container">
+                <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
+                    <span><i class="fas fa-warehouse"></i> Almacenes</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu" role="menu">
+                    <?php if ($usuario_rol == 'admin'): ?>
+                    <li><a href="../almacenes/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                    <?php endif; ?>
+                    <li><a href="../almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                </ul>
+            </li>
+            
+            <!-- Productos -->
+            <li class="submenu-container">
+                <a href="#" aria-label="Menú Productos" aria-expanded="false" role="button" tabindex="0">
+                    <span><i class="fas fa-boxes"></i> Productos</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu" role="menu">
+                    <li><a href="../productos/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Producto</a></li>
+                    <li><a href="../productos/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Productos</a></li>
+                </ul>
+            </li>
+            
+            <!-- Notificaciones -->
+            <li class="submenu-container">
+                <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
+                    <span><i class="fas fa-bell"></i> Notificaciones</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="submenu" role="menu">
+                    <li>
+                        <a href="../notificaciones/pendientes.php" role="menuitem">
+                            <i class="fas fa-clock"></i> Solicitudes Pendientes 
+                            <?php 
+                            // Contar solicitudes pendientes para mostrar en el badge
+                            $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+                            
+                            // Si el usuario no es admin, filtrar por su almacén
+                            if ($usuario_rol != 'admin') {
+                                $sql_pendientes .= " AND almacen_destino = ?";
+                                $stmt_pendientes = $conn->prepare($sql_pendientes);
+                                $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+                                $stmt_pendientes->execute();
+                                $result_pendientes = $stmt_pendientes->get_result();
+                            } else {
+                                $result_pendientes = $conn->query($sql_pendientes);
+                            }
+                            
+                            if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+                                $total_pendientes = $row_pendientes['total'];
+                                if ($total_pendientes > 0) {
+                                    echo '<span class="badge" aria-label="' . $total_pendientes . ' solicitudes pendientes">' . $total_pendientes . '</span>';
+                                }
+                            }
+                            ?>
+                        </a>
+                    </li>
+                    <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
+                    <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Historial de Entregas</a></li>
+                </ul>
+            </li>
+
+            <!-- Cerrar Sesión -->
+            <li>
+                <a href="../logout.php" aria-label="Cerrar sesión" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?')">
+                    <span><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
 
     <main class="content" id="main-content" role="main">
         <header>
@@ -163,10 +260,10 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
             
             <!-- Enlaces de navegación rápida -->
             <div style="text-align: center; margin-top: 30px; padding-top: 25px; border-top: 2px solid #e9ecef;">
-                <a href="listar.php" class="btn" style="background: #17a2b8; color: white; text-decoration: none; margin-right: 15px;">
+                <a href="listar.php" style="background: #17a2b8; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; margin: 0 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
                     <i class="fas fa-list"></i> Ver Lista de Usuarios
                 </a>
-                <a href="../dashboard.php" class="btn" style="background: #6c757d; color: white; text-decoration: none;">
+                <a href="../dashboard.php" style="background: #6c757d; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; margin: 0 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
                     <i class="fas fa-home"></i> Volver al Dashboard
                 </a>
             </div>
@@ -231,45 +328,41 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
             });
         }
         
-        // Sistema de notificaciones mejorado
-        function mostrarNotificacion(mensaje, tipo = 'info') {
-            const container = document.getElementById('notificaciones-container');
-            const notificacion = document.createElement('div');
-            notificacion.className = `notificacion ${tipo}`;
-            notificacion.innerHTML = `
-                ${mensaje}
-                <span class="cerrar">&times;</span>
-            `;
-            
-            container.appendChild(notificacion);
-            
-            const cerrarBtn = notificacion.querySelector('.cerrar');
-            cerrarBtn.addEventListener('click', function() {
-                notificacion.remove();
-            });
-            
-            setTimeout(() => {
-                if (notificacion.parentNode) {
-                    notificacion.remove();
+        // Auto-expandir el submenú de usuarios
+        setTimeout(() => {
+            const usuariosSubmenu = document.querySelector('.submenu-container');
+            if (usuariosSubmenu) {
+                const link = usuariosSubmenu.querySelector('a');
+                const submenu = usuariosSubmenu.querySelector('.submenu');
+                const chevron = usuariosSubmenu.querySelector('.fa-chevron-down');
+                
+                if (link && submenu) {
+                    submenu.classList.add('activo');
+                    if (chevron) {
+                        chevron.style.transform = 'rotate(180deg)';
+                    }
+                    link.setAttribute('aria-expanded', 'true');
                 }
-            }, 5000);
-        }
-        
-        // Mostrar mensajes de sesión como notificaciones
+            }
+        }, 100);
+
+        // Mostrar mensajes existentes como notificaciones
         const mensajes = document.querySelectorAll('.mensaje');
         mensajes.forEach(mensaje => {
             const texto = mensaje.textContent.trim();
+            const tipo = mensaje.classList.contains('exito') ? 'exito' : 'error';
             if (texto) {
-                const tipo = mensaje.classList.contains('exito') ? 'exito' : 'error';
                 setTimeout(() => {
                     mostrarNotificacion(texto, tipo);
                     mensaje.style.display = 'none';
                 }, 500);
             }
         });
-        
-        // Hacer disponible globalmente
-        window.mostrarNotificacion = mostrarNotificacion;
+
+        // Mostrar notificación de bienvenida
+        setTimeout(() => {
+            mostrarNotificacion('Formulario de registro listo', 'info', 3000);
+        }, 1000);
     });
     </script>
 </body>
