@@ -77,7 +77,7 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Usuario - GRUPO SEAL</title>
+    <title>Registrar Usuario - COMSEPROA</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -87,13 +87,12 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS -->
-    <link rel="stylesheet" href="../assets/css/styles-dashboard.css">
-    <link rel="stylesheet" href="../assets/css/registrar-usuario.css">
-    <link rel="stylesheet" href="../assets/css/styles-pendientes.css">
+    <!-- CSS consistente -->
+    <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
+    <link rel="stylesheet" href="../assets/css/registrar-usuario-consistent.css">
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Registrar nuevo usuario en el sistema GRUPO SEAL">
+    <meta name="description" content="Registrar nuevo usuario en el sistema COMSEPROA">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -108,7 +107,7 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
 
     <!-- Menú Lateral -->
     <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
-        <h2>GRUPO SEAL</h2>
+        <h2>COMSEPROA</h2>
         <ul>
             <li><a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a></li>
 
@@ -126,7 +125,7 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
             </li>
             <?php endif; ?>
 
-            <!-- Almacenes - Ajustado según permisos -->
+            <!-- Almacenes -->
             <li class="submenu-container">
                 <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
                     <span><i class="fas fa-warehouse"></i> Almacenes</span>
@@ -149,6 +148,7 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
                 <ul class="submenu" role="menu">
                     <li><a href="../productos/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Producto</a></li>
                     <li><a href="../productos/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Productos</a></li>
+                    <li><a href="../productos/categorias.php" role="menuitem"><i class="fas fa-tags"></i> Categorías</a></li>
                 </ul>
             </li>
             
@@ -180,7 +180,7 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
                             if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 $total_pendientes = $row_pendientes['total'];
                                 if ($total_pendientes > 0) {
-                                    echo '<span class="badge" aria-label="' . $total_pendientes . ' solicitudes pendientes">' . $total_pendientes . '</span>';
+                                    echo '<span class="badge-small" aria-label="' . $total_pendientes . ' solicitudes pendientes">' . $total_pendientes . '</span>';
                                 }
                             }
                             ?>
@@ -193,13 +193,13 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
 
             <!-- Cerrar Sesión -->
             <li>
-                <a href="../logout.php" aria-label="Cerrar sesión" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?')">
-                    <span><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</span>
+                <a href="#" onclick="manejarCerrarSesion(event)" aria-label="Cerrar sesión">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
                 </a>
             </li>
         </ul>
     </nav>
-
+    
     <main class="content" id="main-content" role="main">
         <header>
             <h1>Registrar Usuario</h1>
@@ -208,14 +208,14 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
         <div class="register-container">
             <!-- Mostrar mensajes -->
             <?php if (isset($_SESSION['success'])): ?>
-                <div class="mensaje exito" role="alert">
+                <div class="mensaje exito" role="alert" style="display: none;">
                     <i class="fas fa-check-circle"></i>
                     <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
                 </div>
             <?php endif; ?>
             
             <?php if (!empty($mensaje)): ?>
-                <div class="mensaje error" role="alert">
+                <div class="mensaje error" role="alert" style="display: none;">
                     <i class="fas fa-exclamation-triangle"></i>
                     <?php echo $mensaje; ?>
                 </div>
@@ -259,11 +259,11 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
             </form>
             
             <!-- Enlaces de navegación rápida -->
-            <div style="text-align: center; margin-top: 30px; padding-top: 25px; border-top: 2px solid #e9ecef;">
-                <a href="listar.php" style="background: #17a2b8; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; margin: 0 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+            <div class="navigation-links">
+                <a href="listar.php" class="btn" style="background: #17a2b8; color: white; text-decoration: none;">
                     <i class="fas fa-list"></i> Ver Lista de Usuarios
                 </a>
-                <a href="../dashboard.php" style="background: #6c757d; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; margin: 0 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+                <a href="../dashboard.php" class="btn" style="background: #6c757d; color: white; text-decoration: none;">
                     <i class="fas fa-home"></i> Volver al Dashboard
                 </a>
             </div>
@@ -274,13 +274,115 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
     <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
     <!-- Scripts -->
-    <script src="../assets/js/script.js"></script>
     <script src="../assets/js/universal-confirmation-system.js"></script>
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Elementos principales
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const submenuContainers = document.querySelectorAll('.submenu-container');
         const form = document.getElementById('formRegistrarUsuario');
         
+        // Toggle del menú móvil
+        if (menuToggle) {
+            menuToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('active');
+                if (mainContent) {
+                    mainContent.classList.toggle('with-sidebar');
+                }
+                
+                const icon = this.querySelector('i');
+                if (sidebar.classList.contains('active')) {
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-times');
+                    this.setAttribute('aria-label', 'Cerrar menú de navegación');
+                } else {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                    this.setAttribute('aria-label', 'Abrir menú de navegación');
+                }
+            });
+        }
+        
+        // Funcionalidad de submenús
+        submenuContainers.forEach(container => {
+            const link = container.querySelector('a');
+            const submenu = container.querySelector('.submenu');
+            const chevron = link.querySelector('.fa-chevron-down');
+            
+            if (link && submenu) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    submenuContainers.forEach(otherContainer => {
+                        if (otherContainer !== container) {
+                            const otherSubmenu = otherContainer.querySelector('.submenu');
+                            const otherChevron = otherContainer.querySelector('.fa-chevron-down');
+                            const otherLink = otherContainer.querySelector('a');
+                            
+                            if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
+                                otherSubmenu.classList.remove('activo');
+                                if (otherChevron) {
+                                    otherChevron.style.transform = 'rotate(0deg)';
+                                }
+                                if (otherLink) {
+                                    otherLink.setAttribute('aria-expanded', 'false');
+                                }
+                            }
+                        }
+                    });
+                    
+                    submenu.classList.toggle('activo');
+                    const isExpanded = submenu.classList.contains('activo');
+                    
+                    if (chevron) {
+                        chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                    }
+                    
+                    link.setAttribute('aria-expanded', isExpanded.toString());
+                });
+            }
+        });
+        
+        // Cerrar menú móvil al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 768) {
+                if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                    if (mainContent) {
+                        mainContent.classList.remove('with-sidebar');
+                    }
+                    
+                    const icon = menuToggle.querySelector('i');
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                    menuToggle.setAttribute('aria-label', 'Abrir menú de navegación');
+                }
+            }
+        });
+        
+        // Navegación por teclado
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                if (mainContent) {
+                    mainContent.classList.remove('with-sidebar');
+                }
+                menuToggle.focus();
+            }
+            
+            if (e.key === 'Tab') {
+                document.body.classList.add('keyboard-navigation');
+            }
+        });
+        
+        document.addEventListener('mousedown', function() {
+            document.body.classList.remove('keyboard-navigation');
+        });
+
+        // Manejo del formulario con confirmaciones
         if (form) {
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
@@ -321,13 +423,99 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
                 if (this.value === 'almacenero') {
                     almacenSelect.setAttribute('required', 'required');
                     almacenSelect.style.borderColor = '#ffc107';
+                    almacenSelect.style.background = 'rgba(255, 193, 7, 0.1)';
                 } else {
                     almacenSelect.removeAttribute('required');
                     almacenSelect.style.borderColor = '';
+                    almacenSelect.style.background = '';
                 }
             });
         }
         
+        // Validación de campos
+        const inputs = document.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                validateField(this);
+            });
+            
+            input.addEventListener('input', function() {
+                clearValidationError(this);
+            });
+        });
+        
+        function validateField(field) {
+            const value = field.value.trim();
+            let isValid = true;
+            let errorMessage = '';
+            
+            if (field.name === 'dni') {
+                if (value && !/^\d{8}$/.test(value)) {
+                    isValid = false;
+                    errorMessage = 'El DNI debe tener exactamente 8 dígitos';
+                }
+            } else if (field.name === 'correo') {
+                if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    isValid = false;
+                    errorMessage = 'Formato de correo no válido';
+                }
+            } else if (field.name === 'celular') {
+                if (value && !/^[0-9]{9,15}$/.test(value)) {
+                    isValid = false;
+                    errorMessage = 'El celular debe tener entre 9 y 15 dígitos';
+                }
+            } else if (field.name === 'confirmar_contraseña') {
+                const password = document.getElementById('contraseña').value;
+                if (value && value !== password) {
+                    isValid = false;
+                    errorMessage = 'Las contraseñas no coinciden';
+                }
+            }
+            
+            if (!isValid) {
+                showValidationError(field, errorMessage);
+            } else {
+                clearValidationError(field);
+            }
+            
+            return isValid;
+        }
+        
+        function showValidationError(field, message) {
+            field.classList.add('error');
+            
+            const existingError = field.parentNode.querySelector('.validation-error');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'validation-error';
+            errorDiv.textContent = message;
+            field.parentNode.appendChild(errorDiv);
+        }
+        
+        function clearValidationError(field) {
+            field.classList.remove('error');
+            field.classList.add('success');
+            const errorDiv = field.parentNode.querySelector('.validation-error');
+            if (errorDiv) {
+                errorDiv.remove();
+            }
+        }
+
+        // Mostrar mensajes de sesión como notificaciones
+        const mensajes = document.querySelectorAll('.mensaje');
+        mensajes.forEach(mensaje => {
+            const texto = mensaje.textContent.trim();
+            if (texto) {
+                const tipo = mensaje.classList.contains('exito') ? 'exito' : 'error';
+                setTimeout(() => {
+                    mostrarNotificacion(texto, tipo);
+                }, 500);
+            }
+        });
+
         // Auto-expandir el submenú de usuarios
         setTimeout(() => {
             const usuariosSubmenu = document.querySelector('.submenu-container');
@@ -346,24 +534,26 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
             }
         }, 100);
 
-        // Mostrar mensajes existentes como notificaciones
-        const mensajes = document.querySelectorAll('.mensaje');
-        mensajes.forEach(mensaje => {
-            const texto = mensaje.textContent.trim();
-            const tipo = mensaje.classList.contains('exito') ? 'exito' : 'error';
-            if (texto) {
-                setTimeout(() => {
-                    mostrarNotificacion(texto, tipo);
-                    mensaje.style.display = 'none';
-                }, 500);
-            }
-        });
-
         // Mostrar notificación de bienvenida
         setTimeout(() => {
-            mostrarNotificacion('Formulario de registro listo', 'info', 3000);
+            mostrarNotificacion('Formulario de registro cargado correctamente', 'info', 3000);
         }, 1000);
     });
+
+    // Función para cerrar sesión con confirmación
+    async function manejarCerrarSesion(event) {
+        event.preventDefault();
+        
+        const confirmado = await confirmarCerrarSesion();
+        
+        if (confirmado) {
+            mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+            
+            setTimeout(() => {
+                window.location.href = '../logout.php';
+            }, 1000);
+        }
+    }
     </script>
 </body>
 </html>

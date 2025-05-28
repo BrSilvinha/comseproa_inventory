@@ -35,8 +35,9 @@ require_once "config/database.php";
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS exclusivo para dashboard -->
-    <link rel="stylesheet" href="assets/css/dashboard-styles.css">
+    <!-- CSS consistente con las otras páginas -->
+    <link rel="stylesheet" href="assets/css/listar-usuarios.css">
+    <link rel="stylesheet" href="assets/css/dashboard-consistent.css">
     
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="assets/img/favicon.ico">
@@ -128,7 +129,7 @@ require_once "config/database.php";
                         if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             $total_pendientes = $row_pendientes['total'];
                             if ($total_pendientes > 0) {
-                                echo '<span class="badge" aria-label="' . $total_pendientes . ' solicitudes pendientes">' . $total_pendientes . '</span>';
+                                echo '<span class="badge-small" aria-label="' . $total_pendientes . ' solicitudes pendientes">' . $total_pendientes . '</span>';
                             }
                         }
                         ?>
@@ -168,7 +169,7 @@ require_once "config/database.php";
 
         <!-- Logout -->
         <li>
-            <a href="logout.php" aria-label="Cerrar sesión" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?')">
+            <a href="#" onclick="manejarCerrarSesion(event)" aria-label="Cerrar sesión">
                 <span><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</span>
             </a>
         </li>
@@ -180,7 +181,7 @@ require_once "config/database.php";
     <header>
         <h1>
             Bienvenido, <?php echo htmlspecialchars($user_name, ENT_QUOTES, 'UTF-8'); ?>
-            <small style="display: block; font-size: 0.6em; font-weight: 300; color: #666; margin-top: 5px;">
+            <small>
                 <?php 
                 echo $usuario_rol == 'admin' ? 'Administrador del Sistema' : 'Usuario de Almacén'; 
                 if ($usuario_almacen_id && $usuario_rol != 'admin') {
@@ -203,109 +204,133 @@ require_once "config/database.php";
         <section class="dashboard-grid" role="region" aria-label="Panel de control">
             <?php if ($usuario_rol == 'admin'): ?>
             <!-- Admin Dashboard Cards -->
-            <article class="card">
+            <a href="usuarios/listar.php" class="dashboard-card admin-card" tabindex="0" aria-label="Gestión de usuarios">
                 <h3><i class="fas fa-users"></i> Gestión de Usuarios</h3>
-                <p>Administrar usuarios del sistema, roles y permisos de acceso.</p>
-                <a href="usuarios/listar.php" aria-label="Ver gestión de usuarios">
-                    Ver Usuarios
-                </a>
-            </article>
+                <p>Administrar usuarios del sistema, roles y permisos de acceso. Crear, editar y gestionar cuentas de usuario.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Usuarios
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="almacenes/listar.php" class="dashboard-card warehouse-card" tabindex="0" aria-label="Gestión de almacenes">
                 <h3><i class="fas fa-warehouse"></i> Gestión de Almacenes</h3>
-                <p>Administrar ubicaciones de almacenes y asignaciones.</p>
-                <a href="almacenes/listar.php" aria-label="Ver gestión de almacenes">
-                    Ver Almacenes
-                </a>
-            </article>
+                <p>Administrar ubicaciones de almacenes y asignaciones. Controlar inventarios por ubicación.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Almacenes
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="reportes/inventario.php" class="dashboard-card report-card" tabindex="0" aria-label="Reportes del sistema">
                 <h3><i class="fas fa-chart-line"></i> Reportes y Estadísticas</h3>
-                <p>Generar reportes detallados del inventario y movimientos.</p>
-                <a href="reportes/inventario.php" aria-label="Ver reportes del sistema">
-                    Ver Reportes
-                </a>
-            </article>
+                <p>Generar reportes detallados del inventario y movimientos. Análisis de datos del sistema.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Reportes
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="notificaciones/pendientes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Centro de notificaciones">
                 <h3><i class="fas fa-bell"></i> Centro de Notificaciones</h3>
-                <p>Revisar todas las solicitudes y notificaciones del sistema.</p>
-                <a href="notificaciones/pendientes.php" aria-label="Ver centro de notificaciones">
-                    Ver Notificaciones
+                <p>Revisar todas las solicitudes y notificaciones del sistema. Gestionar aprobaciones pendientes.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Notificaciones
+                    </span>
                     <?php if (isset($total_pendientes) && $total_pendientes > 0): ?>
-                    <span class="badge" style="margin-left: 10px;"><?php echo $total_pendientes; ?></span>
+                    <span class="badge"><?php echo $total_pendientes; ?></span>
                     <?php endif; ?>
-                </a>
-            </article>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="usuarios/registrar.php" class="dashboard-card admin-card" tabindex="0" aria-label="Acciones rápidas">
                 <h3><i class="fas fa-plus-circle"></i> Acciones Rápidas</h3>
-                <p>Registrar nuevos usuarios, productos y almacenes.</p>
-                <a href="usuarios/registrar.php" aria-label="Acceder a registro rápido">
-                    Registrar Nuevo
-                </a>
-            </article>
+                <p>Registrar nuevos usuarios, productos y almacenes. Herramientas de administración rápida.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Registrar Nuevo
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="productos/listar.php" class="dashboard-card product-card" tabindex="0" aria-label="Inventario general">
                 <h3><i class="fas fa-boxes"></i> Inventario General</h3>
-                <p>Vista general del inventario en todos los almacenes.</p>
-                <a href="productos/listar.php" aria-label="Ver inventario general">
-                    Ver Inventario
-                </a>
-            </article>
+                <p>Vista general del inventario en todos los almacenes. Control de stock y productos.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Inventario
+                    </span>
+                </div>
+            </a>
 
             <?php else: ?>
             <!-- Regular User Dashboard Cards -->
-            <article class="card">
+            <a href="almacenes/listar.php" class="dashboard-card warehouse-card" tabindex="0" aria-label="Mi almacén">
                 <h3><i class="fas fa-warehouse"></i> Mi Almacén</h3>
                 <p>Ver información detallada de tu almacén asignado y productos disponibles.</p>
-                <a href="almacenes/listar.php" aria-label="Ver información de mi almacén">
-                    Ver Mi Almacén
-                </a>
-            </article>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Mi Almacén
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="notificaciones/pendientes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Solicitudes pendientes">
                 <h3><i class="fas fa-clock"></i> Solicitudes Pendientes</h3>
                 <p>Revisar y gestionar solicitudes de transferencia pendientes de aprobación.</p>
-                <a href="notificaciones/pendientes.php" aria-label="Ver solicitudes pendientes">
-                    Ver Solicitudes
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Solicitudes
+                    </span>
                     <?php if (isset($total_pendientes) && $total_pendientes > 0): ?>
-                    <span class="badge" style="margin-left: 10px;"><?php echo $total_pendientes; ?></span>
+                    <span class="badge"><?php echo $total_pendientes; ?></span>
                     <?php endif; ?>
-                </a>
-            </article>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="notificaciones/historial.php" class="dashboard-card notification-card" tabindex="0" aria-label="Historial de actividad">
                 <h3><i class="fas fa-history"></i> Historial de Actividad</h3>
-                <p>Consultar el historial completo de solicitudes y transferencias.</p>
-                <a href="notificaciones/historial.php" aria-label="Ver historial de actividad">
-                    Ver Historial
-                </a>
-            </article>
+                <p>Consultar el historial completo de solicitudes y transferencias realizadas.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Historial
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="productos/listar.php" class="dashboard-card product-card" tabindex="0" aria-label="Productos disponibles">
                 <h3><i class="fas fa-boxes"></i> Productos Disponibles</h3>
                 <p>Explorar el catálogo de productos disponibles en el sistema.</p>
-                <a href="productos/listar.php" aria-label="Ver productos disponibles">
-                    Ver Productos
-                </a>
-            </article>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Productos
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="uniformes/historial_entregas_uniformes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Entregas de uniformes">
                 <h3><i class="fas fa-tshirt"></i> Entregas de Uniformes</h3>
                 <p>Consultar historial de entregas de uniformes y equipamiento.</p>
-                <a href="uniformes/historial_entregas_uniformes.php" aria-label="Ver entregas de uniformes">
-                    Ver Entregas
-                </a>
-            </article>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Ver Entregas
+                    </span>
+                </div>
+            </a>
 
-            <article class="card">
+            <a href="perfil/configuracion.php" class="dashboard-card profile-card" tabindex="0" aria-label="Mi perfil">
                 <h3><i class="fas fa-user-cog"></i> Mi Perfil</h3>
-                <p>Gestionar configuración personal y cambiar contraseña.</p>
-                <a href="perfil/configuracion.php" aria-label="Ver configuración de perfil">
-                    Configurar Perfil
-                </a>
-            </article>
+                <p>Gestionar configuración personal y cambiar contraseña de usuario.</p>
+                <div class="card-footer">
+                    <span class="card-action">
+                        <i class="fas fa-arrow-right"></i> Configurar Perfil
+                    </span>
+                </div>
+            </a>
             <?php endif; ?>
         </section>
     </div>
@@ -315,6 +340,7 @@ require_once "config/database.php";
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
 <!-- JavaScript optimizado -->
+<script src="assets/js/universal-confirmation-system.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos principales
@@ -327,7 +353,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (menuToggle) {
         menuToggle.addEventListener('click', function() {
             sidebar.classList.toggle('active');
-            mainContent.classList.toggle('with-sidebar');
+            if (mainContent) {
+                mainContent.classList.toggle('with-sidebar');
+            }
             
             // Cambiar icono del botón
             const icon = this.querySelector('i');
@@ -390,7 +418,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.innerWidth <= 768) {
             if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
                 sidebar.classList.remove('active');
-                mainContent.classList.remove('with-sidebar');
+                if (mainContent) {
+                    mainContent.classList.remove('with-sidebar');
+                }
                 
                 const icon = menuToggle.querySelector('i');
                 icon.classList.remove('fa-times');
@@ -405,7 +435,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Cerrar menú móvil con Escape
         if (e.key === 'Escape' && sidebar.classList.contains('active')) {
             sidebar.classList.remove('active');
-            mainContent.classList.remove('with-sidebar');
+            if (mainContent) {
+                mainContent.classList.remove('with-sidebar');
+            }
             menuToggle.focus();
         }
         
@@ -419,43 +451,65 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.remove('keyboard-navigation');
     });
     
-    // Sistema de notificaciones
-    window.mostrarNotificacion = function(mensaje, tipo = 'info', duracion = 5000) {
-        const container = document.getElementById('notificaciones-container');
-        const notificacion = document.createElement('div');
-        notificacion.className = `notificacion ${tipo}`;
-        
-        notificacion.innerHTML = `
-            ${mensaje}
-            <button class="cerrar" aria-label="Cerrar notificación">&times;</button>
-        `;
-        
-        container.appendChild(notificacion);
-        
-        // Cerrar notificación
-        const cerrarBtn = notificacion.querySelector('.cerrar');
-        cerrarBtn.addEventListener('click', function() {
-            notificacion.remove();
+    // Efectos mejorados para las tarjetas
+    const dashboardCards = document.querySelectorAll('.dashboard-card');
+    dashboardCards.forEach((card, index) => {
+        // Efectos de hover mejorados
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-12px) scale(1.03)';
+            this.style.zIndex = '10';
         });
         
-        // Auto-cerrar después del tiempo especificado
-        if (duracion > 0) {
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+            this.style.zIndex = '1';
+        });
+        
+        // Efecto de clic
+        card.addEventListener('mousedown', function() {
+            this.style.transform = 'translateY(-8px) scale(1.01)';
+        });
+        
+        card.addEventListener('mouseup', function() {
+            this.style.transform = 'translateY(-12px) scale(1.03)';
+        });
+        
+        // Efecto ripple
+        card.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = x + 'px';
+            ripple.style.top = y + 'px';
+            ripple.classList.add('ripple-effect');
+            
+            this.appendChild(ripple);
+            
             setTimeout(() => {
-                if (notificacion.parentNode) {
-                    notificacion.remove();
-                }
-            }, duracion);
-        }
-    };
+                ripple.remove();
+            }, 600);
+        });
+    });
     
-    // Actualizar badges de notificaciones (opcional, para tiempo real)
+    // Mostrar notificación de bienvenida
+    setTimeout(() => {
+        mostrarNotificacion(
+            `¡Bienvenido de vuelta, <?php echo htmlspecialchars($user_name); ?>!`, 
+            'exito', 
+            4000
+        );
+    }, 1500);
+    
+    // Actualizar badges de notificaciones (opcional)
     function actualizarBadgesNotificaciones() {
-        // Esta función puede ser llamada periódicamente para actualizar
-        // los contadores de notificaciones sin recargar la página
         fetch('api/obtener_notificaciones_count.php')
             .then(response => response.json())
             .then(data => {
-                const badges = document.querySelectorAll('.badge');
+                const badges = document.querySelectorAll('.badge, .badge-small');
                 badges.forEach(badge => {
                     if (data.pendientes > 0) {
                         badge.textContent = data.pendientes;
@@ -470,40 +524,36 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Actualizar badges cada 30 segundos (opcional)
-    // setInterval(actualizarBadgesNotificaciones, 30000);
-    
-    // Añadir efectos de hover mejorados a las tarjetas
-    const cards = document.querySelectorAll('.card');
-    cards.forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-8px) scale(1.02)';
-        });
+    // Optimización de rendimiento
+    if ('IntersectionObserver' in window) {
+        const cardObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
         
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) scale(1)';
+        dashboardCards.forEach(card => {
+            cardObserver.observe(card);
         });
-    });
-    
-    // Mostrar notificación de bienvenida
-    setTimeout(() => {
-        mostrarNotificacion(
-            `¡Bienvenido de vuelta, <?php echo htmlspecialchars($user_name); ?>!`, 
-            'exito', 
-            3000
-        );
-    }, 1000);
+    }
 });
 
-// Función para confirmar acciones importantes
-function confirmarAccion(mensaje, callback) {
-    if (confirm(mensaje)) {
-        if (typeof callback === 'function') {
-            callback();
-        }
-        return true;
+// Función para cerrar sesión con confirmación
+async function manejarCerrarSesion(event) {
+    event.preventDefault();
+    
+    const confirmado = await confirmarCerrarSesion();
+    
+    if (confirmado) {
+        mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+        
+        setTimeout(() => {
+            window.location.href = 'logout.php';
+        }, 1000);
     }
-    return false;
 }
 
 // Manejo de errores globales
@@ -512,54 +562,16 @@ window.addEventListener('error', function(e) {
     mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
 });
 
-// Optimización de rendimiento: lazy loading para recursos no críticos
-if ('IntersectionObserver' in window) {
-    const imageObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                img.src = img.dataset.src;
-                img.classList.remove('lazy');
-                imageObserver.unobserve(img);
-            }
-        });
-    });
-    
-    document.querySelectorAll('img[data-src]').forEach(img => {
-        imageObserver.observe(img);
-    });
-}
+// Función de confirmación global
+window.confirmarAccion = function(mensaje, callback) {
+    if (confirm(mensaje)) {
+        if (typeof callback === 'function') {
+            callback();
+        }
+        return true;
+    }
+    return false;
+};
 </script>
-
-<!-- Estilos adicionales para navegación por teclado -->
-<style>
-.keyboard-navigation *:focus {
-    outline: 3px solid #17a2b8 !important;
-    outline-offset: 2px !important;
-}
-
-.lazy {
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.lazy.loaded {
-    opacity: 1;
-}
-
-/* Mejora de accesibilidad para lectores de pantalla */
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-</style>
-
 </body>
 </html>
