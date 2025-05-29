@@ -4,37 +4,76 @@
 
 class ProductosRegistrar {
     constructor() {
-        this.form = null;
-        this.camposPorCategoria = {
-            1: ["nombre", "modelo", "color", "talla_dimensiones", "cantidad", "unidad_medida", "estado", "observaciones"],
-            2: ["nombre", "modelo", "color", "cantidad", "unidad_medida", "estado", "observaciones"],
-            3: ["nombre", "color", "talla_dimensiones", "cantidad", "unidad_medida", "estado", "observaciones"],
-            4: ["nombre", "modelo", "color", "cantidad", "unidad_medida", "estado", "observaciones"],
-            6: ["nombre", "modelo", "color", "cantidad", "unidad_medida", "estado", "observaciones"]
-        };
-        this.validacionEnTiempoReal = true;
+        this.formContainer = document.querySelector('.form-container');
+        this.form = document.getElementById('formRegistrarProducto');
+        this.hasChanges = false;
+        this.validationRules = this.initValidationRules();
         
         this.inicializar();
+        this.configurarEventListeners();
+        this.configurarValidaciones();
     }
 
     inicializar() {
         // Configurar sidebar
         this.configurarSidebar();
         
-        // Configurar formulario
-        this.configurarFormulario();
-        
         // Auto-cerrar alertas
         this.configurarAlertas();
         
-        // Configurar atajos de teclado
-        this.configurarAtajos();
+        // Configurar contador de caracteres
+        this.configurarContadorCaracteres();
         
-        // Configurar validación en tiempo real
-        this.configurarValidacion();
+        // Configurar controles de cantidad
+        this.configurarControlesCantidad();
         
-        // Verificar si hay categoría preseleccionada
-        this.verificarCategoriaPreseleccionada();
+        // Configurar campos condicionales
+        this.configurarCamposCondicionales();
+        
+        // Cargar datos guardados temporalmente
+        this.cargarDatosTemporales();
+    }
+
+    initValidationRules() {
+        return {
+            nombre: {
+                required: true,
+                minLength: 3,
+                maxLength: 100,
+                pattern: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-\.]+$/
+            },
+            modelo: {
+                maxLength: 50,
+                pattern: /^[a-zA-Z0-9\s\-\.]+$/
+            },
+            color: {
+                maxLength: 30,
+                pattern: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+            },
+            talla_dimensiones: {
+                maxLength: 50
+            },
+            cantidad: {
+                required: true,
+                min: 1,
+                max: 999999
+            },
+            unidad_medida: {
+                required: true
+            },
+            estado: {
+                required: true
+            },
+            almacen_id: {
+                required: true
+            },
+            categoria_id: {
+                required: true
+            },
+            observaciones: {
+                maxLength: 500
+            }
+        };
     }
 
     configurarSidebar() {
@@ -122,324 +161,6 @@ class ProductosRegistrar {
         }
     }
 
-    configurarFormulario() {
-        this.form = document.getElementById('formRegistrarProducto');
-        const categoriaSelect = document.getElementById('categoria_id');
-        const productFields = document.getElementById('productFields');
-
-        if (!this.form || !categoriaSelect || !productFields) {
-            console.error('Elementos del formulario no encontrados');
-            return;
-        }
-
-        // Evento para cambio de categoría
-        categoriaSelect.addEventListener('change', (e) => {
-            const categoriaId = parseInt(e.target.value);
-            this.mostrarCamposPorCategoria(categoriaId);
-        });
-
-        // Evento para envío del formulario
-        this.form.addEventListener('submit', (e) => {
-            this.manejarEnvioFormulario(e);
-        });
-
-        // Eventos para campos dinámicos
-        this.configurarEventosCampos();
-    }
-
-    verificarCategoriaPreseleccionada() {
-        const categoriaSelect = document.getElementById('categoria_id');
-        if (categoriaSelect && categoriaSelect.value) {
-            const categoriaId = parseInt(categoriaSelect.value);
-            this.mostrarCamposPorCategoria(categoriaId);
-        }
-    }
-
-    mostrarCamposPorCategoria(categoriaId) {
-        const productFields = document.getElementById('productFields');
-        const allFields = productFields.querySelectorAll('[data-field]');
-        
-        // Ocultar todos los campos primero
-        allFields.forEach(field => {
-            field.style.display = 'none';
-            const input = field.querySelector('input, select, textarea');
-            if (input) {
-                input.removeAttribute('required');
-            }
-        });
-
-        if (categoriaId && this.camposPorCategoria[categoriaId]) {
-            // Mostrar campos específicos de la categoría
-            const camposVisibles = this.camposPorCategoria[categoriaId];
-            
-            camposVisibles.forEach(campo => {
-                const fieldElement = productFields.querySelector(`[data-field="${campo}"]`);
-                if (fieldElement) {
-                    fieldElement.style.display = 'flex';
-                    
-                    // Configurar campos requeridos
-                    const input = fieldElement.querySelector('input, select, textarea');
-                    if (input && this.esCampoRequerido(campo)) {
-                        input.setAttribute('required', 'true');
-                    }
-                }
-            });
-
-            // Mostrar la sección de campos
-            productFields.style.display = 'block';
-            
-            // Animar la aparición
-            productFields.style.opacity = '0';
-            productFields.style.transform = 'translateY(20px)';
-            
-            setTimeout(() => {
-                productFields.style.transition = 'all 0.4s ease';
-                productFields.style.opacity = '1';
-                productFields.style.transform = 'translateY(0)';
-            }, 10);
-
-            // Focus en el primer campo visible
-            setTimeout(() => {
-                const primerCampo = productFields.querySelector('input:not([type="hidden"]), select, textarea');
-                if (primerCampo) {
-                    primerCampo.focus();
-                }
-            }, 100);
-
-        } else {
-            // Ocultar la sección si no hay categoría seleccionada
-            productFields.style.display = 'none';
-        }
-    }
-
-    esCampoRequerido(campo) {
-        const camposRequeridos = ['nombre', 'cantidad', 'unidad_medida', 'estado'];
-        return camposRequeridos.includes(campo);
-    }
-
-    configurarEventosCampos() {
-        // Configurar validación en tiempo real para todos los campos
-        const inputs = this.form.querySelectorAll('input, select, textarea');
-        
-        inputs.forEach(input => {
-            // Evento input para validación en tiempo real
-            input.addEventListener('input', () => {
-                if (this.validacionEnTiempoReal) {
-                    this.validarCampo(input);
-                }
-            });
-
-            // Evento blur para validación al salir del campo
-            input.addEventListener('blur', () => {
-                this.validarCampo(input);
-            });
-
-            // Evento focus para limpiar errores
-            input.addEventListener('focus', () => {
-                this.limpiarErroresCampo(input);
-            });
-        });
-
-        // Configurar eventos específicos
-        this.configurarCampoNumerico();
-        this.configurarAutocompletado();
-    }
-
-    configurarCampoNumerico() {
-        const cantidadInput = document.getElementById('cantidad');
-        
-        if (cantidadInput) {
-            // Permitir solo números
-            cantidadInput.addEventListener('keypress', (e) => {
-                if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                    e.preventDefault();
-                }
-            });
-
-            // Validar rango
-            cantidadInput.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                if (value < 1) {
-                    e.target.value = 1;
-                }
-                if (value > 99999) {
-                    e.target.value = 99999;
-                }
-            });
-        }
-    }
-
-    configurarAutocompletado() {
-        // Configurar autocompletado para unidades de medida comunes
-        const unidadInput = document.getElementById('unidad_medida');
-        
-        if (unidadInput && unidadInput.tagName === 'SELECT') {
-            // Ya es un select, no necesita autocompletado
-            return;
-        }
-
-        // Si fuera un input text, aquí se configuraría el autocompletado
-    }
-
-    validarCampo(input) {
-        const formGroup = input.closest('.form-group');
-        const isRequired = input.hasAttribute('required');
-        const value = input.value.trim();
-
-        // Limpiar errores previos
-        this.limpiarErroresCampo(input);
-
-        let esValido = true;
-        let mensajeError = '';
-
-        // Validaciones específicas por tipo de campo
-        if (isRequired && !value) {
-            esValido = false;
-            mensajeError = 'Este campo es obligatorio';
-        } else if (input.type === 'number') {
-            const numValue = parseInt(value);
-            if (value && (isNaN(numValue) || numValue < 1)) {
-                esValido = false;
-                mensajeError = 'Debe ser un número mayor a 0';
-            }
-        } else if (input.id === 'nombre' && value) {
-            if (value.length < 3) {
-                esValido = false;
-                mensajeError = 'El nombre debe tener al menos 3 caracteres';
-            } else if (value.length > 100) {
-                esValido = false;
-                mensajeError = 'El nombre no puede exceder 100 caracteres';
-            }
-        }
-
-        // Aplicar clases de validación
-        if (esValido) {
-            formGroup.classList.remove('has-error');
-            formGroup.classList.add('has-success');
-            input.style.borderColor = '';
-        } else {
-            formGroup.classList.remove('has-success');
-            formGroup.classList.add('has-error');
-            this.mostrarErrorCampo(input, mensajeError);
-        }
-
-        // Actualizar estado del botón de envío
-        this.actualizarEstadoBotonEnvio();
-
-        return esValido;
-    }
-
-    limpiarErroresCampo(input) {
-        const formGroup = input.closest('.form-group');
-        formGroup.classList.remove('has-error', 'has-success');
-        
-        const errorMessage = formGroup.querySelector('.error-message');
-        if (errorMessage) {
-            errorMessage.remove();
-        }
-        
-        input.style.borderColor = '';
-    }
-
-    mostrarErrorCampo(input, mensaje) {
-        const formGroup = input.closest('.form-group');
-        
-        // Remover mensaje de error anterior
-        const errorAnterior = formGroup.querySelector('.error-message');
-        if (errorAnterior) {
-            errorAnterior.remove();
-        }
-        
-        // Crear nuevo mensaje de error
-        const errorElement = document.createElement('div');
-        errorElement.className = 'error-message';
-        errorElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${mensaje}`;
-        
-        formGroup.appendChild(errorElement);
-    }
-
-    actualizarEstadoBotonEnvio() {
-        const btnEnvio = document.getElementById('btnRegistrar');
-        const camposRequeridos = this.form.querySelectorAll('[required]');
-        let todosValidos = true;
-
-        camposRequeridos.forEach(campo => {
-            if (!campo.value.trim() || campo.closest('.form-group').classList.contains('has-error')) {
-                todosValidos = false;
-            }
-        });
-
-        if (btnEnvio) {
-            btnEnvio.disabled = !todosValidos;
-            if (todosValidos) {
-                btnEnvio.style.opacity = '1';
-            } else {
-                btnEnvio.style.opacity = '0.6';
-            }
-        }
-    }
-
-    async manejarEnvioFormulario(e) {
-        e.preventDefault();
-        
-        const btnEnvio = document.getElementById('btnRegistrar');
-        const textoOriginal = btnEnvio.innerHTML;
-        
-        // Validar formulario completo
-        if (!this.validarFormularioCompleto()) {
-            this.mostrarNotificacion('Por favor, corrija los errores en el formulario', 'error');
-            return;
-        }
-
-        // Confirmar envío
-        const confirmado = await this.confirmarRegistro();
-        if (!confirmado) return;
-
-        // Mostrar estado de carga
-        btnEnvio.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Registrando...</span>';
-        btnEnvio.disabled = true;
-        this.form.classList.add('loading');
-
-        try {
-            // Enviar formulario
-            this.form.submit();
-        } catch (error) {
-            console.error('Error al enviar formulario:', error);
-            this.mostrarNotificacion('Error al registrar el producto', 'error');
-            
-            // Restaurar botón
-            btnEnvio.innerHTML = textoOriginal;
-            btnEnvio.disabled = false;
-            this.form.classList.remove('loading');
-        }
-    }
-
-    validarFormularioCompleto() {
-        const inputs = this.form.querySelectorAll('input[required], select[required], textarea[required]');
-        let esValido = true;
-
-        inputs.forEach(input => {
-            if (!this.validarCampo(input)) {
-                esValido = false;
-            }
-        });
-
-        return esValido;
-    }
-
-    async confirmarRegistro() {
-        const nombre = document.getElementById('nombre').value;
-        const cantidad = document.getElementById('cantidad').value;
-        const almacenSelect = document.getElementById('almacen_id');
-        const almacenNombre = almacenSelect.options[almacenSelect.selectedIndex].text;
-        
-        return await this.confirmarAccion(
-            `¿Desea registrar el producto "${nombre}" con cantidad ${cantidad} en el almacén "${almacenNombre}"?`,
-            'Confirmar Registro',
-            'info'
-        );
-    }
-
     configurarAlertas() {
         const alertas = document.querySelectorAll('.alert');
         alertas.forEach(alerta => {
@@ -452,61 +173,516 @@ class ProductosRegistrar {
         });
     }
 
-    configurarAtajos() {
-        document.addEventListener('keydown', (e) => {
-            // Ctrl + S para guardar
-            if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
-                document.getElementById('btnRegistrar').click();
-            }
+    configurarContadorCaracteres() {
+        const observacionesField = document.getElementById('observaciones');
+        const charCounter = document.getElementById('charCount');
+        
+        if (observacionesField && charCounter) {
+            const updateCounter = () => {
+                const currentLength = observacionesField.value.length;
+                charCounter.textContent = currentLength;
+                
+                // Cambiar color según el límite
+                if (currentLength > 400) {
+                    charCounter.style.color = 'var(--danger-color)';
+                } else if (currentLength > 300) {
+                    charCounter.style.color = 'var(--warning-color)';
+                } else {
+                    charCounter.style.color = 'var(--text-muted)';
+                }
+            };
             
-            // Ctrl + R para limpiar formulario
-            if (e.ctrlKey && e.key === 'r') {
-                e.preventDefault();
-                this.limpiarFormulario();
-            }
+            observacionesField.addEventListener('input', updateCounter);
+            updateCounter(); // Actualizar al cargar
+        }
+    }
+
+    configurarControlesCantidad() {
+        const cantidadInput = document.getElementById('cantidad');
+        const minusBtn = document.querySelector('.qty-btn.minus');
+        const plusBtn = document.querySelector('.qty-btn.plus');
+        
+        if (cantidadInput && minusBtn && plusBtn) {
+            minusBtn.addEventListener('click', () => this.adjustQuantity(-1));
+            plusBtn.addEventListener('click', () => this.adjustQuantity(1));
             
-            // Esc para cancelar
-            if (e.key === 'Escape') {
-                window.location.href = 'listar.php';
+            cantidadInput.addEventListener('change', () => {
+                this.validarCantidad();
+            });
+        }
+    }
+
+    configurarCamposCondicionales() {
+        const categoriaSelect = document.getElementById('categoria_id');
+        
+        if (categoriaSelect) {
+            categoriaSelect.addEventListener('change', () => {
+                this.actualizarCamposSegunCategoria();
+            });
+            
+            // Actualizar al cargar si ya hay una categoría seleccionada
+            if (categoriaSelect.value) {
+                this.actualizarCamposSegunCategoria();
+            }
+        }
+    }
+
+    configurarEventListeners() {
+        // Manejar envío del formulario
+        if (this.form) {
+            this.form.addEventListener('submit', (e) => this.manejarEnvioFormulario(e));
+            
+            // Detectar cambios en el formulario
+            this.form.addEventListener('input', () => this.detectarCambios());
+            this.form.addEventListener('change', () => this.detectarCambios());
+        }
+
+        // Atajos de teclado
+        document.addEventListener('keydown', (e) => this.manejarAtajosTeclado(e));
+
+        // Advertencia al salir sin guardar
+        window.addEventListener('beforeunload', (e) => {
+            if (this.hasChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // Configurar validación en tiempo real
+        this.configurarValidacionTiempoReal();
+    }
+
+    configurarValidaciones() {
+        // Agregar validaciones personalizadas a los campos
+        Object.keys(this.validationRules).forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (field) {
+                field.addEventListener('blur', () => this.validarCampo(fieldName));
+                field.addEventListener('input', () => this.validarCampoTiempoReal(fieldName));
             }
         });
     }
 
-    configurarValidacion() {
-        // Deshabilitar validación HTML5 nativa
-        this.form.setAttribute('novalidate', 'true');
+    configurarValidacionTiempoReal() {
+        const campos = this.form.querySelectorAll('input, select, textarea');
+        campos.forEach(campo => {
+            campo.addEventListener('input', () => {
+                this.validarCampoIndividual(campo);
+            });
+        });
+    }
+
+    adjustQuantity(increment) {
+        const cantidadInput = document.getElementById('cantidad');
+        if (!cantidadInput) return;
+
+        let currentValue = parseInt(cantidadInput.value) || 1;
+        let newValue = currentValue + increment;
+        
+        // Validar límites
+        newValue = Math.max(1, Math.min(newValue, 999999));
+        
+        cantidadInput.value = newValue;
+        this.validarCantidad();
+        this.detectarCambios();
+    }
+
+    validarCantidad() {
+        const cantidadInput = document.getElementById('cantidad');
+        if (!cantidadInput) return;
+
+        const value = parseInt(cantidadInput.value);
+        
+        if (value < 1 || value > 999999 || isNaN(value)) {
+            this.mostrarErrorCampo(cantidadInput, 'La cantidad debe estar entre 1 y 999,999');
+            return false;
+        } else {
+            this.limpiarErrorCampo(cantidadInput);
+            return true;
+        }
+    }
+
+    actualizarCamposSegunCategoria() {
+        const categoriaSelect = document.getElementById('categoria_id');
+        const categoriaId = categoriaSelect.value;
+        
+        // Configuraciones específicas por categoría
+        const configuraciones = {
+            '1': { // Ropa
+                modelo: { visible: true, required: false },
+                color: { visible: true, required: false },
+                talla_dimensiones: { visible: true, required: false, placeholder: 'Ej: XL, 42...' }
+            },
+            '2': { // Accesorios de seguridad
+                modelo: { visible: true, required: false },
+                color: { visible: true, required: false },
+                talla_dimensiones: { visible: true, required: false, placeholder: 'Ej: Mediano, 25cm...' }
+            },
+            '3': { // Kebras y fundas nuevas
+                modelo: { visible: false, required: false },
+                color: { visible: true, required: false },
+                talla_dimensiones: { visible: true, required: false, placeholder: 'Ej: 30x25x10 cm...' }
+            },
+            '4': { // Armas
+                modelo: { visible: true, required: true },
+                color: { visible: true, required: false },
+                talla_dimensiones: { visible: false, required: false }
+            },
+            '6': { // Walkie-Talkie
+                modelo: { visible: true, required: true },
+                color: { visible: true, required: false },
+                talla_dimensiones: { visible: false, required: false }
+            }
+        };
+        
+        const config = configuraciones[categoriaId];
+        
+        if (config) {
+            this.aplicarConfiguracionCampos(config);
+        } else {
+            // Configuración por defecto
+            this.aplicarConfiguracionCampos({
+                modelo: { visible: true, required: false },
+                color: { visible: true, required: false },
+                talla_dimensiones: { visible: true, required: false, placeholder: 'Talla o dimensiones...' }
+            });
+        }
+    }
+
+    aplicarConfiguracionCampos(config) {
+        Object.keys(config).forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            const formGroup = field?.closest('.form-group');
+            const label = formGroup?.querySelector('.form-label');
+            
+            if (field && formGroup) {
+                // Mostrar/ocultar campo
+                formGroup.style.display = config[fieldName].visible ? 'flex' : 'none';
+                
+                // Configurar requerido
+                if (config[fieldName].required) {
+                    field.setAttribute('required', '');
+                    if (label && !label.textContent.includes('*')) {
+                        label.innerHTML += ' *';
+                    }
+                } else {
+                    field.removeAttribute('required');
+                    if (label) {
+                        label.innerHTML = label.innerHTML.replace(' *', '');
+                    }
+                }
+                
+                // Configurar placeholder
+                if (config[fieldName].placeholder) {
+                    field.setAttribute('placeholder', config[fieldName].placeholder);
+                }
+            }
+        });
+    }
+
+    validarCampo(fieldName) {
+        const field = document.getElementById(fieldName);
+        const rules = this.validationRules[fieldName];
+        
+        if (!field || !rules) return true;
+
+        const value = field.value.trim();
+        
+        // Validar campo requerido
+        if (rules.required && !value) {
+            this.mostrarErrorCampo(field, 'Este campo es obligatorio');
+            return false;
+        }
+        
+        // Si está vacío y no es requerido, es válido
+        if (!value && !rules.required) {
+            this.limpiarErrorCampo(field);
+            return true;
+        }
+        
+        // Validar longitud mínima
+        if (rules.minLength && value.length < rules.minLength) {
+            this.mostrarErrorCampo(field, `Mínimo ${rules.minLength} caracteres`);
+            return false;
+        }
+        
+        // Validar longitud máxima
+        if (rules.maxLength && value.length > rules.maxLength) {
+            this.mostrarErrorCampo(field, `Máximo ${rules.maxLength} caracteres`);
+            return false;
+        }
+        
+        // Validar patrón
+        if (rules.pattern && !rules.pattern.test(value)) {
+            this.mostrarErrorCampo(field, 'Formato no válido');
+            return false;
+        }
+        
+        // Validar valores numéricos
+        if (rules.min !== undefined || rules.max !== undefined) {
+            const numValue = parseInt(value);
+            if (isNaN(numValue)) {
+                this.mostrarErrorCampo(field, 'Debe ser un número válido');
+                return false;
+            }
+            
+            if (rules.min !== undefined && numValue < rules.min) {
+                this.mostrarErrorCampo(field, `Valor mínimo: ${rules.min}`);
+                return false;
+            }
+            
+            if (rules.max !== undefined && numValue > rules.max) {
+                this.mostrarErrorCampo(field, `Valor máximo: ${rules.max}`);
+                return false;
+            }
+        }
+        
+        this.limpiarErrorCampo(field);
+        return true;
+    }
+
+    validarCampoTiempoReal(fieldName) {
+        // Validación menos estricta para tiempo real
+        const field = document.getElementById(fieldName);
+        const rules = this.validationRules[fieldName];
+        
+        if (!field || !rules) return;
+
+        const value = field.value.trim();
+        
+        // Solo mostrar errores de longitud máxima en tiempo real
+        if (rules.maxLength && value.length > rules.maxLength) {
+            this.mostrarErrorCampo(field, `Máximo ${rules.maxLength} caracteres`);
+        } else if (field.classList.contains('error')) {
+            // Solo limpiar si había un error de longitud
+            const errorElement = field.parentNode.querySelector('.field-error');
+            if (errorElement && errorElement.textContent.includes('Máximo')) {
+                this.limpiarErrorCampo(field);
+            }
+        }
+    }
+
+    validarCampoIndividual(campo) {
+        // Validación visual inmediata
+        if (campo.hasAttribute('required') && !campo.value.trim()) {
+            campo.classList.add('invalid');
+            campo.classList.remove('valid');
+        } else if (campo.value.trim()) {
+            campo.classList.add('valid');
+            campo.classList.remove('invalid');
+        } else {
+            campo.classList.remove('valid', 'invalid');
+        }
+    }
+
+    mostrarErrorCampo(field, mensaje) {
+        field.classList.add('error');
+        field.classList.remove('valid');
+        
+        // Remover error previo
+        const existingError = field.parentNode.querySelector('.field-error');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        // Agregar nuevo error
+        const errorElement = document.createElement('div');
+        errorElement.className = 'field-error';
+        errorElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${mensaje}`;
+        field.parentNode.appendChild(errorElement);
+    }
+
+    limpiarErrorCampo(field) {
+        field.classList.remove('error');
+        if (field.value.trim()) {
+            field.classList.add('valid');
+        }
+        
+        const existingError = field.parentNode.querySelector('.field-error');
+        if (existingError) {
+            existingError.remove();
+        }
+    }
+
+    validarFormularioCompleto() {
+        let esValido = true;
+        
+        Object.keys(this.validationRules).forEach(fieldName => {
+            if (!this.validarCampo(fieldName)) {
+                esValido = false;
+            }
+        });
+        
+        return esValido;
+    }
+
+    detectarCambios() {
+        this.hasChanges = true;
+        
+        // Marcar formulario como modificado
+        if (this.formContainer) {
+            this.formContainer.classList.add('form-changed');
+        }
+        
+        // Actualizar título de la página
+        if (!document.title.startsWith('*')) {
+            document.title = '* ' + document.title;
+        }
+    }
+
+    async manejarEnvioFormulario(e) {
+        e.preventDefault();
+        
+        // Validar formulario completo
+        if (!this.validarFormularioCompleto()) {
+            this.mostrarNotificacion('Por favor, corrija los errores en el formulario', 'error');
+            this.resaltarPrimerError();
+            return;
+        }
+        
+        // Confirmación
+        const confirmado = await this.confirmarAccion(
+            '¿Está seguro que desea registrar este producto?',
+            'Confirmar Registro',
+            'info'
+        );
+        
+        if (!confirmado) return;
+        
+        // Mostrar estado de carga
+        const submitButton = document.getElementById('btnRegistrar');
+        const originalText = submitButton.innerHTML;
+        
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+        submitButton.disabled = true;
+        
+        try {
+            // Guardar datos temporalmente
+            this.guardarDatosTemporales();
+            
+            // Enviar formulario
+            this.form.submit();
+            
+        } catch (error) {
+            console.error('Error al enviar formulario:', error);
+            this.mostrarNotificacion('Error al procesar el formulario', 'error');
+            
+            // Restaurar botón
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+        }
+    }
+
+    resaltarPrimerError() {
+        const primerError = document.querySelector('.field-error');
+        if (primerError) {
+            const campo = primerError.parentNode.querySelector('input, select, textarea');
+            if (campo) {
+                campo.focus();
+                campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }
+
+    manejarAtajosTeclado(e) {
+        // Ctrl + S para guardar
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            document.getElementById('btnRegistrar').click();
+        }
+        
+        // Ctrl + R para limpiar
+        if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            this.limpiarFormulario();
+        }
+        
+        // Esc para cancelar
+        if (e.key === 'Escape') {
+            window.location.href = 'listar.php';
+        }
     }
 
     limpiarFormulario() {
-        if (confirm('¿Está seguro que desea limpiar el formulario? Se perderán todos los datos ingresados.')) {
-            // Resetear formulario
-            this.form.reset();
-            
-            // Limpiar errores y clases de validación
-            const formGroups = this.form.querySelectorAll('.form-group');
-            formGroups.forEach(group => {
-                group.classList.remove('has-error', 'has-success');
-                const errorMessage = group.querySelector('.error-message');
-                if (errorMessage) {
-                    errorMessage.remove();
+        if (this.hasChanges) {
+            this.confirmarAccion(
+                '¿Está seguro que desea limpiar el formulario? Se perderán todos los datos ingresados.',
+                'Confirmar Limpiar',
+                'warning'
+            ).then(confirmado => {
+                if (confirmado) {
+                    this.ejecutarLimpiarFormulario();
                 }
             });
-            
-            // Ocultar campos de producto
-            const productFields = document.getElementById('productFields');
-            productFields.style.display = 'none';
-            
-            // Restaurar estado del botón
-            const btnEnvio = document.getElementById('btnRegistrar');
-            btnEnvio.disabled = true;
-            btnEnvio.style.opacity = '0.6';
-            
-            // Focus en primer campo
-            document.getElementById('almacen_id').focus();
-            
-            this.mostrarNotificacion('Formulario limpiado correctamente', 'info');
+        } else {
+            this.ejecutarLimpiarFormulario();
         }
+    }
+
+    ejecutarLimpiarFormulario() {
+        this.form.reset();
+        
+        // Limpiar errores
+        const errorElements = this.form.querySelectorAll('.field-error');
+        errorElements.forEach(error => error.remove());
+        
+        // Limpiar clases de validación
+        const fields = this.form.querySelectorAll('input, select, textarea');
+        fields.forEach(field => {
+            field.classList.remove('error', 'valid', 'invalid');
+        });
+        
+        // Resetear contador de caracteres
+        document.getElementById('charCount').textContent = '0';
+        
+        // Resetear cantidad a 1
+        document.getElementById('cantidad').value = '1';
+        
+        // Marcar como sin cambios
+        this.hasChanges = false;
+        this.formContainer.classList.remove('form-changed');
+        document.title = document.title.replace('* ', '');
+        
+        // Eliminar datos temporales
+        this.eliminarDatosTemporales();
+        
+        this.mostrarNotificacion('Formulario limpiado correctamente', 'info');
+    }
+
+    guardarDatosTemporales() {
+        const formData = new FormData(this.form);
+        const datos = {};
+        
+        for (let [key, value] of formData.entries()) {
+            datos[key] = value;
+        }
+        
+        localStorage.setItem('productos_registrar_temp', JSON.stringify(datos));
+    }
+
+    cargarDatosTemporales() {
+        const datosGuardados = localStorage.getItem('productos_registrar_temp');
+        
+        if (datosGuardados) {
+            try {
+                const datos = JSON.parse(datosGuardados);
+                
+                Object.keys(datos).forEach(key => {
+                    const field = document.getElementById(key);
+                    if (field && !field.value) {  // Solo cargar si el campo está vacío
+                        field.value = datos[key];
+                    }
+                });
+                
+                this.mostrarNotificacion('Se han restaurado datos no guardados', 'info');
+            } catch (error) {
+                console.error('Error al cargar datos temporales:', error);
+            }
+        }
+    }
+
+    eliminarDatosTemporales() {
+        localStorage.removeItem('productos_registrar_temp');
     }
 
     mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
@@ -544,22 +720,22 @@ class ProductosRegistrar {
         return new Promise((resolve) => {
             // Crear modal de confirmación dinámico
             const modalHtml = `
-                <div class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; align-items: center; justify-content: center;">
-                    <div class="modal-content" style="background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-width: 450px; width: 90%; animation: slideInUp 0.3s ease;">
-                        <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; padding: 20px 25px; border-radius: 12px 12px 0 0;">
-                            <h2 style="margin: 0; font-size: 18px; display: flex; align-items: center; gap: 10px;">
+                <div class="modal" style="display: block; z-index: 3000; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">
+                    <div class="modal-content" style="background: white; margin: 10% auto; max-width: 400px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                        <div class="modal-header" style="background: var(--primary-color); color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0; font-size: 18px;">
                                 <i class="fas fa-question-circle"></i>
                                 ${titulo}
                             </h2>
                         </div>
-                        <div class="modal-body" style="padding: 25px;">
-                            <p style="margin: 0; text-align: center; font-size: 16px; line-height: 1.5; color: var(--text-primary);">${mensaje}</p>
+                        <div class="modal-body" style="padding: 25px; text-align: center;">
+                            <p style="margin: 0; font-size: 16px; line-height: 1.5;">${mensaje}</p>
                         </div>
-                        <div class="modal-footer" style="padding: 20px 25px; background: var(--light-color); border-radius: 0 0 12px 12px; display: flex; gap: 12px; justify-content: flex-end;">
-                            <button class="btn-cancel" style="padding: 12px 20px; border: 1px solid var(--border-color); background: white; color: var(--text-primary); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; transition: all 0.3s ease;">
+                        <div class="modal-footer" style="padding: 20px; display: flex; gap: 12px; justify-content: center; background: var(--light-color);">
+                            <button class="btn-modal btn-cancel" id="btnCancelar" style="padding: 12px 20px; border: 1px solid var(--border-color); background: white; color: var(--text-primary); border-radius: 8px; cursor: pointer;">
                                 <i class="fas fa-times"></i> Cancelar
                             </button>
-                            <button class="btn-confirm" style="padding: 12px 20px; border: none; background: var(--accent-color); color: white; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; transition: all 0.3s ease;">
+                            <button class="btn-modal btn-confirm" id="btnConfirmar" style="padding: 12px 20px; border: none; background: var(--accent-color); color: white; border-radius: 8px; cursor: pointer;">
                                 <i class="fas fa-check"></i> Confirmar
                             </button>
                         </div>
@@ -574,8 +750,8 @@ class ProductosRegistrar {
             document.body.appendChild(confirmModal);
             document.body.style.overflow = 'hidden';
 
-            const btnConfirmar = confirmModal.querySelector('.btn-confirm');
-            const btnCancelar = confirmModal.querySelector('.btn-cancel');
+            const btnConfirmar = confirmModal.querySelector('#btnConfirmar');
+            const btnCancelar = confirmModal.querySelector('#btnCancelar');
 
             const cleanup = () => {
                 document.body.removeChild(confirmModal);
@@ -601,82 +777,94 @@ class ProductosRegistrar {
                 }
             };
             document.addEventListener('keydown', handleEscape);
-
-            // Efectos hover para botones
-            btnCancelar.addEventListener('mouseenter', () => {
-                btnCancelar.style.background = '#e9ecef';
-            });
-            btnCancelar.addEventListener('mouseleave', () => {
-                btnCancelar.style.background = 'white';
-            });
-
-            btnConfirmar.addEventListener('mouseenter', () => {
-                btnConfirmar.style.background = '#0056b3';
-                btnConfirmar.style.transform = 'translateY(-2px)';
-            });
-            btnConfirmar.addEventListener('mouseleave', () => {
-                btnConfirmar.style.background = 'var(--accent-color)';
-                btnConfirmar.style.transform = 'translateY(0)';
-            });
         });
-    }
-
-    async manejarCerrarSesion(event) {
-        event.preventDefault();
-        
-        const confirmado = await this.confirmarAccion(
-            '¿Estás seguro que deseas cerrar sesión?',
-            'Cerrar Sesión',
-            'warning'
-        );
-        
-        if (confirmado) {
-            this.mostrarNotificacion('Cerrando sesión...', 'info', 2000);
-            setTimeout(() => {
-                window.location.href = '../logout.php';
-            }, 1000);
-        }
     }
 }
 
 // Funciones globales para compatibilidad
+function adjustQuantity(increment) {
+    window.productosRegistrar.adjustQuantity(increment);
+}
+
 function limpiarFormulario() {
     window.productosRegistrar.limpiarFormulario();
 }
 
 function manejarCerrarSesion(event) {
-    window.productosRegistrar.manejarCerrarSesion(event);
+    event.preventDefault();
+    
+    window.productosRegistrar.confirmarAccion(
+        '¿Estás seguro que deseas cerrar sesión?',
+        'Cerrar Sesión',
+        'warning'
+    ).then(confirmado => {
+        if (confirmado) {
+            window.productosRegistrar.mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+            setTimeout(() => {
+                window.location.href = '../logout.php';
+            }, 1000);
+        }
+    });
 }
 
-// Estilos CSS adicionales dinámicos
+// Agregar estilos CSS adicionales
 const additionalStyles = `
-    @keyframes slideOutUp {
-        from { opacity: 1; transform: translateY(0); }
-        to { opacity: 0; transform: translateY(-20px); }
+    .field-error {
+        color: var(--danger-color);
+        font-size: 12px;
+        margin-top: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        animation: slideInDown 0.3s ease;
+    }
+    
+    .error {
+        border-color: var(--danger-color) !important;
+        background: rgba(220, 53, 69, 0.05) !important;
+    }
+    
+    .valid {
+        border-color: var(--success-color) !important;
+        background: rgba(40, 167, 69, 0.05) !important;
+    }
+    
+    .invalid {
+        border-color: var(--warning-color) !important;
+        background: rgba(255, 193, 7, 0.05) !important;
+    }
+    
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     @keyframes slideOutRight {
-        from { opacity: 1; transform: translateX(0); }
-        to { opacity: 0; transform: translateX(100%); }
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100%);
+        }
     }
     
-    @keyframes slideInUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .form-group[data-field] {
-        transition: all 0.3s ease;
-    }
-    
-    .form-group[data-field][style*="display: none"] {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    
-    .form-group[data-field]:not([style*="display: none"]) {
-        opacity: 1;
-        transform: translateY(0);
+    @keyframes slideOutUp {
+        from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
     }
 `;
 

@@ -1,63 +1,67 @@
 <?php
 session_start();
 
-// Configurar cabeceras para JSON y evitar cache
+// Configurar cabeceras JSON
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-cache, must-revalidate');
-header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+header('X-Content-Type-Options: nosniff');
 
-// Función para enviar respuesta JSON y terminar ejecución
-function enviarRespuesta($success, $message, $data = []) {
-    echo json_encode(array_merge([
+// Función para enviar respuesta JSON y terminar
+function sendJsonResponse($success, $message, $data = []) {
+    $response = array_merge([
         'success' => $success,
         'message' => $message,
-        'timestamp' => date('Y-m-d H:i:s')
-    ], $data));
+        'timestamp' => time()
+    ], $data);
+    
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit();
 }
 
 // Verificar si el usuario ha iniciado sesión
 if (!isset($_SESSION["user_id"])) {
     http_response_code(401);
-    enviarRespuesta(false, 'No autorizado. Debe iniciar sesión.');
+    sendJsonResponse(false, 'Sesión expirada. Por favor, inicie sesión nuevamente.');
 }
 
-// Evitar secuestro de sesión
-session_regenerate_id(true);
+// Verificar si la solicitud es POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    sendJsonResponse(false, 'Método no permitido. Solo se acepta POST.');
+}
 
-// Verificar que el usuario sea administrador
+// Verificar permisos del usuario
 $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 if ($usuario_rol !== 'admin') {
     http_response_code(403);
-    enviarRespuesta(false, 'No tiene permisos para actualizar cantidades de productos.');
+    sendJsonResponse(false, 'No tiene permisos para modificar cantidades.');
 }
 
-// Verificar que sea una petición POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    enviarRespuesta(false, 'Método no permitido. Use POST.');
+// Verificar datos requeridos
+if (!isset($_POST['producto_id'], $_POST['accion'])) {
+    http_response_code(400);
+    sendJsonResponse(false, 'Faltan parámetros requeridos (producto_id, accion).');
 }
 
-// Obtener y validar datos de entrada
-$producto_id = filter_input(INPUT_POST, 'producto_id', FILTER_VALIDATE_INT);
-$accion = filter_input(INPUT_POST, 'accion', FILTER_SANITIZE_STRING);
-$almacen_id = filter_input(INPUT_POST, 'almacen_id', FILTER_VALIDATE_INT);
+$producto_id = filter_var($_POST['producto_id'], FILTER_VALIDATE_INT);
+$accion = trim($_POST['accion']);
 
-// Validar datos requeridos
+// Validar producto_id
 if (!$producto_id || $producto_id <= 0) {
     http_response_code(400);
-    enviarRespuesta(false, 'ID de producto no válido.');
+    sendJsonResponse(false, 'ID de producto no válido.');
 }
 
+// Validar acción
 if (!in_array($accion, ['sumar', 'restar'])) {
     http_response_code(400);
-    enviarRespuesta(false, 'Acción no válida. Use "sumar" o "restar".');
+    sendJsonResponse(false, 'Acción no válida. Solo se permite "sumar" o "restar".');
 }
 
 require_once "../config/database.php";
 
 try {
-    // Iniciar transacción para asegurar consistencia
+    // Iniciar transacción
     $conn->begin_transaction();
     
     // Obtener información actual del producto con bloqueo para evitar condiciones de carrera
@@ -65,56 +69,49 @@ try {
                      FROM productos p 
                      JOIN almacenes a ON p.almacen_id = a.id 
                      WHERE p.id = ? FOR UPDATE";
-    $stmt = $conn->prepare($sql_producto);
-    $stmt->bind_param("i", $producto_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
+    $stmt_producto = $conn->prepare($sql_producto);
+    $stmt_producto->bind_param("i", $producto_id);
+    $stmt_producto->execute();
+    $result = $stmt_producto->get_result();
+
     if ($result->num_rows === 0) {
         $conn->rollback();
         http_response_code(404);
-        enviarRespuesta(false, 'Producto no encontrado.');
+        sendJsonResponse(false, 'Producto no encontrado.');
     }
-    
+
     $producto = $result->fetch_assoc();
     $cantidad_actual = (int)$producto['cantidad'];
-    $almacen_producto = (int)$producto['almacen_id'];
-    $stmt->close();
-    
-    // Si se proporciona almacen_id, verificar que coincida
-    if ($almacen_id && $almacen_id !== $almacen_producto) {
-        $conn->rollback();
-        http_response_code(400);
-        enviarRespuesta(false, 'El producto no pertenece al almacén especificado.');
-    }
-    
+    $almacen_id = (int)$producto['almacen_id'];
+    $stmt_producto->close();
+
     // Calcular nueva cantidad
     $nueva_cantidad = $cantidad_actual;
-    $cambio = 0;
+    $cambio_cantidad = 1;
     
     if ($accion === 'sumar') {
         $nueva_cantidad = $cantidad_actual + 1;
-        $cambio = 1;
+        $tipo_movimiento = 'entrada';
     } elseif ($accion === 'restar') {
         if ($cantidad_actual <= 0) {
             $conn->rollback();
-            enviarRespuesta(false, 'No se puede reducir más el stock. La cantidad actual es 0.');
+            sendJsonResponse(false, 'No se puede reducir la cantidad. El stock ya es 0.');
         }
         $nueva_cantidad = $cantidad_actual - 1;
-        $cambio = -1;
+        $tipo_movimiento = 'salida';
     }
-    
-    // Validar límites razonables
+
+    // Validar límites
     if ($nueva_cantidad < 0) {
         $conn->rollback();
-        enviarRespuesta(false, 'La cantidad no puede ser negativa.');
+        sendJsonResponse(false, 'La cantidad no puede ser negativa.');
     }
     
-    if ($nueva_cantidad > 99999) {
+    if ($nueva_cantidad > 999999) {
         $conn->rollback();
-        enviarRespuesta(false, 'La cantidad no puede exceder 99,999 unidades.');
+        sendJsonResponse(false, 'La cantidad no puede exceder 999,999 unidades.');
     }
-    
+
     // Actualizar la cantidad en la base de datos
     $sql_update = "UPDATE productos SET cantidad = ? WHERE id = ?";
     $stmt_update = $conn->prepare($sql_update);
@@ -122,97 +119,85 @@ try {
     
     if (!$stmt_update->execute()) {
         $conn->rollback();
-        enviarRespuesta(false, 'Error al actualizar la cantidad en la base de datos.');
+        http_response_code(500);
+        sendJsonResponse(false, 'Error al actualizar la cantidad en la base de datos.');
     }
     
-    $filas_afectadas = $stmt_update->affected_rows;
     $stmt_update->close();
-    
-    if ($filas_afectadas === 0) {
-        $conn->rollback();
-        enviarRespuesta(false, 'No se pudo actualizar la cantidad del producto.');
-    }
-    
+
     // Registrar el movimiento en el historial
     $usuario_id = $_SESSION["user_id"];
-    $tipo_movimiento = ($accion === 'sumar') ? 'entrada' : 'salida';
-    $descripcion = "Ajuste manual de inventario: {$accion} 1 unidad";
+    $descripcion = "Ajuste manual de cantidad: {$accion} 1 unidad";
     
     $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, cantidad, tipo, usuario_id, estado, descripcion, fecha_movimiento) 
                        VALUES (?, ?, ?, ?, ?, 'completado', ?, NOW())";
     $stmt_movimiento = $conn->prepare($sql_movimiento);
-    $stmt_movimiento->bind_param("iiisis", 
-        $producto_id, 
-        $almacen_producto, 
-        abs($cambio), 
-        $tipo_movimiento, 
-        $usuario_id, 
-        $descripcion
-    );
+    $stmt_movimiento->bind_param("iiiiss", $producto_id, $almacen_id, $cambio_cantidad, $tipo_movimiento, $usuario_id, $descripcion);
     
     if (!$stmt_movimiento->execute()) {
-        // Log del error pero no cancelar la transacción por esto
-        error_log("Error al registrar movimiento: " . $stmt_movimiento->error);
+        // No es crítico si falla el log, pero lo registramos
+        error_log("Error al registrar movimiento para producto {$producto_id}: " . $stmt_movimiento->error);
     }
+    
     $stmt_movimiento->close();
-    
-    // Registrar en log de actividad
-    $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
-                VALUES (?, 'ACTUALIZAR_CANTIDAD', ?, NOW())";
+
+    // Opcional: Registrar en log de actividad para auditoría
+    $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, ip_address, user_agent, fecha_accion) 
+                VALUES (?, 'ACTUALIZAR_STOCK', ?, ?, ?, NOW())";
     $stmt_log = $conn->prepare($sql_log);
-    $detalle = "Actualizó cantidad del producto '{$producto['nombre']}' de {$cantidad_actual} a {$nueva_cantidad} en {$producto['almacen_nombre']}";
-    $stmt_log->bind_param("is", $usuario_id, $detalle);
+    $detalle = "Actualizó stock del producto '{$producto['nombre']}' de {$cantidad_actual} a {$nueva_cantidad} unidades";
+    $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'Desconocida';
+    $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Desconocido', 0, 255);
     
-    if (!$stmt_log->execute()) {
-        // Log del error pero continuar
-        error_log("Error al registrar log de actividad: " . $stmt_log->error);
-    }
+    $stmt_log->bind_param("isss", $usuario_id, $detalle, $ip_address, $user_agent);
+    $stmt_log->execute();
     $stmt_log->close();
-    
+
     // Confirmar transacción
     $conn->commit();
     
-    // Preparar respuesta exitosa
-    $mensaje = "Stock actualizado correctamente";
-    if ($accion === 'sumar') {
-        $mensaje .= ": +1 unidad";
-    } else {
-        $mensaje .= ": -1 unidad";
-    }
-    
-    // Determinar estado del stock
-    $estado_stock = 'good';
+    // Determinar estado del stock para respuesta
+    $estado_stock = 'normal';
     if ($nueva_cantidad < 5) {
-        $estado_stock = 'critical';
+        $estado_stock = 'critico';
     } elseif ($nueva_cantidad < 10) {
-        $estado_stock = 'warning';
+        $estado_stock = 'bajo';
     }
     
-    enviarRespuesta(true, $mensaje, [
+    // Respuesta exitosa con información adicional
+    sendJsonResponse(true, 'Cantidad actualizada correctamente', [
         'nueva_cantidad' => $nueva_cantidad,
         'cantidad_anterior' => $cantidad_actual,
-        'cambio' => $cambio,
+        'cambio' => $accion === 'sumar' ? '+1' : '-1',
         'estado_stock' => $estado_stock,
-        'producto_id' => $producto_id,
         'producto_nombre' => $producto['nombre'],
-        'almacen_nombre' => $producto['almacen_nombre']
+        'almacen_nombre' => $producto['almacen_nombre'],
+        'puede_restar' => $nueva_cantidad > 0
     ]);
+
+} catch (mysqli_sql_exception $e) {
+    // Rollback en caso de error de base de datos
+    $conn->rollback();
     
-} catch (Exception $e) {
-    // Rollback en caso de error
-    if ($conn->inTransaction()) {
-        $conn->rollback();
-    }
-    
-    // Log del error detallado
-    error_log("Error en actualizar_cantidad.php: " . $e->getMessage() . " | Producto ID: {$producto_id} | Usuario: " . $_SESSION["user_id"]);
+    // Log del error para debugging
+    error_log("Error de base de datos en actualizar_cantidad.php: " . $e->getMessage());
     
     http_response_code(500);
-    enviarRespuesta(false, 'Error interno del servidor. Por favor, inténtelo más tarde.');
+    sendJsonResponse(false, 'Error interno del servidor. Por favor, inténtelo más tarde.');
+    
+} catch (Exception $e) {
+    // Rollback en caso de cualquier otro error
+    $conn->rollback();
+    
+    // Log del error
+    error_log("Error general en actualizar_cantidad.php: " . $e->getMessage());
+    
+    http_response_code(500);
+    sendJsonResponse(false, 'Error inesperado. Por favor, inténtelo más tarde.');
     
 } finally {
     // Cerrar conexión si existe
-    if (isset($conn) && $conn instanceof mysqli) {
+    if (isset($conn) && $conn) {
         $conn->close();
     }
 }
