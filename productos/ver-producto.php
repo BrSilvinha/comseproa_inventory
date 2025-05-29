@@ -51,12 +51,12 @@ if ($usuario_rol != 'admin' && $usuario_almacen_id != $producto['almacen_id']) {
     exit();
 }
 
-// Obtener historial de movimientos del producto (CORREGIDO: usar nombre en lugar de username)
+// Obtener historial de movimientos del producto (CORREGIDO PARA TU BD)
 $sql_movimientos = "SELECT m.*, 
                     CASE 
-                        WHEN m.tipo = 'transferencia' THEN CONCAT(ao.nombre, ' → ', ad.nombre)
-                        WHEN m.tipo = 'entrada' THEN CONCAT('Entrada a ', ao.nombre)
-                        WHEN m.tipo = 'salida' THEN CONCAT('Salida de ', ao.nombre)
+                        WHEN m.tipo = 'transferencia' THEN CONCAT(COALESCE(ao.nombre, 'N/A'), ' → ', COALESCE(ad.nombre, 'N/A'))
+                        WHEN m.tipo = 'entrada' THEN CONCAT('Entrada a ', COALESCE(ao.nombre, 'N/A'))
+                        WHEN m.tipo = 'salida' THEN CONCAT('Salida de ', COALESCE(ao.nombre, 'N/A'))
                         ELSE 'Movimiento'
                     END as descripcion_movimiento,
                     u.nombre as usuario_nombre,
@@ -67,7 +67,7 @@ $sql_movimientos = "SELECT m.*,
                     LEFT JOIN almacenes ao ON m.almacen_origen = ao.id
                     LEFT JOIN almacenes ad ON m.almacen_destino = ad.id
                     WHERE m.producto_id = ?
-                    ORDER BY m.fecha_movimiento DESC
+                    ORDER BY m.fecha DESC
                     LIMIT 10";
 $stmt_movimientos = $conn->prepare($sql_movimientos);
 $stmt_movimientos->bind_param("i", $producto_id);
@@ -317,7 +317,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 
                 <?php if ($producto['cantidad'] > 0): ?>
                 <button class="btn-action btn-transfer" 
-                    onclick="abrirModalTransferencia(<?php echo $producto_id; ?>, '<?php echo htmlspecialchars($producto['nombre']); ?>', <?php echo $producto['almacen_id']; ?>, <?php echo $producto['cantidad']; ?>)"
+                    data-id="<?php echo $producto_id; ?>"
+                    data-nombre="<?php echo htmlspecialchars($producto['nombre']); ?>"
+                    data-almacen="<?php echo $producto['almacen_id']; ?>"
+                    data-cantidad="<?php echo $producto['cantidad']; ?>"
+                    onclick="abrirModalTransferencia(this)"
                     title="Transferir producto">
                     <i class="fas fa-paper-plane"></i>
                     <span>Transferir</span>
@@ -394,10 +398,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 <?php echo htmlspecialchars($producto['unidad_medida']); ?>
                                 <?php if ($usuario_rol == 'admin'): ?>
                                 <div class="stock-controls">
-                                    <button class="stock-btn decrease" onclick="actualizarStock(<?php echo $producto_id; ?>, 'restar')" <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?>>
+                                    <button class="stock-btn decrease" data-id="<?php echo $producto_id; ?>" data-accion="restar" onclick="actualizarStock(<?php echo $producto_id; ?>, 'restar')" <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?>>
                                         <i class="fas fa-minus"></i>
                                     </button>
-                                    <button class="stock-btn increase" onclick="actualizarStock(<?php echo $producto_id; ?>, 'sumar')">
+                                    <button class="stock-btn increase" data-id="<?php echo $producto_id; ?>" data-accion="sumar" onclick="actualizarStock(<?php echo $producto_id; ?>, 'sumar')">
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
@@ -474,7 +478,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                             por <?php echo htmlspecialchars($movimiento['usuario_nombre'] ?: 'Sistema'); ?>
                                         </span>
                                         <span class="movement-date">
-                                            <?php echo date('d/m/Y H:i', strtotime($movimiento['fecha_movimiento'])); ?>
+                                            <?php echo date('d/m/Y H:i', strtotime($movimiento['fecha'])); ?>
                                         </span>
                                     </div>
                                 </div>
@@ -718,6 +722,497 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
 <!-- JavaScript -->
-<script src="../assets/js/productos-ver.js"></script>
+<script src="../assets/js/universal-confirmation-system.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elementos principales
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    const submenuContainers = document.querySelectorAll('.submenu-container');
+    
+    // Variables para el modal
+    let maxStock = 0;
+    
+    // Toggle del menú móvil
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            if (mainContent) {
+                mainContent.classList.toggle('with-sidebar');
+            }
+            
+            const icon = this.querySelector('i');
+            if (sidebar.classList.contains('active')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+                this.setAttribute('aria-label', 'Cerrar menú de navegación');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+                this.setAttribute('aria-label', 'Abrir menú de navegación');
+            }
+        });
+    }
+    
+    // Funcionalidad de submenús
+    submenuContainers.forEach(container => {
+        const link = container.querySelector('a');
+        const submenu = container.querySelector('.submenu');
+        const chevron = link?.querySelector('.fa-chevron-down');
+        
+        if (link && submenu) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                submenuContainers.forEach(otherContainer => {
+                    if (otherContainer !== container) {
+                        const otherSubmenu = otherContainer.querySelector('.submenu');
+                        const otherChevron = otherContainer.querySelector('.fa-chevron-down');
+                        const otherLink = otherContainer.querySelector('a');
+                        
+                        if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
+                            otherSubmenu.classList.remove('activo');
+                            if (otherChevron) {
+                                otherChevron.style.transform = 'rotate(0deg)';
+                            }
+                            if (otherLink) {
+                                otherLink.setAttribute('aria-expanded', 'false');
+                            }
+                        }
+                    }
+                });
+                
+                submenu.classList.toggle('activo');
+                const isExpanded = submenu.classList.contains('activo');
+                
+                if (chevron) {
+                    chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+                
+                link.setAttribute('aria-expanded', isExpanded.toString());
+            });
+        }
+    });
+    
+    // Mostrar submenú de productos activo por defecto
+    const productosSubmenu = submenuContainers[2]?.querySelector('.submenu');
+    const productosChevron = submenuContainers[2]?.querySelector('.fa-chevron-down');
+    const productosLink = submenuContainers[2]?.querySelector('a');
+    
+    if (productosSubmenu) {
+        productosSubmenu.classList.add('activo');
+        if (productosChevron) {
+            productosChevron.style.transform = 'rotate(180deg)';
+        }
+        if (productosLink) {
+            productosLink.setAttribute('aria-expanded', 'true');
+        }
+    }
+    
+    // Auto-cerrar alertas
+    const alertas = document.querySelectorAll('.alert');
+    alertas.forEach(alerta => {
+        setTimeout(() => {
+            alerta.style.animation = 'slideOutUp 0.5s ease-in-out';
+            setTimeout(() => {
+                alerta.remove();
+            }, 500);
+        }, 5000);
+    });
+    
+    // Configurar modal de transferencia
+    const modal = document.getElementById('modalTransferencia');
+    const form = document.getElementById('formTransferencia');
+    
+    if (modal && form) {
+        // Configurar botones de cerrar
+        const closeButtons = modal.querySelectorAll('.modal-close, .btn-cancel');
+        closeButtons.forEach(button => {
+            button.addEventListener('click', () => cerrarModal());
+        });
+
+        // Cerrar modal al hacer clic fuera
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                cerrarModal();
+            }
+        });
+
+        // Configurar formulario
+        form.addEventListener('submit', (e) => enviarFormulario(e));
+    }
+});
+
+// Función para actualizar stock
+function actualizarStock(productoId, accion) {
+    const formData = new FormData();
+    formData.append('producto_id', productoId);
+    formData.append('accion', accion);
+    
+    const buttons = document.querySelectorAll('.stock-btn');
+    buttons.forEach(btn => btn.disabled = true);
+    
+    fetch('actualizar_cantidad.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const stockElement = document.getElementById('cantidad-actual');
+            if (stockElement) {
+                stockElement.textContent = parseInt(data.nueva_cantidad).toLocaleString();
+                
+                const stockValue = stockElement.closest('.stock-value');
+                if (stockValue) {
+                    stockValue.classList.remove('stock-critical', 'stock-warning', 'stock-good');
+                    if (data.nueva_cantidad < 5) {
+                        stockValue.classList.add('stock-critical');
+                    } else if (data.nueva_cantidad < 10) {
+                        stockValue.classList.add('stock-warning');
+                    } else {
+                        stockValue.classList.add('stock-good');
+                    }
+                }
+                
+                stockElement.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    stockElement.style.transform = 'scale(1)';
+                }, 200);
+            }
+            
+            mostrarNotificacion(`Stock actualizado: ${data.nueva_cantidad} unidades`, 'exito');
+            
+        } else {
+            mostrarNotificacion(data.message || 'Error al actualizar el stock', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarNotificacion('Error de conexión al actualizar el stock', 'error');
+    })
+    .finally(() => {
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            if (btn.dataset.accion === 'restar') {
+                const stockElement = document.getElementById('cantidad-actual');
+                if (stockElement) {
+                    const currentStock = parseInt(stockElement.textContent.replace(/,/g, ''));
+                    btn.disabled = currentStock <= 0;
+                }
+            }
+        });
+    });
+}
+
+// Función para abrir modal de transferencia
+function abrirModalTransferencia(button) {
+    const modal = document.getElementById('modalTransferencia');
+    if (!modal) return;
+
+    const datos = {
+        id: button.dataset.id,
+        nombre: button.dataset.nombre,
+        almacen: button.dataset.almacen,
+        cantidad: button.dataset.cantidad
+    };
+
+    document.getElementById('producto_id_modal').value = datos.id;
+    document.getElementById('almacen_origen_modal').value = datos.almacen;
+    document.getElementById('producto_nombre_modal').textContent = datos.nombre;
+    document.getElementById('stock_disponible_modal').textContent = `${datos.cantidad} unidades`;
+    
+    const quantityInput = document.getElementById('cantidad_modal');
+    quantityInput.value = 1;
+    quantityInput.max = datos.cantidad;
+    
+    document.getElementById('almacen_destino_modal').value = '';
+    
+    maxStock = parseInt(datos.cantidad);
+    
+    modal.style.display = 'block';
+    modal.setAttribute('aria-hidden', 'false');
+    
+    setTimeout(() => {
+        quantityInput.focus();
+    }, 100);
+    
+    document.body.style.overflow = 'hidden';
+}
+
+// Función para cerrar modal
+function cerrarModal() {
+    const modal = document.getElementById('modalTransferencia');
+    if (!modal) return;
+
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    
+    document.body.style.overflow = '';
+    
+    document.getElementById('formTransferencia').reset();
+}
+
+// Función para ajustar cantidad
+function adjustQuantity(increment) {
+    const quantityInput = document.getElementById('cantidad_modal');
+    if (!quantityInput) return;
+
+    let currentValue = parseInt(quantityInput.value) || 1;
+    let newValue = currentValue + increment;
+    
+    newValue = Math.max(1, Math.min(newValue, maxStock));
+    
+    quantityInput.value = newValue;
+}
+
+// Función para enviar formulario
+async function enviarFormulario(e) {
+    e.preventDefault();
+    
+    const submitButton = e.target.querySelector('.btn-confirm');
+    const originalText = submitButton.innerHTML;
+    
+    const cantidad = parseInt(document.getElementById('cantidad_modal').value);
+    const almacenDestino = document.getElementById('almacen_destino_modal').value;
+    
+    if (!almacenDestino) {
+        mostrarNotificacion('Debe seleccionar un almacén de destino', 'error');
+        return;
+    }
+    
+    if (cantidad < 1 || cantidad > maxStock) {
+        mostrarNotificacion('La cantidad no es válida', 'error');
+        return;
+    }
+
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transfiriendo...';
+    submitButton.disabled = true;
+
+    try {
+        const formData = new FormData(e.target);
+        
+        const response = await fetch('procesar_formulario.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            mostrarNotificacion(data.message, 'exito');
+            cerrarModal();
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            mostrarNotificacion(data.message || 'Error al solicitar transferencia', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion('Error de conexión al solicitar transferencia', 'error');
+    } finally {
+        submitButton.innerHTML = originalText;
+        submitButton.disabled = false;
+    }
+}
+
+// Función para editar producto
+function editarProducto(id) {
+    window.location.href = `editar.php?id=${id}`;
+}
+
+// Función para eliminar producto
+async function eliminarProducto(id, nombre) {
+    const confirmado = await confirmarEliminacion('Producto', nombre);
+    
+    if (confirmado) {
+        mostrarNotificacion('Eliminando producto...', 'info');
+        
+        try {
+            const response = await fetch('eliminar_producto.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: id })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                mostrarNotificacion('Producto eliminado correctamente', 'exito');
+                
+                setTimeout(() => {
+                    window.location.href = 'listar.php';
+                }, 2000);
+            } else {
+                mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            mostrarNotificacion('Error de conexión al eliminar el producto', 'error');
+        }
+    }
+}
+
+// Función para cerrar sesión
+async function manejarCerrarSesion(event) {
+    event.preventDefault();
+    
+    const confirmado = await confirmarCerrarSesion();
+    
+    if (confirmado) {
+        mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+        setTimeout(() => {
+            window.location.href = '../logout.php';
+        }, 1000);
+    }
+}
+
+// Función para mostrar notificaciones
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
+    let container = document.getElementById('notificaciones-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificaciones-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+        `;
+        document.body.appendChild(container);
+    }
+
+    const iconos = {
+        exito: 'fa-check-circle',
+        error: 'fa-exclamation-triangle', 
+        warning: 'fa-exclamation-circle',
+        info: 'fa-info-circle'
+    };
+
+    const colores = {
+        exito: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107', 
+        info: '#0a253c'
+    };
+
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    notificacion.style.cssText = `
+        background: white;
+        border-left: 5px solid ${colores[tipo] || colores.info};
+        padding: 15px 20px;
+        margin-bottom: 10px;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 4px 12px rgba(10, 37, 60, 0.15);
+        position: relative;
+        animation: slideInRight 0.4s ease;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    `;
+
+    notificacion.innerHTML = `
+        <i class="fas ${iconos[tipo] || iconos.info}" style="font-size: 20px; color: ${colores[tipo] || colores.info};"></i>
+        <span style="flex: 1; color: #0a253c; font-weight: 500;">${mensaje}</span>
+        <button class="cerrar" aria-label="Cerrar notificación" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666; padding: 0;">&times;</button>
+    `;
+
+    container.appendChild(notificacion);
+
+    const cerrarBtn = notificacion.querySelector('.cerrar');
+    cerrarBtn.addEventListener('click', () => {
+        notificacion.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notificacion.remove(), 300);
+    });
+
+    if (duracion > 0) {
+        setTimeout(() => {
+            if (notificacion.parentNode) {
+                notificacion.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notificacion.remove(), 300);
+            }
+        }, duracion);
+    }
+
+    // Agregar animaciones CSS si no existen
+    if (!document.getElementById('notification-animations')) {
+        const animationStyles = document.createElement('style');
+        animationStyles.id = 'notification-animations';
+        animationStyles.textContent = `
+            @keyframes slideInRight {
+                from { opacity: 0; transform: translateX(30px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+            @keyframes slideOutRight {
+                from { opacity: 1; transform: translateX(0); }
+                to { opacity: 0; transform: translateX(30px); }
+            }
+            @keyframes slideOutUp {
+                from { opacity: 1; transform: translateY(0); }
+                to { opacity: 0; transform: translateY(-20px); }
+            }
+        `;
+        document.head.appendChild(animationStyles);
+    }
+}
+</script>
+
+<style>
+@keyframes slideOutUp {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-20px); }
+}
+
+.estado-nuevo { color: #28a745; }
+.estado-usado { color: #ffc107; }
+.estado-dañado { color: #dc3545; }
+
+.stock-critical { color: #dc3545; font-weight: bold; }
+.stock-warning { color: #ffc107; font-weight: bold; }
+.stock-good { color: #28a745; font-weight: bold; }
+
+.status-pendiente { background: #ffc107; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+.status-completado { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+.status-rechazado { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+.status-aprobada { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+.status-rechazada { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+
+.stock-controls {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.stock-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: #0a253c;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.stock-btn:hover:not(:disabled) {
+    background: #164463;
+    transform: scale(1.1);
+}
+
+.stock-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+</style>
 </body>
 </html>

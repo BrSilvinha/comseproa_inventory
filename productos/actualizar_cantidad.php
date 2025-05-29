@@ -125,12 +125,13 @@ try {
     
     $stmt_update->close();
 
-    // Registrar el movimiento en el historial
+    // Registrar el movimiento en el historial (SIMPLIFICADO)
     $usuario_id = $_SESSION["user_id"];
     $descripcion = "Ajuste manual de cantidad: {$accion} 1 unidad";
     
-    $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, cantidad, tipo, usuario_id, estado, descripcion, fecha_movimiento) 
-                       VALUES (?, ?, ?, ?, ?, 'completado', ?, NOW())";
+    // Usar solo las columnas que existen
+    $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, cantidad, tipo, usuario_id, estado, descripcion) 
+                       VALUES (?, ?, ?, ?, ?, 'completado', ?)";
     $stmt_movimiento = $conn->prepare($sql_movimiento);
     $stmt_movimiento->bind_param("iiiiss", $producto_id, $almacen_id, $cambio_cantidad, $tipo_movimiento, $usuario_id, $descripcion);
     
@@ -141,17 +142,20 @@ try {
     
     $stmt_movimiento->close();
 
-    // Opcional: Registrar en log de actividad para auditoría
-    $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, ip_address, user_agent, fecha_accion) 
-                VALUES (?, 'ACTUALIZAR_STOCK', ?, ?, ?, NOW())";
-    $stmt_log = $conn->prepare($sql_log);
-    $detalle = "Actualizó stock del producto '{$producto['nombre']}' de {$cantidad_actual} a {$nueva_cantidad} unidades";
-    $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'Desconocida';
-    $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Desconocido', 0, 255);
-    
-    $stmt_log->bind_param("isss", $usuario_id, $detalle, $ip_address, $user_agent);
-    $stmt_log->execute();
-    $stmt_log->close();
+    // Opcional: Registrar en log de actividad para auditoría (SIMPLIFICADO)
+    try {
+        $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
+                    VALUES (?, 'ACTUALIZAR_STOCK', ?, NOW())";
+        $stmt_log = $conn->prepare($sql_log);
+        $detalle = "Actualizó stock del producto '{$producto['nombre']}' de {$cantidad_actual} a {$nueva_cantidad} unidades";
+        
+        $stmt_log->bind_param("is", $usuario_id, $detalle);
+        $stmt_log->execute();
+        $stmt_log->close();
+    } catch (Exception $e) {
+        // Si la tabla logs_actividad no existe, no es crítico
+        error_log("Log de actividad no disponible: " . $e->getMessage());
+    }
 
     // Confirmar transacción
     $conn->commit();
