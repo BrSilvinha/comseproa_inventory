@@ -48,12 +48,11 @@ if (!$almacen) {
     exit();
 }
 
-// Obtener todas las categorías con productos
+// CORREGIDO: Obtener todas las categorías (SIN FILTRO HAVING)
 $sql_categorias = "SELECT c.id, c.nombre,
                    (SELECT COUNT(*) FROM productos p WHERE p.categoria_id = c.id AND p.almacen_id = ?) AS total_productos,
                    (SELECT COALESCE(SUM(p.cantidad), 0) FROM productos p WHERE p.categoria_id = c.id AND p.almacen_id = ?) AS total_stock
                    FROM categorias c
-                   HAVING total_productos > 0 OR total_stock > 0
                    ORDER BY c.nombre";
 $stmt_categorias = $conn->prepare($sql_categorias);
 $stmt_categorias->bind_param("ii", $almacen_id, $almacen_id);
@@ -352,7 +351,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 
     <!-- Contenido Principal -->
     <div class="main-content-grid">
-        <!-- Categorías del Almacén -->
+        <!-- Categorías del Almacén (SECCIÓN CORREGIDA) -->
         <section class="categories-section">
             <div class="section-header">
                 <h2>
@@ -370,12 +369,19 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             <div class="categorias-container">
                 <?php if ($categorias->num_rows > 0): ?>
                     <?php while ($categoria = $categorias->fetch_assoc()): ?>
-                        <div class="categoria-card" data-categoria-id="<?php echo $categoria['id']; ?>">
+                        <div class="categoria-card <?php echo ($categoria['total_productos'] == 0) ? 'categoria-empty' : ''; ?>" data-categoria-id="<?php echo $categoria['id']; ?>">
                             <div class="categoria-header">
                                 <div class="categoria-icon">
-                                    <i class="fas fa-box-open"></i>
+                                    <?php if ($categoria['total_productos'] > 0): ?>
+                                        <i class="fas fa-box-open"></i>
+                                    <?php else: ?>
+                                        <i class="fas fa-box"></i>
+                                    <?php endif; ?>
                                 </div>
                                 <h3><?php echo htmlspecialchars($categoria['nombre']); ?></h3>
+                                <?php if ($categoria['total_productos'] == 0): ?>
+                                    <span class="empty-badge">Sin productos</span>
+                                <?php endif; ?>
                             </div>
                             
                             <div class="categoria-stats">
@@ -393,26 +399,33 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 <?php if ($usuario_rol == 'admin'): ?>
                                 <button class="btn-categoria btn-registrar" onclick="location.href='../productos/registrar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
                                     <i class="fas fa-plus"></i>
-                                    Registrar Producto
+                                    <?php echo ($categoria['total_productos'] == 0) ? 'Primer Producto' : 'Registrar Producto'; ?>
                                 </button>
                                 <?php endif; ?>
                                 
+                                <?php if ($categoria['total_productos'] > 0): ?>
                                 <button class="btn-categoria btn-lista" onclick="location.href='../productos/listar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
                                     <i class="fas fa-list"></i>
                                     Ver Productos
                                 </button>
+                                <?php else: ?>
+                                <button class="btn-categoria btn-lista disabled" disabled>
+                                    <i class="fas fa-list"></i>
+                                    Sin productos
+                                </button>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endwhile; ?>
                 <?php else: ?>
                     <div class="empty-state">
                         <i class="fas fa-box-open"></i>
-                        <h3>No hay categorías con productos</h3>
-                        <p>Este almacén aún no tiene productos registrados en ninguna categoría.</p>
+                        <h3>No hay categorías registradas</h3>
+                        <p>No se han registrado categorías en el sistema.</p>
                         <?php if ($usuario_rol == 'admin'): ?>
-                        <a href="../productos/registrar.php?almacen_id=<?php echo $almacen_id; ?>" class="btn-primary">
+                        <a href="../productos/categorias.php" class="btn-primary">
                             <i class="fas fa-plus"></i>
-                            Registrar Primer Producto
+                            Registrar Primera Categoría
                         </a>
                         <?php endif; ?>
                     </div>
@@ -465,13 +478,13 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     </div>
                 <?php endif; ?>
                 
-                <!-- Acciones Rápidas -->
+                <!-- ACCIONES RÁPIDAS SIMPLIFICADAS -->
                 <div class="quick-actions">
                     <h5>Acciones Rápidas</h5>
                     <div class="action-buttons">
                         <a href="../productos/listar.php?almacen_id=<?php echo $almacen_id; ?>" class="quick-action-btn">
                             <i class="fas fa-list"></i>
-                            Ver Todo el Inventario
+                            Ver Inventario Completo
                         </a>
                         
                         <?php if ($usuario_rol == 'admin'): ?>
@@ -721,29 +734,6 @@ function animateCounters() {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(animateCounters, 500);
 });
-
-// Función para actualizar datos en tiempo real (opcional)
-function actualizarEstadisticas() {
-    const almacenId = document.body.getAttribute('data-almacen-id');
-    
-    fetch(`obtener_estadisticas.php?id=${almacenId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Actualizar valores sin animación
-                document.querySelector('.stat-card:nth-child(1) .stat-value').textContent = data.stats.total_categorias;
-                document.querySelector('.stat-card:nth-child(2) .stat-value').textContent = data.stats.total_productos;
-                document.querySelector('.stat-card:nth-child(3) .stat-value').textContent = data.stats.total_stock.toLocaleString();
-                document.querySelector('.stat-card:nth-child(4) .stat-value').textContent = parseFloat(data.stats.promedio_stock).toFixed(1);
-            }
-        })
-        .catch(error => {
-            console.log('No se pudieron actualizar las estadísticas:', error);
-        });
-}
-
-// Actualizar estadísticas cada 5 minutos (opcional)
-// setInterval(actualizarEstadisticas, 300000);
 </script>
 
 <style>
@@ -775,6 +765,91 @@ function actualizarEstadisticas() {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Estilos para categorías vacías */
+.categoria-card.categoria-empty {
+    border: 2px dashed #ddd;
+    background: rgba(248, 249, 250, 0.7);
+    opacity: 0.8;
+}
+
+.categoria-card.categoria-empty:hover {
+    border-color: #007bff;
+    background: rgba(0, 123, 255, 0.05);
+    opacity: 1;
+}
+
+.categoria-card.categoria-empty .categoria-icon {
+    background: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+.categoria-card.categoria-empty .categoria-header h3 {
+    color: #6c757d;
+}
+
+.empty-badge {
+    background: #6c757d;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+.categoria-card.categoria-empty .stat-number {
+    color: #6c757d;
+}
+
+.btn-categoria.disabled {
+    background: #f8f9fa;
+    color: #6c757d;
+    border-color: #dee2e6;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-categoria.disabled:hover {
+    background: #f8f9fa;
+    color: #6c757d;
+    border-color: #dee2e6;
+    transform: none;
+}
+
+/* Animación especial para categorías vacías */
+.categoria-card.categoria-empty {
+    animation: slideInUpEmpty 0.6s ease-out both;
+}
+
+@keyframes slideInUpEmpty {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 0.8;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Efecto hover mejorado para categorías vacías */
+.categoria-card.categoria-empty:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+}
+
+/* Destacar botón de primer producto */
+.categoria-empty .btn-registrar {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    font-weight: 500;
+}
+
+.categoria-empty .btn-registrar:hover {
+    background: linear-gradient(135deg, #20c997, #28a745);
+    transform: translateY(-2px);
 }
 </style>
 </body>

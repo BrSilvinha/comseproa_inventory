@@ -28,6 +28,7 @@ if ($usuario_rol == 'admin') {
         $result = false;
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
