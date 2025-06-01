@@ -4,7 +4,6 @@ session_start();
 // Configurar cabeceras para JSON y evitar cache
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-cache, must-revalidate');
-header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
 // Función para enviar respuesta JSON y terminar ejecución
 function enviarRespuesta($success, $message, $data = []) {
@@ -49,20 +48,8 @@ if ($conn->connect_error) {
     enviarRespuesta(false, 'Error de conexión a la base de datos.');
 }
 
-// Verificar que el usuario actual existe en la tabla usuarios
+// Obtener ID de usuario de la sesión
 $usuario_id = $_SESSION['user_id'];
-$check_user_sql = "SELECT id FROM usuarios WHERE id = ?";
-$check_user_stmt = $conn->prepare($check_user_sql);
-$check_user_stmt->bind_param("i", $usuario_id);
-$check_user_stmt->execute();
-$user_result = $check_user_stmt->get_result();
-
-if ($user_result->num_rows === 0) {
-    $check_user_stmt->close();
-    http_response_code(403);
-    enviarRespuesta(false, 'Usuario no válido. Por favor, cierre sesión e inicie sesión nuevamente.');
-}
-$check_user_stmt->close();
 
 try {
     // Obtener y validar datos del formulario
@@ -173,6 +160,9 @@ try {
     $almacen_destino_info = $result->fetch_assoc();
     $stmt->close();
     
+    // 🔥 CAMBIO IMPORTANTE: No reducir stock hasta que se apruebe
+    // Comentamos la reducción inmediata del stock
+    /*
     // Reducir stock en el almacén de origen
     $sql_reducir = "UPDATE productos SET cantidad = cantidad - ? WHERE id = ? AND almacen_id = ?";
     $stmt = $conn->prepare($sql_reducir);
@@ -189,8 +179,9 @@ try {
         enviarRespuesta(false, 'Error al actualizar el stock en el almacén de origen.');
     }
     $stmt->close();
+    */
     
-    // Crear solicitud de transferencia (usando estructura actual de tu BD)
+    // Crear solicitud de transferencia (SIEMPRE pendiente)
     $observaciones = "Transferencia solicitada desde el sistema web";
     
     // Verificar si existe la columna observaciones
@@ -237,48 +228,6 @@ try {
     $solicitud_id = $conn->insert_id;
     $stmt->close();
     
-    // Registrar movimiento (verificar estructura de tu tabla movimientos)
-    try {
-        $descripcion = "Solicitud de transferencia #{$solicitud_id}: {$datos['cantidad']} unidades de {$producto['nombre']} a {$almacen_destino_info['nombre']}";
-        
-        // Verificar si existe la columna descripcion
-        $check_desc = $conn->query("SHOW COLUMNS FROM movimientos LIKE 'descripcion'");
-        $has_descripcion = $check_desc->num_rows > 0;
-        
-        if ($has_descripcion) {
-            $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, almacen_destino, cantidad, tipo, usuario_id, estado, descripcion, fecha) 
-                               VALUES (?, ?, ?, ?, 'transferencia', ?, 'pendiente', ?, NOW())";
-            $stmt_movimiento = $conn->prepare($sql_movimiento);
-            $stmt_movimiento->bind_param("iiiiss", 
-                $datos['producto_id'], 
-                $datos['almacen_origen'], 
-                $datos['almacen_destino'], 
-                $datos['cantidad'], 
-                $usuario_id, 
-                $descripcion
-            );
-        } else {
-            $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, almacen_destino, cantidad, tipo, usuario_id, estado, fecha) 
-                               VALUES (?, ?, ?, ?, 'transferencia', ?, 'pendiente', NOW())";
-            $stmt_movimiento = $conn->prepare($sql_movimiento);
-            $stmt_movimiento->bind_param("iiiis", 
-                $datos['producto_id'], 
-                $datos['almacen_origen'], 
-                $datos['almacen_destino'], 
-                $datos['cantidad'], 
-                $usuario_id
-            );
-        }
-        
-        if ($stmt_movimiento) {
-            $stmt_movimiento->execute();
-            $stmt_movimiento->close();
-        }
-    } catch (Exception $e) {
-        // No es crítico si falla el registro de movimiento
-        error_log("Error al registrar movimiento (no crítico): " . $e->getMessage());
-    }
-    
     // Registrar en log de actividad (verificar si existe la tabla)
     try {
         $tables_result = $conn->query("SHOW TABLES LIKE 'logs_actividad'");
@@ -299,121 +248,18 @@ try {
         error_log("Error al registrar log de actividad (no crítico): " . $e->getMessage());
     }
     
-    // Auto-aprobar si es admin
-    if ($usuario_rol === 'admin') {
-        try {
-            // Verificar si el producto ya existe en el almacén destino
-            $sql_existe = "SELECT id, cantidad FROM productos 
-                           WHERE nombre = ? AND categoria_id = ? AND almacen_id = ?";
-            $stmt = $conn->prepare($sql_existe);
-            
-            if (!$stmt) {
-                throw new Exception("Error preparando consulta de existencia: " . $conn->error);
-            }
-            
-            $stmt->bind_param("sii", $producto['nombre'], $producto['categoria_id'], $datos['almacen_destino']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            if ($result->num_rows > 0) {
-                // Producto existe, actualizar cantidad
-                $producto_destino = $result->fetch_assoc();
-                $sql_update = "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?";
-                $stmt_update = $conn->prepare($sql_update);
-                
-                if (!$stmt_update) {
-                    throw new Exception("Error preparando consulta de actualización: " . $conn->error);
-                }
-                
-                $stmt_update->bind_param("ii", $datos['cantidad'], $producto_destino['id']);
-                $stmt_update->execute();
-                $stmt_update->close();
-                
-            } else {
-                // Producto no existe, crear nuevo
-                $sql_create = "INSERT INTO productos 
-                              (nombre, modelo, color, talla_dimensiones, cantidad, unidad_medida, estado, observaciones, categoria_id, almacen_id, fecha_registro) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-                $stmt_create = $conn->prepare($sql_create);
-                
-                if (!$stmt_create) {
-                    throw new Exception("Error preparando consulta de creación: " . $conn->error);
-                }
-                
-                $stmt_create->bind_param("ssssssssii", 
-                    $producto['nombre'],
-                    $producto['modelo'],
-                    $producto['color'],
-                    $producto['talla_dimensiones'],
-                    $datos['cantidad'],
-                    $producto['unidad_medida'],
-                    $producto['estado'],
-                    $producto['observaciones'],
-                    $producto['categoria_id'],
-                    $datos['almacen_destino']
-                );
-                $stmt_create->execute();
-                $stmt_create->close();
-            }
-            $stmt->close();
-            
-            // Actualizar estado de la solicitud a aprobada
-            // Verificar si existen las columnas fecha_procesamiento y procesado_por
-            $check_proc = $conn->query("SHOW COLUMNS FROM solicitudes_transferencia LIKE 'procesado_por'");
-            $has_procesado_por = $check_proc->num_rows > 0;
-            
-            $check_fecha_proc = $conn->query("SHOW COLUMNS FROM solicitudes_transferencia LIKE 'fecha_procesamiento'");
-            $has_fecha_proc = $check_fecha_proc->num_rows > 0;
-            
-            if ($has_procesado_por && $has_fecha_proc) {
-                $sql_aprobar = "UPDATE solicitudes_transferencia 
-                                SET estado = 'aprobada', fecha_procesamiento = NOW(), procesado_por = ? 
-                                WHERE id = ?";
-                $stmt_aprobar = $conn->prepare($sql_aprobar);
-                $stmt_aprobar->bind_param("ii", $usuario_id, $solicitud_id);
-            } else {
-                $sql_aprobar = "UPDATE solicitudes_transferencia 
-                                SET estado = 'aprobada' 
-                                WHERE id = ?";
-                $stmt_aprobar = $conn->prepare($sql_aprobar);
-                $stmt_aprobar->bind_param("i", $solicitud_id);
-            }
-            
-            if (!$stmt_aprobar) {
-                throw new Exception("Error preparando consulta de aprobación: " . $conn->error);
-            }
-            
-            $stmt_aprobar->execute();
-            $stmt_aprobar->close();
-            
-            // Confirmar transacción
-            $conn->commit();
-            
-            enviarRespuesta(true, "Transferencia completada exitosamente a {$almacen_destino_info['nombre']}", [
-                'solicitud_id' => $solicitud_id,
-                'estado' => 'completada',
-                'auto_aprobada' => true,
-                'almacen_destino' => $almacen_destino_info['nombre'],
-                'cantidad_transferida' => $datos['cantidad'],
-                'producto_nombre' => $producto['nombre']
-            ]);
-            
-        } catch (Exception $e) {
-            // Si falla la auto-aprobación, continuar como solicitud pendiente
-            error_log("Error en auto-aprobación: " . $e->getMessage());
-        }
-    }
-    
+    // 🚀 MENSAJE MEJORADO: Explicar que va a pendientes
     // Confirmar transacción (solicitud pendiente)
     $conn->commit();
     
-    enviarRespuesta(true, "Solicitud de transferencia enviada correctamente a {$almacen_destino_info['nombre']}", [
+    enviarRespuesta(true, "Solicitud de transferencia enviada correctamente", [
         'solicitud_id' => $solicitud_id,
         'estado' => 'pendiente',
         'almacen_destino' => $almacen_destino_info['nombre'],
         'cantidad_solicitada' => $datos['cantidad'],
         'producto_nombre' => $producto['nombre'],
-        'mensaje_adicional' => 'La transferencia está pendiente de aprobación.'
+        'mensaje_proceso' => 'La solicitud está pendiente de aprobación por el almacén destino.',
+        'siguiente_paso' => 'Puedes ver el estado en "Notificaciones > Solicitudes Pendientes"'
     ]);
     
 } catch (mysqli_sql_exception $e) {
