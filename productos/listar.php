@@ -152,6 +152,134 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     
     <!-- CSS específico para listar productos -->
     <link rel="stylesheet" href="../assets/css/productos-listar.css">
+    
+    <!-- Estilos adicionales para los controles de stock -->
+    <style>
+        /* Estilos para controles de stock */
+        .stock-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        
+        .stock-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            position: relative;
+        }
+        
+        .stock-btn:hover:not(:disabled) {
+            background: var(--accent-color);
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(10, 37, 60, 0.3);
+        }
+        
+        .stock-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .stock-btn.loading {
+            pointer-events: none;
+        }
+        
+        .stock-btn.loading i {
+            animation: spin 1s linear infinite;
+        }
+        
+        .stock-value {
+            font-weight: 600;
+            font-size: 16px;
+            min-width: 40px;
+            text-align: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+        }
+        
+        .stock-critical {
+            color: #dc3545;
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+        
+        .stock-warning {
+            color: #ffc107;
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .stock-good {
+            color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+        
+        .stock-hint {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 5px;
+            opacity: 0.7;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .stock-hint i {
+            font-size: 10px;
+        }
+        
+        .admin-hint {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            background: rgba(10, 37, 60, 0.1);
+            border-radius: 6px;
+            color: var(--primary-color);
+            border: 1px solid rgba(10, 37, 60, 0.2);
+            margin-left: 10px;
+        }
+        
+        .admin-hint i {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .admin-hint small {
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Animación de actualización de stock */
+        .stock-value.updating {
+            animation: pulse 0.5s ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); background: var(--accent-color); color: white; }
+            100% { transform: scale(1); }
+        }
+    </style>
 </head>
 <body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>">
 
@@ -322,6 +450,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <i class="fas fa-plus"></i>
                     <span>Nuevo Producto</span>
                 </a>
+                
+                <div class="admin-hint">
+                    <i class="fas fa-info-circle"></i>
+                    <small>Usa los botones + y - para ajustar stock</small>
+                </div>
                 <?php endif; ?>
                 
                 <?php if ($filtro_almacen_id): ?>
@@ -500,9 +633,9 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <div class="stock-section">
                                 <div class="stock-info">
                                     <span class="stock-label">Stock disponible:</span>
-                                    <div class="stock-controls">
+                                    <div class="stock-display">
                                         <?php if ($usuario_rol == 'admin'): ?>
-                                        <button class="stock-btn decrease" data-id="<?php echo $producto['id']; ?>" data-accion="restar" <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?>>
+                                        <button class="stock-btn decrease" data-id="<?php echo $producto['id']; ?>" data-accion="restar" <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?> title="Reducir stock">
                                             <i class="fas fa-minus"></i>
                                         </button>
                                         <?php endif; ?>
@@ -516,11 +649,18 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                         </span>
                                         
                                         <?php if ($usuario_rol == 'admin'): ?>
-                                        <button class="stock-btn increase" data-id="<?php echo $producto['id']; ?>" data-accion="sumar">
+                                        <button class="stock-btn increase" data-id="<?php echo $producto['id']; ?>" data-accion="sumar" title="Aumentar stock">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                         <?php endif; ?>
                                     </div>
+                                    
+                                    <?php if ($usuario_rol == 'admin'): ?>
+                                    <div class="stock-hint">
+                                        <i class="fas fa-info-circle"></i>
+                                        <small>Clic en + o - para ajustar</small>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -679,7 +819,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript -->
+<!-- JavaScript SOLO el archivo externo - SIN script adicional -->
 <script src="../assets/js/productos-listar.js"></script>
+
 </body>
 </html>

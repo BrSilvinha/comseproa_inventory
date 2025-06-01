@@ -4,6 +4,7 @@
 
 class ProductosListar {
     constructor() {
+        this.stockButtonsProcessed = false; // Bandera para evitar doble registro
         this.inicializar();
         this.configurarEventListeners();
         this.configurarModal();
@@ -20,8 +21,11 @@ class ProductosListar {
         // Animar tarjetas de productos
         this.animarTarjetas();
         
-        // Configurar controles de stock
-        this.configurarControlesStock();
+        // Configurar controles de stock (SOLO UNA VEZ)
+        if (!this.stockButtonsProcessed) {
+            this.configurarControlesStock();
+            this.stockButtonsProcessed = true;
+        }
     }
 
     configurarSidebar() {
@@ -137,22 +141,45 @@ class ProductosListar {
     }
 
     configurarControlesStock() {
-        const stockButtons = document.querySelectorAll('.stock-btn');
+        console.log('🔧 Configurando controles de stock...');
         
-        stockButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
+        // Remover listeners existentes para evitar duplicados
+        const existingButtons = document.querySelectorAll('.stock-btn');
+        existingButtons.forEach(btn => {
+            btn.replaceWith(btn.cloneNode(true));
+        });
+        
+        // Obtener botones frescos sin listeners
+        const stockButtons = document.querySelectorAll('.stock-btn');
+        console.log(`📊 Encontrados ${stockButtons.length} botones de stock`);
+        
+        stockButtons.forEach((button, index) => {
+            // Agregar event listener solo una vez
+            button.addEventListener('click', async (e) => {
                 e.preventDefault();
+                e.stopPropagation(); // Evitar propagación
+                
+                console.log(`🖱️ Click en botón ${index + 1}`);
+                
                 const productId = button.dataset.id;
                 const accion = button.dataset.accion;
                 
                 if (productId && accion) {
-                    this.actualizarStock(productId, accion, button);
+                    await this.actualizarStock(productId, accion, button);
                 }
-            });
+            }, { once: false }); // No usar once:true para permitir múltiples usos
         });
     }
 
     async actualizarStock(productId, accion, button) {
+        console.log(`🔄 Actualizando stock: Producto ${productId}, Acción: ${accion}`);
+        
+        // Evitar múltiples clicks mientras se procesa
+        if (button.disabled || button.classList.contains('loading')) {
+            console.log('⚠️ Botón ya está siendo procesado, ignorando click');
+            return;
+        }
+        
         const stockValueElement = document.getElementById(`cantidad-${productId}`);
         const currentStock = parseInt(stockValueElement.textContent.replace(/,/g, ''));
         
@@ -162,24 +189,32 @@ class ProductosListar {
             return;
         }
 
-        // Deshabilitar botón temporalmente
+        // Deshabilitar botón temporalmente y mostrar loading
         button.disabled = true;
         button.classList.add('loading');
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
             const formData = new FormData();
             formData.append('producto_id', productId);
             formData.append('accion', accion);
 
+            console.log('📤 Enviando petición a actualizar_cantidad.php');
             const response = await fetch('actualizar_cantidad.php', {
                 method: 'POST',
                 body: formData
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
+            console.log('📥 Respuesta recibida:', data);
 
             if (data.success) {
-                // Actualizar valor en la interfaz
+                // Actualizar valor en la interfaz con animación
                 stockValueElement.textContent = parseInt(data.nueva_cantidad).toLocaleString();
                 
                 // Actualizar clases de color según el nuevo stock
@@ -193,32 +228,51 @@ class ProductosListar {
                 
                 // Animar el cambio
                 stockValueElement.style.transform = 'scale(1.2)';
+                stockValueElement.style.transition = 'transform 0.2s ease';
                 setTimeout(() => {
                     stockValueElement.style.transform = 'scale(1)';
                 }, 200);
+                
+                // Actualizar estado del botón de restar si la cantidad llega a 0
+                if (data.nueva_cantidad <= 0) {
+                    const restarBtn = document.querySelector(`[data-id="${productId}"][data-accion="restar"]`);
+                    if (restarBtn) {
+                        restarBtn.disabled = true;
+                    }
+                } else {
+                    const restarBtn = document.querySelector(`[data-id="${productId}"][data-accion="restar"]`);
+                    if (restarBtn) {
+                        restarBtn.disabled = false;
+                    }
+                }
                 
             } else {
                 this.mostrarNotificacion(data.message || 'Error al actualizar el stock', 'error');
             }
         } catch (error) {
-            console.error('Error:', error);
+            console.error('❌ Error:', error);
             this.mostrarNotificacion('Error de conexión al actualizar el stock', 'error');
         } finally {
-            // Rehabilitar botón
+            // Rehabilitar botón y restaurar contenido
             button.disabled = false;
             button.classList.remove('loading');
+            button.innerHTML = originalContent;
             
-            // Actualizar estado del botón de restar
+            // Verificar estado final del botón de restar
             if (accion === 'restar') {
                 const newStock = parseInt(stockValueElement.textContent.replace(/,/g, ''));
-                button.disabled = newStock <= 0;
+                if (newStock <= 0) {
+                    button.disabled = true;
+                }
             }
         }
     }
 
     actualizarClasesStock(element, cantidad) {
+        // Remover clases anteriores
         element.classList.remove('stock-critical', 'stock-warning', 'stock-good');
         
+        // Agregar clase apropiada según la cantidad
         if (cantidad < 5) {
             element.classList.add('stock-critical');
         } else if (cantidad < 10) {
@@ -226,6 +280,12 @@ class ProductosListar {
         } else {
             element.classList.add('stock-good');
         }
+        
+        // Agregar efecto visual de actualización
+        element.classList.add('updating');
+        setTimeout(() => {
+            element.classList.remove('updating');
+        }, 500);
     }
 
     actualizarBotonesTransferencia(productId, nuevaCantidad) {
@@ -238,10 +298,14 @@ class ProductosListar {
                     transferButton.classList.remove('disabled');
                     transferButton.innerHTML = '<i class="fas fa-paper-plane"></i> Transferir';
                     transferButton.dataset.cantidad = nuevaCantidad;
+                    transferButton.style.opacity = '1';
+                    transferButton.style.cursor = 'pointer';
                 } else {
                     transferButton.disabled = true;
                     transferButton.classList.add('disabled');
                     transferButton.innerHTML = '<i class="fas fa-times"></i> Sin Stock';
+                    transferButton.style.opacity = '0.6';
+                    transferButton.style.cursor = 'not-allowed';
                 }
             }
         }
@@ -298,13 +362,8 @@ class ProductosListar {
             minusBtn.addEventListener('click', () => this.adjustQuantity(-1));
             plusBtn.addEventListener('click', () => this.adjustQuantity(1));
             
-            quantityInput.addEventListener('change', () => {
-                this.validarCantidad();
-            });
-
-            quantityInput.addEventListener('input', () => {
-                this.validarCantidad();
-            });
+            quantityInput.addEventListener('change', () => this.validarCantidad());
+            quantityInput.addEventListener('input', () => this.validarCantidad());
         }
     }
 
@@ -658,6 +717,109 @@ const additionalStyles = `
         from { opacity: 1; transform: translateX(0); }
         to { opacity: 0; transform: translateX(100%); }
     }
+    
+    /* Estilos para controles de stock */
+    .stock-display {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 5px;
+    }
+    
+    .stock-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        font-size: 12px;
+        position: relative;
+    }
+    
+    .stock-btn:hover:not(:disabled) {
+        background: var(--accent-color);
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(10, 37, 60, 0.3);
+    }
+    
+    .stock-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .stock-btn.loading {
+        pointer-events: none;
+    }
+    
+    .stock-btn.loading i {
+        animation: spin 1s linear infinite;
+    }
+    
+    .stock-value {
+        font-weight: 600;
+        font-size: 16px;
+        min-width: 40px;
+        text-align: center;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.8);
+        transition: all 0.3s ease;
+    }
+    
+    .stock-critical {
+        color: #dc3545;
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    
+    .stock-warning {
+        color: #ffc107;
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+    
+    .stock-good {
+        color: #28a745;
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+    
+    .stock-hint {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 5px;
+        opacity: 0.7;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    
+    .stock-hint i {
+        font-size: 10px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Animación de actualización de stock */
+    .stock-value.updating {
+        animation: pulse 0.5s ease-in-out;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); background: var(--accent-color); color: white; }
+        100% { transform: scale(1); }
+    }
 `;
 
 // Inyectar estilos adicionales
@@ -667,6 +829,7 @@ document.head.appendChild(styleSheet);
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Inicializando ProductosListar...');
     window.productosListar = new ProductosListar();
-    console.log('Productos Listar inicializado correctamente');
+    console.log('✅ ProductosListar inicializado correctamente');
 });

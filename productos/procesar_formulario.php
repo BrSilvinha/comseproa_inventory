@@ -43,6 +43,27 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 
 require_once "../config/database.php";
 
+// Verificar conexión a la base de datos
+if ($conn->connect_error) {
+    http_response_code(500);
+    enviarRespuesta(false, 'Error de conexión a la base de datos.');
+}
+
+// Verificar que el usuario actual existe en la tabla usuarios
+$usuario_id = $_SESSION['user_id'];
+$check_user_sql = "SELECT id FROM usuarios WHERE id = ?";
+$check_user_stmt = $conn->prepare($check_user_sql);
+$check_user_stmt->bind_param("i", $usuario_id);
+$check_user_stmt->execute();
+$user_result = $check_user_stmt->get_result();
+
+if ($user_result->num_rows === 0) {
+    $check_user_stmt->close();
+    http_response_code(403);
+    enviarRespuesta(false, 'Usuario no válido. Por favor, cierre sesión e inicie sesión nuevamente.');
+}
+$check_user_stmt->close();
+
 try {
     // Obtener y validar datos del formulario
     $datos = [
@@ -103,6 +124,11 @@ try {
                      JOIN almacenes a ON p.almacen_id = a.id 
                      WHERE p.id = ? AND p.almacen_id = ? FOR UPDATE";
     $stmt = $conn->prepare($sql_producto);
+    
+    if (!$stmt) {
+        throw new Exception("Error preparando consulta de producto: " . $conn->error);
+    }
+    
     $stmt->bind_param("ii", $datos['producto_id'], $datos['almacen_origen']);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -128,6 +154,11 @@ try {
     // Verificar que el almacén de destino existe
     $sql_almacen_destino = "SELECT id, nombre FROM almacenes WHERE id = ?";
     $stmt = $conn->prepare($sql_almacen_destino);
+    
+    if (!$stmt) {
+        throw new Exception("Error preparando consulta de almacén destino: " . $conn->error);
+    }
+    
     $stmt->bind_param("i", $datos['almacen_destino']);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -145,6 +176,11 @@ try {
     // Reducir stock en el almacén de origen
     $sql_reducir = "UPDATE productos SET cantidad = cantidad - ? WHERE id = ? AND almacen_id = ?";
     $stmt = $conn->prepare($sql_reducir);
+    
+    if (!$stmt) {
+        throw new Exception("Error preparando consulta de reducir stock: " . $conn->error);
+    }
+    
     $stmt->bind_param("iii", $datos['cantidad'], $datos['producto_id'], $datos['almacen_origen']);
     
     if (!$stmt->execute() || $stmt->affected_rows === 0) {
@@ -154,67 +190,113 @@ try {
     }
     $stmt->close();
     
-    // Crear solicitud de transferencia
-    $fecha_actual = date('Y-m-d H:i:s');
-    $usuario_id = $_SESSION['user_id'];
+    // Crear solicitud de transferencia (usando estructura actual de tu BD)
     $observaciones = "Transferencia solicitada desde el sistema web";
     
-    $sql_solicitud = "INSERT INTO solicitudes_transferencia 
-                      (producto_id, almacen_origen, almacen_destino, cantidad, fecha_solicitud, estado, usuario_id, observaciones) 
-                      VALUES (?, ?, ?, ?, ?, 'pendiente', ?, ?)";
-    $stmt = $conn->prepare($sql_solicitud);
-    $stmt->bind_param("iiiissi", 
-        $datos['producto_id'], 
-        $datos['almacen_origen'], 
-        $datos['almacen_destino'], 
-        $datos['cantidad'], 
-        $fecha_actual, 
-        $usuario_id, 
-        $observaciones
-    );
+    // Verificar si existe la columna observaciones
+    $check_obs = $conn->query("SHOW COLUMNS FROM solicitudes_transferencia LIKE 'observaciones'");
+    $has_observaciones = $check_obs->num_rows > 0;
     
-    if (!$stmt->execute()) {
-        $stmt->close();
-        $conn->rollback();
-        enviarRespuesta(false, 'Error al crear la solicitud de transferencia.');
-    }
-    
-    $solicitud_id = $conn->insert_id;
-    $stmt->close();
-    
-    // Registrar movimiento (SIMPLIFICADO)
-    $descripcion = "Solicitud de transferencia #{$solicitud_id}: {$datos['cantidad']} unidades de {$producto['nombre']} a {$almacen_destino_info['nombre']}";
-    
-    try {
-        $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, almacen_destino, cantidad, tipo, usuario_id, estado, descripcion) 
-                           VALUES (?, ?, ?, ?, 'transferencia', ?, 'pendiente', ?)";
-        $stmt_movimiento = $conn->prepare($sql_movimiento);
-        $stmt_movimiento->bind_param("iiiiss", 
+    if ($has_observaciones) {
+        $sql_solicitud = "INSERT INTO solicitudes_transferencia 
+                          (producto_id, almacen_origen, almacen_destino, cantidad, fecha_solicitud, estado, usuario_id, observaciones) 
+                          VALUES (?, ?, ?, ?, NOW(), 'pendiente', ?, ?)";
+        $stmt = $conn->prepare($sql_solicitud);
+        $stmt->bind_param("iiiiss", 
             $datos['producto_id'], 
             $datos['almacen_origen'], 
             $datos['almacen_destino'], 
             $datos['cantidad'], 
             $usuario_id, 
-            $descripcion
+            $observaciones
         );
-        $stmt_movimiento->execute();
-        $stmt_movimiento->close();
-    } catch (Exception $e) {
-        error_log("Error al registrar movimiento: " . $e->getMessage());
+    } else {
+        $sql_solicitud = "INSERT INTO solicitudes_transferencia 
+                          (producto_id, almacen_origen, almacen_destino, cantidad, fecha_solicitud, estado, usuario_id) 
+                          VALUES (?, ?, ?, ?, NOW(), 'pendiente', ?)";
+        $stmt = $conn->prepare($sql_solicitud);
+        $stmt->bind_param("iiiii", 
+            $datos['producto_id'], 
+            $datos['almacen_origen'], 
+            $datos['almacen_destino'], 
+            $datos['cantidad'], 
+            $usuario_id
+        );
     }
     
-    // Registrar en log de actividad (SIMPLIFICADO)
+    if (!$stmt) {
+        throw new Exception("Error preparando consulta de solicitud: " . $conn->error);
+    }
+    
+    if (!$stmt->execute()) {
+        $stmt->close();
+        $conn->rollback();
+        enviarRespuesta(false, 'Error al crear la solicitud de transferencia: ' . $stmt->error);
+    }
+    
+    $solicitud_id = $conn->insert_id;
+    $stmt->close();
+    
+    // Registrar movimiento (verificar estructura de tu tabla movimientos)
     try {
-        $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
-                    VALUES (?, 'SOLICITAR_TRANSFERENCIA', ?, NOW())";
-        $stmt_log = $conn->prepare($sql_log);
-        $detalle = "Solicitó transferencia de {$datos['cantidad']} unidades de '{$producto['nombre']}' desde {$producto['almacen_nombre']} hacia {$almacen_destino_info['nombre']}";
+        $descripcion = "Solicitud de transferencia #{$solicitud_id}: {$datos['cantidad']} unidades de {$producto['nombre']} a {$almacen_destino_info['nombre']}";
         
-        $stmt_log->bind_param("is", $usuario_id, $detalle);
-        $stmt_log->execute();
-        $stmt_log->close();
+        // Verificar si existe la columna descripcion
+        $check_desc = $conn->query("SHOW COLUMNS FROM movimientos LIKE 'descripcion'");
+        $has_descripcion = $check_desc->num_rows > 0;
+        
+        if ($has_descripcion) {
+            $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, almacen_destino, cantidad, tipo, usuario_id, estado, descripcion, fecha) 
+                               VALUES (?, ?, ?, ?, 'transferencia', ?, 'pendiente', ?, NOW())";
+            $stmt_movimiento = $conn->prepare($sql_movimiento);
+            $stmt_movimiento->bind_param("iiiiss", 
+                $datos['producto_id'], 
+                $datos['almacen_origen'], 
+                $datos['almacen_destino'], 
+                $datos['cantidad'], 
+                $usuario_id, 
+                $descripcion
+            );
+        } else {
+            $sql_movimiento = "INSERT INTO movimientos (producto_id, almacen_origen, almacen_destino, cantidad, tipo, usuario_id, estado, fecha) 
+                               VALUES (?, ?, ?, ?, 'transferencia', ?, 'pendiente', NOW())";
+            $stmt_movimiento = $conn->prepare($sql_movimiento);
+            $stmt_movimiento->bind_param("iiiis", 
+                $datos['producto_id'], 
+                $datos['almacen_origen'], 
+                $datos['almacen_destino'], 
+                $datos['cantidad'], 
+                $usuario_id
+            );
+        }
+        
+        if ($stmt_movimiento) {
+            $stmt_movimiento->execute();
+            $stmt_movimiento->close();
+        }
     } catch (Exception $e) {
-        error_log("Error al registrar log de actividad: " . $e->getMessage());
+        // No es crítico si falla el registro de movimiento
+        error_log("Error al registrar movimiento (no crítico): " . $e->getMessage());
+    }
+    
+    // Registrar en log de actividad (verificar si existe la tabla)
+    try {
+        $tables_result = $conn->query("SHOW TABLES LIKE 'logs_actividad'");
+        if ($tables_result->num_rows > 0) {
+            $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
+                        VALUES (?, 'SOLICITAR_TRANSFERENCIA', ?, NOW())";
+            $stmt_log = $conn->prepare($sql_log);
+            
+            if ($stmt_log) {
+                $detalle = "Solicitó transferencia de {$datos['cantidad']} unidades de '{$producto['nombre']}' desde {$producto['almacen_nombre']} hacia {$almacen_destino_info['nombre']}";
+                $stmt_log->bind_param("is", $usuario_id, $detalle);
+                $stmt_log->execute();
+                $stmt_log->close();
+            }
+        }
+    } catch (Exception $e) {
+        // No es crítico si falla el log
+        error_log("Error al registrar log de actividad (no crítico): " . $e->getMessage());
     }
     
     // Auto-aprobar si es admin
@@ -224,6 +306,11 @@ try {
             $sql_existe = "SELECT id, cantidad FROM productos 
                            WHERE nombre = ? AND categoria_id = ? AND almacen_id = ?";
             $stmt = $conn->prepare($sql_existe);
+            
+            if (!$stmt) {
+                throw new Exception("Error preparando consulta de existencia: " . $conn->error);
+            }
+            
             $stmt->bind_param("sii", $producto['nombre'], $producto['categoria_id'], $datos['almacen_destino']);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -233,15 +320,26 @@ try {
                 $producto_destino = $result->fetch_assoc();
                 $sql_update = "UPDATE productos SET cantidad = cantidad + ? WHERE id = ?";
                 $stmt_update = $conn->prepare($sql_update);
+                
+                if (!$stmt_update) {
+                    throw new Exception("Error preparando consulta de actualización: " . $conn->error);
+                }
+                
                 $stmt_update->bind_param("ii", $datos['cantidad'], $producto_destino['id']);
                 $stmt_update->execute();
                 $stmt_update->close();
+                
             } else {
                 // Producto no existe, crear nuevo
                 $sql_create = "INSERT INTO productos 
                               (nombre, modelo, color, talla_dimensiones, cantidad, unidad_medida, estado, observaciones, categoria_id, almacen_id, fecha_registro) 
                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                 $stmt_create = $conn->prepare($sql_create);
+                
+                if (!$stmt_create) {
+                    throw new Exception("Error preparando consulta de creación: " . $conn->error);
+                }
+                
                 $stmt_create->bind_param("ssssssssii", 
                     $producto['nombre'],
                     $producto['modelo'],
@@ -260,11 +358,31 @@ try {
             $stmt->close();
             
             // Actualizar estado de la solicitud a aprobada
-            $sql_aprobar = "UPDATE solicitudes_transferencia 
-                            SET estado = 'aprobada', fecha_procesamiento = NOW(), procesado_por = ? 
-                            WHERE id = ?";
-            $stmt_aprobar = $conn->prepare($sql_aprobar);
-            $stmt_aprobar->bind_param("ii", $usuario_id, $solicitud_id);
+            // Verificar si existen las columnas fecha_procesamiento y procesado_por
+            $check_proc = $conn->query("SHOW COLUMNS FROM solicitudes_transferencia LIKE 'procesado_por'");
+            $has_procesado_por = $check_proc->num_rows > 0;
+            
+            $check_fecha_proc = $conn->query("SHOW COLUMNS FROM solicitudes_transferencia LIKE 'fecha_procesamiento'");
+            $has_fecha_proc = $check_fecha_proc->num_rows > 0;
+            
+            if ($has_procesado_por && $has_fecha_proc) {
+                $sql_aprobar = "UPDATE solicitudes_transferencia 
+                                SET estado = 'aprobada', fecha_procesamiento = NOW(), procesado_por = ? 
+                                WHERE id = ?";
+                $stmt_aprobar = $conn->prepare($sql_aprobar);
+                $stmt_aprobar->bind_param("ii", $usuario_id, $solicitud_id);
+            } else {
+                $sql_aprobar = "UPDATE solicitudes_transferencia 
+                                SET estado = 'aprobada' 
+                                WHERE id = ?";
+                $stmt_aprobar = $conn->prepare($sql_aprobar);
+                $stmt_aprobar->bind_param("i", $solicitud_id);
+            }
+            
+            if (!$stmt_aprobar) {
+                throw new Exception("Error preparando consulta de aprobación: " . $conn->error);
+            }
+            
             $stmt_aprobar->execute();
             $stmt_aprobar->close();
             
@@ -281,8 +399,8 @@ try {
             ]);
             
         } catch (Exception $e) {
+            // Si falla la auto-aprobación, continuar como solicitud pendiente
             error_log("Error en auto-aprobación: " . $e->getMessage());
-            // Continuar como solicitud pendiente si falla la auto-aprobación
         }
     }
     
@@ -307,8 +425,14 @@ try {
     // Log del error para debugging
     error_log("Error de base de datos en procesar_formulario.php: " . $e->getMessage());
     
-    http_response_code(500);
-    enviarRespuesta(false, 'Error interno del servidor. Por favor, inténtelo más tarde.');
+    // Manejar errores específicos de foreign key
+    if (strpos($e->getMessage(), 'foreign key constraint fails') !== false) {
+        http_response_code(500);
+        enviarRespuesta(false, 'Error de integridad de datos. Por favor, contacte al administrador del sistema.');
+    } else {
+        http_response_code(500);
+        enviarRespuesta(false, 'Error de base de datos. Por favor, inténtelo más tarde.');
+    }
     
 } catch (Exception $e) {
     // Rollback en caso de cualquier otro error

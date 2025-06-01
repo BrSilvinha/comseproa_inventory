@@ -51,7 +51,7 @@ if ($usuario_rol != 'admin' && $usuario_almacen_id != $producto['almacen_id']) {
     exit();
 }
 
-// Obtener historial de movimientos del producto (CORREGIDO PARA TU BD)
+// Obtener historial de movimientos del producto
 $sql_movimientos = "SELECT m.*, 
                     CASE 
                         WHEN m.tipo = 'transferencia' THEN CONCAT(COALESCE(ao.nombre, 'N/A'), ' → ', COALESCE(ad.nombre, 'N/A'))
@@ -143,10 +143,127 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS específico para ver producto -->
-    <link rel="stylesheet" href="../assets/css/productos-ver.css">
+    <!-- CSS específico para ver producto - USAR ESTE EN LUGAR DEL ORIGINAL -->
+    <style>
+        /* CSS EMBEBIDO PARA EVITAR CONFLICTOS */
+        .productos-ver-page .content { margin-left: 0; padding: 20px; background-color: #f7fafc; }
+        @media (min-width: 768px) { .productos-ver-page .content { margin-left: 250px; padding: 30px; } }
+        
+        .productos-ver-page .product-header { background: linear-gradient(135deg, #0a253c 0%, #164463 100%); color: white; border-radius: 8px; margin-bottom: 30px; padding: 30px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .productos-ver-page .header-content { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; }
+        .productos-ver-page .product-info { display: flex; align-items: flex-start; gap: 20px; flex: 1; }
+        .productos-ver-page .product-icon { background: rgba(255, 255, 255, 0.2); width: 80px; height: 80px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+        .productos-ver-page .product-details h1 { font-size: 2rem; font-weight: 700; margin-bottom: 10px; }
+        .productos-ver-page .product-meta { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
+        .productos-ver-page .product-meta span { background: rgba(255, 255, 255, 0.2); padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
+        
+        .productos-ver-page .header-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+        .productos-ver-page .btn-action { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; font-size: 0.9rem; }
+        .productos-ver-page .btn-edit { background: #ffc107; color: #0a253c; }
+        .productos-ver-page .btn-edit:hover { background: #e0a800; transform: translateY(-2px); }
+        .productos-ver-page .btn-delete { background: #dc3545; color: white; }
+        .productos-ver-page .btn-delete:hover { background: #c82333; transform: translateY(-2px); }
+        .productos-ver-page .btn-transfer { background: #28a745; color: white; }
+        .productos-ver-page .btn-transfer:hover { background: #218838; transform: translateY(-2px); }
+        .productos-ver-page .btn-back { background: rgba(255, 255, 255, 0.2); color: white; border: 1px solid rgba(255, 255, 255, 0.3); }
+        
+        .productos-ver-page .breadcrumb { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-top: 20px; font-size: 0.9rem; }
+        .productos-ver-page .breadcrumb a { color: #2c5282; text-decoration: none; }
+        .productos-ver-page .breadcrumb span { margin: 0 8px; color: #718096; }
+        .productos-ver-page .breadcrumb .current { color: #2d3748; font-weight: 600; }
+        
+        .productos-ver-page .main-content-grid { display: grid; grid-template-columns: 1fr; gap: 30px; }
+        @media (min-width: 1200px) { .productos-ver-page .main-content-grid { grid-template-columns: 2fr 1fr; } }
+        
+        .productos-ver-page .details-card, .productos-ver-page .movements-card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
+        .productos-ver-page .card-header { background: #f8f9fa; border-bottom: 1px solid #e2e8f0; padding: 20px; }
+        .productos-ver-page .card-header h2, .productos-ver-page .card-header h3 { margin: 0; color: #2d3748; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .productos-ver-page .card-body { padding: 25px; }
+        
+        .productos-ver-page .details-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 768px) { .productos-ver-page .details-grid { grid-template-columns: repeat(2, 1fr); } }
+        .productos-ver-page .detail-group { display: flex; flex-direction: column; gap: 8px; }
+        .productos-ver-page .detail-group.full-width { grid-column: 1 / -1; }
+        .productos-ver-page .detail-group label { font-weight: 600; color: #4a5568; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .productos-ver-page .detail-group value { color: #2d3748; font-size: 1rem; font-weight: 500; padding: 10px 0; border-bottom: 1px solid #e2e8f0; display: block; }
+        
+        /* STOCK CONTROLS - MUY IMPORTANTE */
+        .productos-ver-page .stock-value { display: flex !important; align-items: center !important; gap: 15px !important; font-size: 1.2rem !important; font-weight: 700 !important; }
+        .productos-ver-page .stock-critical { color: #dc3545 !important; }
+        .productos-ver-page .stock-warning { color: #ffc107 !important; }
+        .productos-ver-page .stock-good { color: #28a745 !important; }
+        .productos-ver-page .stock-controls { display: flex !important; gap: 8px !important; align-items: center !important; margin-top: 10px !important; }
+        .productos-ver-page .stock-btn { width: 35px !important; height: 35px !important; border: none !important; border-radius: 50% !important; background: #0a253c !important; color: white !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: all 0.3s ease !important; font-size: 0.9rem !important; }
+        .productos-ver-page .stock-btn:hover:not(:disabled) { background: #164463 !important; transform: scale(1.1) !important; }
+        .productos-ver-page .stock-btn:disabled { background: #718096 !important; cursor: not-allowed !important; opacity: 0.5 !important; }
+        .productos-ver-page .stock-btn.increase { background: #28a745 !important; }
+        .productos-ver-page .stock-btn.increase:hover:not(:disabled) { background: #218838 !important; }
+        .productos-ver-page .stock-btn.decrease { background: #dc3545 !important; }
+        .productos-ver-page .stock-btn.decrease:hover:not(:disabled) { background: #c82333 !important; }
+        
+        .productos-ver-page .estado { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+        .productos-ver-page .estado-nuevo { background: rgba(40, 167, 69, 0.1); color: #28a745; }
+        .productos-ver-page .estado-usado { background: rgba(255, 193, 7, 0.1); color: #d39e00; }
+        .productos-ver-page .estado-dañado { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
+        
+        .productos-ver-page .link-categoria, .productos-ver-page .link-almacen { color: #2c5282; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; background: rgba(44, 82, 130, 0.1); transition: all 0.3s ease; }
+        .productos-ver-page .link-categoria:hover, .productos-ver-page .link-almacen:hover { background: rgba(44, 82, 130, 0.2); }
+        
+        .productos-ver-page .movements-list { max-height: 500px; overflow-y: auto; }
+        .productos-ver-page .movement-item { display: flex; align-items: center; gap: 15px; padding: 15px 20px; border-bottom: 1px solid #e2e8f0; }
+        .productos-ver-page .movement-item:last-child { border-bottom: none; }
+        .productos-ver-page .movement-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+        .productos-ver-page .movement-details { flex: 1; }
+        .productos-ver-page .movement-description { font-weight: 600; color: #2d3748; margin-bottom: 5px; }
+        .productos-ver-page .movement-meta { display: flex; gap: 15px; font-size: 0.85rem; color: #718096; }
+        .productos-ver-page .movement-status span { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .productos-ver-page .status-completado { background: #28a745; color: white; }
+        .productos-ver-page .status-pendiente { background: #ffc107; color: #0a253c; }
+        
+        .productos-ver-page .sidebar-panel { display: flex; flex-direction: column; gap: 20px; }
+        .productos-ver-page .requests-card, .productos-ver-page .similar-products-card, .productos-ver-page .quick-actions-card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        
+        /* MODAL */
+        .productos-ver-page .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 37, 60, 0.8); display: none; justify-content: center; align-items: center; z-index: 10000; }
+        .productos-ver-page .modal-content { background: white; border-radius: 8px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .productos-ver-page .modal-header { background: #0a253c; color: white; padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .productos-ver-page .modal-header h2 { margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+        .productos-ver-page .modal-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; border-radius: 50%; }
+        .productos-ver-page .modal-body { padding: 25px; }
+        .productos-ver-page .modal-footer { background: #f8f9fa; padding: 20px 25px; display: flex; gap: 12px; justify-content: flex-end; }
+        
+        .productos-ver-page .form-group { margin-bottom: 20px; }
+        .productos-ver-page .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #4a5568; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .productos-ver-page .form-select, .productos-ver-page .qty-input { width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; transition: all 0.3s ease; }
+        .productos-ver-page .form-select:focus, .productos-ver-page .qty-input:focus { outline: none; border-color: #2c5282; }
+        .productos-ver-page .quantity-input { display: flex; align-items: center; gap: 12px; background: #f8f9fa; padding: 8px; border-radius: 8px; }
+        .productos-ver-page .qty-btn { width: 40px; height: 40px; border: none; border-radius: 50%; background: #2c5282; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; }
+        .productos-ver-page .qty-btn:hover { background: #0a253c; }
+        .productos-ver-page .qty-btn.minus { background: #dc3545; }
+        .productos-ver-page .qty-btn.plus { background: #28a745; }
+        .productos-ver-page .qty-input { text-align: center; font-weight: 600; font-size: 1.1rem; min-width: 80px; }
+        
+        .productos-ver-page .btn-modal { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
+        .productos-ver-page .btn-cancel { background: #f8f9fa; color: #2d3748; border: 1px solid #e2e8f0; }
+        .productos-ver-page .btn-confirm { background: #28a745; color: white; }
+        
+        .productos-ver-page .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; font-weight: 500; }
+        .productos-ver-page .alert.success { background: rgba(40, 167, 69, 0.1); color: #28a745; border-left: 4px solid #28a745; }
+        .productos-ver-page .alert.error { background: rgba(220, 53, 69, 0.1); color: #dc3545; border-left: 4px solid #dc3545; }
+        
+        .productos-ver-page .empty-message { text-align: center; padding: 40px 20px; color: #718096; }
+        .productos-ver-page .empty-message i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
+        
+        @media (max-width: 768px) {
+            .productos-ver-page .content { margin-left: 0; padding: 15px; }
+            .productos-ver-page .header-content { flex-direction: column; text-align: center; }
+            .productos-ver-page .product-info { flex-direction: column; align-items: center; }
+            .productos-ver-page .main-content-grid { grid-template-columns: 1fr; }
+            .productos-ver-page .details-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
-<body data-producto-id="<?php echo $producto_id; ?>">
+<body data-producto-id="<?php echo $producto_id; ?>" class="productos-ver-page">
 
 <!-- Botón de hamburguesa para dispositivos móviles -->
 <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
@@ -398,10 +515,17 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 <?php echo htmlspecialchars($producto['unidad_medida']); ?>
                                 <?php if ($usuario_rol == 'admin'): ?>
                                 <div class="stock-controls">
-                                    <button class="stock-btn decrease" data-id="<?php echo $producto_id; ?>" data-accion="restar" onclick="actualizarStock(<?php echo $producto_id; ?>, 'restar')" <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?>>
+                                    <button class="stock-btn decrease" 
+                                            data-id="<?php echo $producto_id; ?>" 
+                                            data-accion="restar" 
+                                            <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?>
+                                            title="Reducir stock">
                                         <i class="fas fa-minus"></i>
                                     </button>
-                                    <button class="stock-btn increase" data-id="<?php echo $producto_id; ?>" data-accion="sumar" onclick="actualizarStock(<?php echo $producto_id; ?>, 'sumar')">
+                                    <button class="stock-btn increase" 
+                                            data-id="<?php echo $producto_id; ?>" 
+                                            data-accion="sumar"
+                                            title="Aumentar stock">
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
@@ -722,497 +846,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
 <!-- JavaScript -->
-<script src="../assets/js/universal-confirmation-system.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Elementos principales
-    const menuToggle = document.getElementById('menuToggle');
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('main-content');
-    const submenuContainers = document.querySelectorAll('.submenu-container');
-    
-    // Variables para el modal
-    let maxStock = 0;
-    
-    // Toggle del menú móvil
-    if (menuToggle) {
-        menuToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('active');
-            if (mainContent) {
-                mainContent.classList.toggle('with-sidebar');
-            }
-            
-            const icon = this.querySelector('i');
-            if (sidebar.classList.contains('active')) {
-                icon.classList.remove('fa-bars');
-                icon.classList.add('fa-times');
-                this.setAttribute('aria-label', 'Cerrar menú de navegación');
-            } else {
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
-                this.setAttribute('aria-label', 'Abrir menú de navegación');
-            }
-        });
-    }
-    
-    // Funcionalidad de submenús
-    submenuContainers.forEach(container => {
-        const link = container.querySelector('a');
-        const submenu = container.querySelector('.submenu');
-        const chevron = link?.querySelector('.fa-chevron-down');
-        
-        if (link && submenu) {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                submenuContainers.forEach(otherContainer => {
-                    if (otherContainer !== container) {
-                        const otherSubmenu = otherContainer.querySelector('.submenu');
-                        const otherChevron = otherContainer.querySelector('.fa-chevron-down');
-                        const otherLink = otherContainer.querySelector('a');
-                        
-                        if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
-                            otherSubmenu.classList.remove('activo');
-                            if (otherChevron) {
-                                otherChevron.style.transform = 'rotate(0deg)';
-                            }
-                            if (otherLink) {
-                                otherLink.setAttribute('aria-expanded', 'false');
-                            }
-                        }
-                    }
-                });
-                
-                submenu.classList.toggle('activo');
-                const isExpanded = submenu.classList.contains('activo');
-                
-                if (chevron) {
-                    chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
-                }
-                
-                link.setAttribute('aria-expanded', isExpanded.toString());
-            });
-        }
-    });
-    
-    // Mostrar submenú de productos activo por defecto
-    const productosSubmenu = submenuContainers[2]?.querySelector('.submenu');
-    const productosChevron = submenuContainers[2]?.querySelector('.fa-chevron-down');
-    const productosLink = submenuContainers[2]?.querySelector('a');
-    
-    if (productosSubmenu) {
-        productosSubmenu.classList.add('activo');
-        if (productosChevron) {
-            productosChevron.style.transform = 'rotate(180deg)';
-        }
-        if (productosLink) {
-            productosLink.setAttribute('aria-expanded', 'true');
-        }
-    }
-    
-    // Auto-cerrar alertas
-    const alertas = document.querySelectorAll('.alert');
-    alertas.forEach(alerta => {
-        setTimeout(() => {
-            alerta.style.animation = 'slideOutUp 0.5s ease-in-out';
-            setTimeout(() => {
-                alerta.remove();
-            }, 500);
-        }, 5000);
-    });
-    
-    // Configurar modal de transferencia
-    const modal = document.getElementById('modalTransferencia');
-    const form = document.getElementById('formTransferencia');
-    
-    if (modal && form) {
-        // Configurar botones de cerrar
-        const closeButtons = modal.querySelectorAll('.modal-close, .btn-cancel');
-        closeButtons.forEach(button => {
-            button.addEventListener('click', () => cerrarModal());
-        });
-
-        // Cerrar modal al hacer clic fuera
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                cerrarModal();
-            }
-        });
-
-        // Configurar formulario
-        form.addEventListener('submit', (e) => enviarFormulario(e));
-    }
-});
-
-// Función para actualizar stock
-function actualizarStock(productoId, accion) {
-    const formData = new FormData();
-    formData.append('producto_id', productoId);
-    formData.append('accion', accion);
-    
-    const buttons = document.querySelectorAll('.stock-btn');
-    buttons.forEach(btn => btn.disabled = true);
-    
-    fetch('actualizar_cantidad.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const stockElement = document.getElementById('cantidad-actual');
-            if (stockElement) {
-                stockElement.textContent = parseInt(data.nueva_cantidad).toLocaleString();
-                
-                const stockValue = stockElement.closest('.stock-value');
-                if (stockValue) {
-                    stockValue.classList.remove('stock-critical', 'stock-warning', 'stock-good');
-                    if (data.nueva_cantidad < 5) {
-                        stockValue.classList.add('stock-critical');
-                    } else if (data.nueva_cantidad < 10) {
-                        stockValue.classList.add('stock-warning');
-                    } else {
-                        stockValue.classList.add('stock-good');
-                    }
-                }
-                
-                stockElement.style.transform = 'scale(1.2)';
-                setTimeout(() => {
-                    stockElement.style.transform = 'scale(1)';
-                }, 200);
-            }
-            
-            mostrarNotificacion(`Stock actualizado: ${data.nueva_cantidad} unidades`, 'exito');
-            
-        } else {
-            mostrarNotificacion(data.message || 'Error al actualizar el stock', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        mostrarNotificacion('Error de conexión al actualizar el stock', 'error');
-    })
-    .finally(() => {
-        buttons.forEach(btn => {
-            btn.disabled = false;
-            if (btn.dataset.accion === 'restar') {
-                const stockElement = document.getElementById('cantidad-actual');
-                if (stockElement) {
-                    const currentStock = parseInt(stockElement.textContent.replace(/,/g, ''));
-                    btn.disabled = currentStock <= 0;
-                }
-            }
-        });
-    });
-}
-
-// Función para abrir modal de transferencia
-function abrirModalTransferencia(button) {
-    const modal = document.getElementById('modalTransferencia');
-    if (!modal) return;
-
-    const datos = {
-        id: button.dataset.id,
-        nombre: button.dataset.nombre,
-        almacen: button.dataset.almacen,
-        cantidad: button.dataset.cantidad
-    };
-
-    document.getElementById('producto_id_modal').value = datos.id;
-    document.getElementById('almacen_origen_modal').value = datos.almacen;
-    document.getElementById('producto_nombre_modal').textContent = datos.nombre;
-    document.getElementById('stock_disponible_modal').textContent = `${datos.cantidad} unidades`;
-    
-    const quantityInput = document.getElementById('cantidad_modal');
-    quantityInput.value = 1;
-    quantityInput.max = datos.cantidad;
-    
-    document.getElementById('almacen_destino_modal').value = '';
-    
-    maxStock = parseInt(datos.cantidad);
-    
-    modal.style.display = 'block';
-    modal.setAttribute('aria-hidden', 'false');
-    
-    setTimeout(() => {
-        quantityInput.focus();
-    }, 100);
-    
-    document.body.style.overflow = 'hidden';
-}
-
-// Función para cerrar modal
-function cerrarModal() {
-    const modal = document.getElementById('modalTransferencia');
-    if (!modal) return;
-
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-    
-    document.body.style.overflow = '';
-    
-    document.getElementById('formTransferencia').reset();
-}
-
-// Función para ajustar cantidad
-function adjustQuantity(increment) {
-    const quantityInput = document.getElementById('cantidad_modal');
-    if (!quantityInput) return;
-
-    let currentValue = parseInt(quantityInput.value) || 1;
-    let newValue = currentValue + increment;
-    
-    newValue = Math.max(1, Math.min(newValue, maxStock));
-    
-    quantityInput.value = newValue;
-}
-
-// Función para enviar formulario
-async function enviarFormulario(e) {
-    e.preventDefault();
-    
-    const submitButton = e.target.querySelector('.btn-confirm');
-    const originalText = submitButton.innerHTML;
-    
-    const cantidad = parseInt(document.getElementById('cantidad_modal').value);
-    const almacenDestino = document.getElementById('almacen_destino_modal').value;
-    
-    if (!almacenDestino) {
-        mostrarNotificacion('Debe seleccionar un almacén de destino', 'error');
-        return;
-    }
-    
-    if (cantidad < 1 || cantidad > maxStock) {
-        mostrarNotificacion('La cantidad no es válida', 'error');
-        return;
-    }
-
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transfiriendo...';
-    submitButton.disabled = true;
-
-    try {
-        const formData = new FormData(e.target);
-        
-        const response = await fetch('procesar_formulario.php', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            mostrarNotificacion(data.message, 'exito');
-            cerrarModal();
-            
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else {
-            mostrarNotificacion(data.message || 'Error al solicitar transferencia', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        mostrarNotificacion('Error de conexión al solicitar transferencia', 'error');
-    } finally {
-        submitButton.innerHTML = originalText;
-        submitButton.disabled = false;
-    }
-}
-
-// Función para editar producto
-function editarProducto(id) {
-    window.location.href = `editar.php?id=${id}`;
-}
-
-// Función para eliminar producto
-async function eliminarProducto(id, nombre) {
-    const confirmado = await confirmarEliminacion('Producto', nombre);
-    
-    if (confirmado) {
-        mostrarNotificacion('Eliminando producto...', 'info');
-        
-        try {
-            const response = await fetch('eliminar_producto.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ id: id })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                mostrarNotificacion('Producto eliminado correctamente', 'exito');
-                
-                setTimeout(() => {
-                    window.location.href = 'listar.php';
-                }, 2000);
-            } else {
-                mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            mostrarNotificacion('Error de conexión al eliminar el producto', 'error');
-        }
-    }
-}
-
-// Función para cerrar sesión
-async function manejarCerrarSesion(event) {
-    event.preventDefault();
-    
-    const confirmado = await confirmarCerrarSesion();
-    
-    if (confirmado) {
-        mostrarNotificacion('Cerrando sesión...', 'info', 2000);
-        setTimeout(() => {
-            window.location.href = '../logout.php';
-        }, 1000);
-    }
-}
-
-// Función para mostrar notificaciones
-function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
-    let container = document.getElementById('notificaciones-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'notificaciones-container';
-        container.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            max-width: 400px;
-        `;
-        document.body.appendChild(container);
-    }
-
-    const iconos = {
-        exito: 'fa-check-circle',
-        error: 'fa-exclamation-triangle', 
-        warning: 'fa-exclamation-circle',
-        info: 'fa-info-circle'
-    };
-
-    const colores = {
-        exito: '#28a745',
-        error: '#dc3545',
-        warning: '#ffc107', 
-        info: '#0a253c'
-    };
-
-    const notificacion = document.createElement('div');
-    notificacion.className = `notificacion ${tipo}`;
-    notificacion.style.cssText = `
-        background: white;
-        border-left: 5px solid ${colores[tipo] || colores.info};
-        padding: 15px 20px;
-        margin-bottom: 10px;
-        border-radius: 0 8px 8px 0;
-        box-shadow: 0 4px 12px rgba(10, 37, 60, 0.15);
-        position: relative;
-        animation: slideInRight 0.4s ease;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    `;
-
-    notificacion.innerHTML = `
-        <i class="fas ${iconos[tipo] || iconos.info}" style="font-size: 20px; color: ${colores[tipo] || colores.info};"></i>
-        <span style="flex: 1; color: #0a253c; font-weight: 500;">${mensaje}</span>
-        <button class="cerrar" aria-label="Cerrar notificación" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666; padding: 0;">&times;</button>
-    `;
-
-    container.appendChild(notificacion);
-
-    const cerrarBtn = notificacion.querySelector('.cerrar');
-    cerrarBtn.addEventListener('click', () => {
-        notificacion.style.animation = 'slideOutRight 0.3s ease';
-        setTimeout(() => notificacion.remove(), 300);
-    });
-
-    if (duracion > 0) {
-        setTimeout(() => {
-            if (notificacion.parentNode) {
-                notificacion.style.animation = 'slideOutRight 0.3s ease';
-                setTimeout(() => notificacion.remove(), 300);
-            }
-        }, duracion);
-    }
-
-    // Agregar animaciones CSS si no existen
-    if (!document.getElementById('notification-animations')) {
-        const animationStyles = document.createElement('style');
-        animationStyles.id = 'notification-animations';
-        animationStyles.textContent = `
-            @keyframes slideInRight {
-                from { opacity: 0; transform: translateX(30px); }
-                to { opacity: 1; transform: translateX(0); }
-            }
-            @keyframes slideOutRight {
-                from { opacity: 1; transform: translateX(0); }
-                to { opacity: 0; transform: translateX(30px); }
-            }
-            @keyframes slideOutUp {
-                from { opacity: 1; transform: translateY(0); }
-                to { opacity: 0; transform: translateY(-20px); }
-            }
-        `;
-        document.head.appendChild(animationStyles);
-    }
-}
-</script>
-
-<style>
-@keyframes slideOutUp {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-20px); }
-}
-
-.estado-nuevo { color: #28a745; }
-.estado-usado { color: #ffc107; }
-.estado-dañado { color: #dc3545; }
-
-.stock-critical { color: #dc3545; font-weight: bold; }
-.stock-warning { color: #ffc107; font-weight: bold; }
-.stock-good { color: #28a745; font-weight: bold; }
-
-.status-pendiente { background: #ffc107; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-.status-completado { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-.status-rechazado { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-.status-aprobada { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-.status-rechazada { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-
-.stock-controls {
-    display: flex;
-    gap: 5px;
-    margin-top: 10px;
-}
-
-.stock-btn {
-    width: 30px;
-    height: 30px;
-    border: none;
-    border-radius: 50%;
-    background: #0a253c;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-}
-
-.stock-btn:hover:not(:disabled) {
-    background: #164463;
-    transform: scale(1.1);
-}
-
-.stock-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-</style>
+<script src="../assets/js/productos-ver.js"></script>
 </body>
 </html>

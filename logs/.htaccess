@@ -1,0 +1,9 @@
+# Proteger archivos de log
+Order Deny,Allow
+Deny from all
+
+# Permitir solo archivos específicos si es necesario
+<Files "error.log">
+    Allow from 127.0.0.1
+    Allow from ::1
+</Files>
