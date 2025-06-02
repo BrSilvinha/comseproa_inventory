@@ -818,31 +818,74 @@ body {
     margin-top: 5px;
 }
 
+/* ===== CONTROLES DE STOCK CORREGIDOS ===== */
 .stock-btn {
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 50%;
-    background: var(--list-primary);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--list-transition);
-    font-size: 12px;
+    width: 28px !important;
+    height: 28px !important;
+    border: none !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: var(--list-transition) !important;
+    font-size: 12px !important;
+    position: relative !important;
+    z-index: 10 !important;
+    font-weight: bold !important;
 }
 
-.stock-btn:hover:not(:disabled) {
-    background: var(--list-info);
-    transform: scale(1.1);
-    box-shadow: 0 2px 8px rgba(10, 37, 60, 0.3);
+/* Botón disminuir (-) - ROJO */
+.stock-btn.decrease {
+    background: var(--list-danger) !important;
+    color: white !important;
 }
 
+.stock-btn.decrease:hover:not(:disabled) {
+    background: #c82333 !important;
+    color: white !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4) !important;
+}
+
+/* Botón aumentar (+) - VERDE */
+.stock-btn.increase {
+    background: var(--list-success) !important;
+    color: white !important;
+}
+
+.stock-btn.increase:hover:not(:disabled) {
+    background: #218838 !important;
+    color: white !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4) !important;
+}
+
+/* Estados deshabilitado y carga */
 .stock-btn:disabled {
-    background: var(--list-text-light);
-    cursor: not-allowed;
-    opacity: 0.6;
+    background: var(--list-text-light) !important;
+    color: white !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+.stock-btn.loading {
+    pointer-events: none !important;
+}
+
+.stock-btn.loading i {
+    animation: spin 1s linear infinite !important;
+}
+
+/* Asegurar que los iconos sean visibles */
+.stock-btn i {
+    color: white !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
+}
+
+.stock-btn:hover i {
+    color: white !important;
 }
 
 .stock-value {
@@ -1127,17 +1170,17 @@ body {
 }
 
 .qty-btn {
-    background: var(--list-primary);
-    border: none;
-    border-radius: var(--list-border-radius);
     width: 40px;
     height: 40px;
+    border: none;
+    border-radius: var(--list-border-radius);
+    background: var(--list-primary);
+    color: white;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
     transition: var(--list-transition);
-    color: white;
 }
 
 .qty-btn:hover {
