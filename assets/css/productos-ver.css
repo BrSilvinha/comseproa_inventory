@@ -361,8 +361,13 @@ body {
     font-weight: 700;
     margin-bottom: 10px;
     line-height: 1.2;
+    color: white !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: unset !important;
+    background-clip: unset !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
-
 .product-meta {
     display: flex;
     flex-wrap: wrap;
