@@ -199,7 +199,7 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
     exit();
 }
 
-// USAR LA CONSULTA QUE FUNCIONA (la de prueba)
+// CONSULTA PRINCIPAL PARA OBTENER SOLICITUDES PENDIENTES
 $sql = "SELECT st.*, a1.nombre as origen_nombre, a2.nombre as destino_nombre, u.nombre as usuario_nombre, u.apellidos as usuario_apellidos
         FROM solicitudes_transferencia st
         LEFT JOIN almacenes a1 ON st.almacen_origen = a1.id
@@ -258,6 +258,23 @@ if ($result && $result->num_rows > 0) {
         
         $solicitudes_pendientes[] = $row;
     }
+}
+
+// CONTAR SOLICITUDES PENDIENTES PARA EL BADGE (SIN COLUMNA EMAIL)
+$sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+if ($usuario_rol != 'admin') {
+    $sql_pendientes .= " AND almacen_destino = ?";
+    $stmt_pendientes = $conn->prepare($sql_pendientes);
+    $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+    $stmt_pendientes->execute();
+    $result_pendientes = $stmt_pendientes->get_result();
+} else {
+    $result_pendientes = $conn->query($sql_pendientes);
+}
+
+$total_pendientes = 0;
+if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+    $total_pendientes = $row_pendientes['total'];
 }
 ?>
 <!DOCTYPE html>
@@ -355,28 +372,9 @@ if ($result && $result->num_rows > 0) {
                 <li>
                     <a href="pendientes.php" role="menuitem">
                         <i class="fas fa-clock"></i> Solicitudes Pendientes
-                        <?php 
-                        // Count pending requests to show in badge
-                        $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
-                        
-                        // If user is not admin, filter by their warehouse
-                        if ($usuario_rol != 'admin') {
-                            $sql_pendientes .= " AND almacen_destino = ?";
-                            $stmt_pendientes = $conn->prepare($sql_pendientes);
-                            $stmt_pendientes->bind_param("i", $usuario_almacen_id);
-                            $stmt_pendientes->execute();
-                            $result_pendientes = $stmt_pendientes->get_result();
-                        } else {
-                            $result_pendientes = $conn->query($sql_pendientes);
-                        }
-                        
-                        if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
-                            $total_pendientes = $row_pendientes['total'];
-                            if ($total_pendientes > 0) {
-                                echo '<span class="badge-small" aria-label="' . $total_pendientes . ' solicitudes pendientes">' . $total_pendientes . '</span>';
-                            }
-                        }
-                        ?>
+                        <?php if ($total_pendientes > 0): ?>
+                        <span class="badge-small" aria-label="<?php echo $total_pendientes; ?> solicitudes pendientes"><?php echo $total_pendientes; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
                 <li><a href="historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
@@ -470,7 +468,8 @@ if ($result && $result->num_rows > 0) {
                         </div>
                     </div>
                     <div class="solicitud-acciones">
-                        <form method="POST" action="pendientes.php" onsubmit="return confirm('¿Está seguro de aprobar esta solicitud?');">
+                        <!-- FORMULARIOS CON SISTEMA DE CONFIRMACIONES PERSONALIZADO -->
+                        <form method="POST" action="pendientes.php" class="form-aprobar" data-solicitud-id="<?php echo $solicitud['id']; ?>" data-accion="aprobar">
                             <input type="hidden" name="solicitud_id" value="<?php echo $solicitud['id']; ?>">
                             <input type="hidden" name="accion" value="aprobar">
                             <button type="submit" class="btn-aprobar">
@@ -478,7 +477,7 @@ if ($result && $result->num_rows > 0) {
                             </button>
                         </form>
                         
-                        <form method="POST" action="pendientes.php" onsubmit="return confirm('¿Está seguro de rechazar esta solicitud?');">
+                        <form method="POST" action="pendientes.php" class="form-rechazar" data-solicitud-id="<?php echo $solicitud['id']; ?>" data-accion="rechazar">
                             <input type="hidden" name="solicitud_id" value="<?php echo $solicitud['id']; ?>">
                             <input type="hidden" name="accion" value="rechazar">
                             <button type="submit" class="btn-rechazar">
@@ -500,9 +499,14 @@ if ($result && $result->num_rows > 0) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-adicionales" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript -->
+<!-- INCLUIR EL SISTEMA UNIVERSAL DE CONFIRMACIONES -->
+<script src="../assets/js/universal-confirmation-system.js"></script>
+
+<!-- JavaScript PERSONALIZADO PARA CONFIRMACIONES -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando sistema de confirmaciones personalizado');
+    
     // Elementos principales
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
@@ -630,6 +634,80 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
     
+    // ===== CONFIGURAR CONFIRMACIONES PERSONALIZADAS =====
+    
+    // FORMULARIOS DE APROBACIÓN
+    document.querySelectorAll('.form-aprobar').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault(); // Evitar envío automático
+            
+            const solicitudId = this.dataset.solicitudId;
+            console.log('🟢 Procesando aprobación de solicitud:', solicitudId);
+            
+            try {
+                // Usar el sistema de confirmaciones personalizado
+                const confirmado = await confirmarAprobacionSolicitud(
+                    'Transferencia de Producto',
+                    `
+                        <h4>Detalles de la aprobación:</h4>
+                        <p><strong>Solicitud ID:</strong> ${solicitudId}</p>
+                        <p><strong>Acción:</strong> Aprobar transferencia</p>
+                        <p><small>⚠️ Esta acción procesará inmediatamente la transferencia del producto.</small></p>
+                    `
+                );
+                
+                if (confirmado) {
+                    console.log('✅ Aprobación confirmada, enviando formulario...');
+                    mostrarNotificacion('Procesando aprobación...', 'info');
+                    
+                    // Enviar el formulario si se confirma
+                    this.submit();
+                } else {
+                    console.log('❌ Aprobación cancelada por el usuario');
+                }
+            } catch (error) {
+                console.error('Error en confirmación de aprobación:', error);
+                mostrarNotificacion('Error al procesar la confirmación', 'error');
+            }
+        });
+    });
+    
+    // FORMULARIOS DE RECHAZO
+    document.querySelectorAll('.form-rechazar').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault(); // Evitar envío automático
+            
+            const solicitudId = this.dataset.solicitudId;
+            console.log('🔴 Procesando rechazo de solicitud:', solicitudId);
+            
+            try {
+                // Usar el sistema de confirmaciones personalizado
+                const confirmado = await confirmarRechazoSolicitud(
+                    'Transferencia de Producto',
+                    `
+                        <h4>Detalles del rechazo:</h4>
+                        <p><strong>Solicitud ID:</strong> ${solicitudId}</p>
+                        <p><strong>Acción:</strong> Rechazar transferencia</p>
+                        <p><small>⚠️ Esta acción devolverá los productos al almacén de origen.</small></p>
+                    `
+                );
+                
+                if (confirmado) {
+                    console.log('✅ Rechazo confirmado, enviando formulario...');
+                    mostrarNotificacion('Procesando rechazo...', 'info');
+                    
+                    // Enviar el formulario si se confirma
+                    this.submit();
+                } else {
+                    console.log('❌ Rechazo cancelado por el usuario');
+                }
+            } catch (error) {
+                console.error('Error en confirmación de rechazo:', error);
+                mostrarNotificacion('Error al procesar la confirmación', 'error');
+            }
+        });
+    });
+    
     // Efectos para tarjetas de solicitudes
     const solicitudes = document.querySelectorAll('.solicitud');
     solicitudes.forEach((solicitud, index) => {
@@ -657,18 +735,30 @@ document.addEventListener('DOMContentLoaded', function() {
             );
         }
     }, 1000);
+    
+    console.log('✅ Sistema de confirmaciones personalizado iniciado correctamente');
 });
 
-// Función para cerrar sesión con confirmación
+// Función para cerrar sesión con confirmación PERSONALIZADA
 async function manejarCerrarSesion(event) {
     event.preventDefault();
     
-    if (confirm('¿Está seguro de que desea cerrar la sesión?')) {
-        mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+    try {
+        const confirmado = await confirmarCerrarSesion();
         
-        setTimeout(() => {
+        if (confirmado) {
+            mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+            
+            setTimeout(() => {
+                window.location.href = '../logout.php';
+            }, 1000);
+        }
+    } catch (error) {
+        console.error('Error en confirmación de cierre de sesión:', error);
+        // Fallback a confirm nativo si hay error
+        if (confirm('¿Está seguro de que desea cerrar la sesión?')) {
             window.location.href = '../logout.php';
-        }, 1000);
+        }
     }
 }
 
@@ -727,17 +817,6 @@ window.addEventListener('error', function(e) {
     console.error('Error detectado:', e.error);
     mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
 });
-
-// Función de confirmación global
-window.confirmarAccion = function(mensaje, callback) {
-    if (confirm(mensaje)) {
-        if (typeof callback === 'function') {
-            callback();
-        }
-        return true;
-    }
-    return false;
-};
 </script>
 </body>
 </html>
