@@ -180,7 +180,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 
 <!-- Menú Lateral -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
-    <h2>COMSEPROA</h2>
+    <h2>GRUPO SEAL</h2>
     <ul>
         <li>
             <a href="../dashboard.php" aria-label="Ir a inicio">
@@ -213,19 +213,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <li><a href="../almacenes/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
                 <?php endif; ?>
                 <li><a href="../almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
-            </ul>
-        </li>
-        
-        <!-- Products Section -->
-        <li class="submenu-container">
-            <a href="#" aria-label="Menú Productos" aria-expanded="false" role="button" tabindex="0">
-                <span><i class="fas fa-boxes"></i> Productos</span>
-                <i class="fas fa-chevron-down"></i>
-            </a>
-            <ul class="submenu" role="menu">
-                <li><a href="registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Producto</a></li>
-                <li><a href="listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Productos</a></li>
-                <li><a href="categorias.php" role="menuitem"><i class="fas fa-tags"></i> Categorías</a></li>
             </ul>
         </li>
         
