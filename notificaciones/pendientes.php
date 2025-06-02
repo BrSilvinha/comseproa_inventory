@@ -199,24 +199,12 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
     exit();
 }
 
-// CONSULTA CORREGIDA - Obtener todas las solicitudes de transferencia pendientes
-$sql = "SELECT st.id, st.producto_id, st.almacen_origen, st.almacen_destino, st.cantidad, st.fecha_solicitud, 
-        COALESCE(p.nombre, CONCAT('Producto ID: ', st.producto_id)) as producto_nombre, 
-        COALESCE(p.color, 'Sin especificar') as color, 
-        COALESCE(p.talla_dimensiones, 'Sin especificar') as talla_dimensiones, 
-        COALESCE(p.modelo, 'Sin especificar') as modelo, 
-        COALESCE(p.estado, 'Sin especificar') as estado_producto,
-        COALESCE(c.nombre, 'Sin categoría') as categoria_nombre,
-        a1.nombre as origen_nombre, 
-        a2.nombre as destino_nombre,
-        u.nombre as usuario_nombre,
-        u.apellidos as usuario_apellidos
+// USAR LA CONSULTA QUE FUNCIONA (la de prueba)
+$sql = "SELECT st.*, a1.nombre as origen_nombre, a2.nombre as destino_nombre, u.nombre as usuario_nombre, u.apellidos as usuario_apellidos
         FROM solicitudes_transferencia st
-        LEFT JOIN productos p ON st.producto_id = p.id
-        LEFT JOIN categorias c ON p.categoria_id = c.id
-        JOIN almacenes a1 ON st.almacen_origen = a1.id
-        JOIN almacenes a2 ON st.almacen_destino = a2.id
-        JOIN usuarios u ON st.usuario_id = u.id
+        LEFT JOIN almacenes a1 ON st.almacen_origen = a1.id
+        LEFT JOIN almacenes a2 ON st.almacen_destino = a2.id  
+        LEFT JOIN usuarios u ON st.usuario_id = u.id
         WHERE st.estado = 'pendiente'";
 
 // Si el usuario no es admin, filtrar solo por solicitudes destinadas a su almacén
@@ -239,6 +227,35 @@ if ($usuario_rol != 'admin') {
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
+        // OBTENER DATOS DEL PRODUCTO POR SEPARADO
+        $sql_producto = "SELECT p.nombre, p.color, p.talla_dimensiones, p.modelo, p.estado, c.nombre as categoria_nombre
+                        FROM productos p 
+                        LEFT JOIN categorias c ON p.categoria_id = c.id 
+                        WHERE p.id = ? 
+                        LIMIT 1";
+        $stmt_producto = $conn->prepare($sql_producto);
+        $stmt_producto->bind_param("i", $row['producto_id']);
+        $stmt_producto->execute();
+        $result_producto = $stmt_producto->get_result();
+        
+        if ($result_producto && $producto_info = $result_producto->fetch_assoc()) {
+            $row['producto_nombre'] = $producto_info['nombre'];
+            $row['color'] = $producto_info['color'];
+            $row['talla_dimensiones'] = $producto_info['talla_dimensiones'];
+            $row['modelo'] = $producto_info['modelo'];
+            $row['estado_producto'] = $producto_info['estado'];
+            $row['categoria_nombre'] = $producto_info['categoria_nombre'];
+        } else {
+            // Si no se encuentra el producto, usar valores por defecto
+            $row['producto_nombre'] = 'Producto ID: ' . $row['producto_id'];
+            $row['color'] = 'Sin especificar';
+            $row['talla_dimensiones'] = 'Sin especificar';
+            $row['modelo'] = 'Sin especificar';
+            $row['estado_producto'] = 'Sin especificar';
+            $row['categoria_nombre'] = 'Sin categoría';
+        }
+        $stmt_producto->close();
+        
         $solicitudes_pendientes[] = $row;
     }
 }
