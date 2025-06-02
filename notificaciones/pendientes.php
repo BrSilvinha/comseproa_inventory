@@ -15,14 +15,39 @@ if (!isset($_SESSION["user_role"]) || !isset($_SESSION["almacen_id"])) {
     exit();
 }
 
+// VALIDACIÓN CRÍTICA: Verificar que el usuario existe en la base de datos
+$usuario_actual_id = $_SESSION["user_id"];
+$sql_verificar_sesion = "SELECT id, nombre, apellidos, rol, almacen_id FROM usuarios WHERE id = ? AND estado = 'activo'";
+$stmt_verificar_sesion = $conn->prepare($sql_verificar_sesion);
+$stmt_verificar_sesion->bind_param("i", $usuario_actual_id);
+$stmt_verificar_sesion->execute();
+$result_verificar_sesion = $stmt_verificar_sesion->get_result();
+
+if ($result_verificar_sesion->num_rows === 0) {
+    // El usuario no existe o está inactivo - cerrar sesión y redirigir
+    session_destroy();
+    $_SESSION = array();
+    $_SESSION['error'] = "Su sesión no es válida. Por favor inicie sesión nuevamente.";
+    header("Location: ../views/login_form.php");
+    exit();
+}
+
+// Obtener datos actualizados del usuario
+$usuario_datos = $result_verificar_sesion->fetch_assoc();
+$stmt_verificar_sesion->close();
+
+// Actualizar datos de sesión con información actual de la BD
+$_SESSION["user_role"] = $usuario_datos['rol'];
+$_SESSION["almacen_id"] = $usuario_datos['almacen_id'];
+$_SESSION["user_name"] = $usuario_datos['nombre'];
+
 // Prevent session hijacking
 session_regenerate_id(true);
 
 // Obtener el almacén y rol del usuario actual
 $usuario_almacen_id = $_SESSION["almacen_id"]; 
 $usuario_rol = $_SESSION["user_role"];
-$usuario_actual_id = $_SESSION["user_id"]; // ID del usuario que está aprobando/rechazando
-$user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
+$user_name = $_SESSION["user_name"];
 
 // Procesar aprobación o rechazo de solicitudes
 if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
@@ -37,44 +62,49 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
         
         try {
             // Verificar que el usuario tenga permisos para esta solicitud
-            $sql_verificar_permisos = "SELECT st.* FROM solicitudes_transferencia st 
-                                      WHERE st.id = ? AND (st.almacen_destino = ? OR ? = 'admin')";
+            $sql_verificar_permisos = "SELECT st.*, u.nombre as solicitante_nombre 
+                                      FROM solicitudes_transferencia st
+                                      LEFT JOIN usuarios u ON st.usuario_id = u.id 
+                                      WHERE st.id = ? AND st.estado = 'pendiente'
+                                      AND (st.almacen_destino = ? OR ? = 'admin')";
             $stmt_permisos = $conn->prepare($sql_verificar_permisos);
             $stmt_permisos->bind_param("iis", $solicitud_id, $usuario_almacen_id, $usuario_rol);
             $stmt_permisos->execute();
             $result_permisos = $stmt_permisos->get_result();
             
             if ($result_permisos->num_rows === 0) {
-                throw new Exception("No tiene permisos para gestionar esta solicitud");
+                throw new Exception("No tiene permisos para gestionar esta solicitud o la solicitud ya fue procesada");
             }
             
-            // Obtener información de la solicitud
-            $sql_sol = "SELECT producto_id, almacen_origen, almacen_destino, cantidad, usuario_id 
-                        FROM solicitudes_transferencia WHERE id = ?";
-            $stmt_sol = $conn->prepare($sql_sol);
-            $stmt_sol->bind_param("i", $solicitud_id);
-            $stmt_sol->execute();
-            $result_sol = $stmt_sol->get_result();
+            $solicitud = $result_permisos->fetch_assoc();
+            $stmt_permisos->close();
             
-            if ($result_sol->num_rows === 0) {
-                throw new Exception("Solicitud no encontrada");
+            // Verificar que el usuario solicitante existe (integridad de datos)
+            if (empty($solicitud['solicitante_nombre'])) {
+                error_log("ADVERTENCIA: Solicitud ID {$solicitud_id} tiene usuario_id inexistente: {$solicitud['usuario_id']}");
+                // Corregir automáticamente asignando al admin
+                $sql_fix_user = "UPDATE solicitudes_transferencia SET usuario_id = ? WHERE id = ?";
+                $stmt_fix = $conn->prepare($sql_fix_user);
+                $stmt_fix->bind_param("ii", $usuario_actual_id, $solicitud_id);
+                $stmt_fix->execute();
+                $stmt_fix->close();
             }
-            
-            $solicitud = $result_sol->fetch_assoc();
-            $stmt_sol->close();
             
             // Actualizar estado de la solicitud y registrar quién aprobó/rechazó
             $sql_update = "UPDATE solicitudes_transferencia 
-                           SET estado = ?, usuario_aprobador_id = ? 
-                           WHERE id = ?";
+                           SET estado = ?, usuario_aprobador_id = ?, fecha_procesamiento = NOW() 
+                           WHERE id = ? AND estado = 'pendiente'";
             $stmt_update = $conn->prepare($sql_update);
             $stmt_update->bind_param("sii", $nuevo_estado, $usuario_actual_id, $solicitud_id);
             $stmt_update->execute();
+            
+            if ($stmt_update->affected_rows === 0) {
+                throw new Exception("No se pudo actualizar la solicitud. Puede que ya haya sido procesada por otro usuario.");
+            }
             $stmt_update->close();
             
             // Si se rechaza, devolver los productos al almacén de origen
             if ($accion === 'rechazar') {
-                // Actualizar el stock en el almacén de origen sumando la cantidad solicitada
                 $sql_origen = "UPDATE productos SET cantidad = cantidad + ? 
                               WHERE id = ? AND almacen_id = ?";
                 $stmt_origen = $conn->prepare($sql_origen);
@@ -90,7 +120,7 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
             
             // Si se aprueba, crear un movimiento y actualizar los stocks
             if ($accion === 'aprobar') {
-                // Verificar stock actual
+                // Verificar stock actual en el almacén de origen
                 $sql_stock = "SELECT cantidad FROM productos WHERE id = ? AND almacen_id = ?";
                 $stmt_stock = $conn->prepare($sql_stock);
                 $stmt_stock->bind_param("ii", $solicitud['producto_id'], $solicitud['almacen_origen']);
@@ -109,13 +139,15 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
                 
                 $stmt_stock->close();
                 
-                // Crear registro en la tabla movimientos
+                // Crear registro en la tabla movimientos con usuario válido
+                $usuario_movimiento = !empty($solicitud['usuario_id']) ? $solicitud['usuario_id'] : $usuario_actual_id;
                 $sql_mov = "INSERT INTO movimientos (producto_id, almacen_origen, almacen_destino, cantidad, 
-                            tipo, usuario_id, estado) 
-                            VALUES (?, ?, ?, ?, 'transferencia', ?, 'completado')";
+                            tipo, usuario_id, estado, descripcion) 
+                            VALUES (?, ?, ?, ?, 'transferencia', ?, 'completado', ?)";
+                $descripcion_mov = "Transferencia aprobada desde solicitud #{$solicitud_id}";
                 $stmt_mov = $conn->prepare($sql_mov);
-                $stmt_mov->bind_param("iiiii", $solicitud['producto_id'], $solicitud['almacen_origen'], 
-                                    $solicitud['almacen_destino'], $solicitud['cantidad'], $solicitud['usuario_id']);
+                $stmt_mov->bind_param("iiiiss", $solicitud['producto_id'], $solicitud['almacen_origen'], 
+                                    $solicitud['almacen_destino'], $solicitud['cantidad'], $usuario_movimiento, $descripcion_mov);
                 $stmt_mov->execute();
                 $stmt_mov->close();
                 
@@ -140,7 +172,7 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
                 $result_producto = $stmt_producto->get_result();
                 
                 if ($result_producto->num_rows === 0) {
-                    throw new Exception("Producto no encontrado");
+                    throw new Exception("Producto no encontrado en almacén de origen");
                 }
                 
                 $producto = $result_producto->fetch_assoc();
@@ -185,13 +217,16 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
             $conn->commit();
             $_SESSION['success'] = ($accion === 'aprobar') 
                 ? "Solicitud de transferencia aprobada correctamente" 
-                : "Solicitud de transferencia rechazada";
+                : "Solicitud de transferencia rechazada correctamente";
                 
         } catch (Exception $e) {
             // Revertir en caso de error
             $conn->rollback();
-            $_SESSION['error'] = "Error: " . $e->getMessage();
+            error_log("Error procesando solicitud {$solicitud_id}: " . $e->getMessage());
+            $_SESSION['error'] = "Error al procesar la solicitud: " . $e->getMessage();
         }
+    } else {
+        $_SESSION['error'] = "Acción no válida";
     }
     
     // Redirigir para evitar reenvío del formulario
@@ -199,8 +234,9 @@ if (isset($_POST['accion']) && isset($_POST['solicitud_id'])) {
     exit();
 }
 
-// CONSULTA PRINCIPAL PARA OBTENER SOLICITUDES PENDIENTES
-$sql = "SELECT st.*, a1.nombre as origen_nombre, a2.nombre as destino_nombre, u.nombre as usuario_nombre, u.apellidos as usuario_apellidos
+// CONSULTA PRINCIPAL PARA OBTENER SOLICITUDES PENDIENTES CON VALIDACIÓN
+$sql = "SELECT st.*, a1.nombre as origen_nombre, a2.nombre as destino_nombre, 
+               u.nombre as usuario_nombre, u.apellidos as usuario_apellidos
         FROM solicitudes_transferencia st
         LEFT JOIN almacenes a1 ON st.almacen_origen = a1.id
         LEFT JOIN almacenes a2 ON st.almacen_destino = a2.id  
@@ -256,11 +292,17 @@ if ($result && $result->num_rows > 0) {
         }
         $stmt_producto->close();
         
+        // Manejar usuarios inexistentes en solicitudes
+        if (empty($row['usuario_nombre'])) {
+            $row['usuario_nombre'] = 'Usuario';
+            $row['usuario_apellidos'] = 'no válido';
+        }
+        
         $solicitudes_pendientes[] = $row;
     }
 }
 
-// CONTAR SOLICITUDES PENDIENTES PARA EL BADGE (SIN COLUMNA EMAIL)
+// CONTAR SOLICITUDES PENDIENTES PARA EL BADGE
 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
 if ($usuario_rol != 'admin') {
     $sql_pendientes .= " AND almacen_destino = ?";
