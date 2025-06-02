@@ -20,10 +20,10 @@ require_once "config/database.php";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - COMSEPROA | Sistema de Gestión</title>
+    <title>Dashboard - GRUPO SEAL | Sistema de Gestión</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Panel de control del sistema de gestión de inventario COMSEPROA">
+    <meta name="description" content="Panel de control del sistema de gestión de inventario GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -52,7 +52,7 @@ require_once "config/database.php";
 
 <!-- Sidebar Navigation -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
-    <h2>COMSEPROA</h2>
+    <h2>GRUPO SEAL</h2>
     <ul>
         <li>
             <a href="dashboard.php" aria-label="Ir a inicio">
@@ -85,19 +85,6 @@ require_once "config/database.php";
                 <li><a href="almacenes/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
                 <?php endif; ?>
                 <li><a href="almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
-            </ul>
-        </li>
-        
-        <!-- Products Section -->
-        <li class="submenu-container">
-            <a href="#" aria-label="Menú Productos" aria-expanded="false" role="button" tabindex="0">
-                <span><i class="fas fa-boxes"></i> Productos</span>
-                <i class="fas fa-chevron-down"></i>
-            </a>
-            <ul class="submenu" role="menu">
-                <li><a href="productos/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Producto</a></li>
-                <li><a href="productos/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Productos</a></li>
-                <li><a href="productos/categorias.php" role="menuitem"><i class="fas fa-tags"></i> Categorías</a></li>
             </ul>
         </li>
         
@@ -249,7 +236,7 @@ require_once "config/database.php";
 
             <a href="usuarios/registrar.php" class="dashboard-card admin-card" tabindex="0" aria-label="Acciones rápidas">
                 <h3><i class="fas fa-plus-circle"></i> Acciones Rápidas</h3>
-                <p>Registrar nuevos usuarios, productos y almacenes. Herramientas de administración rápida.</p>
+                <p>Registrar nuevos usuarios y almacenes. Herramientas de administración rápida del sistema.</p>
                 <div class="card-footer">
                     <span class="card-action">
                         <i class="fas fa-arrow-right"></i> Registrar Nuevo
@@ -257,12 +244,12 @@ require_once "config/database.php";
                 </div>
             </a>
 
-            <a href="productos/listar.php" class="dashboard-card product-card" tabindex="0" aria-label="Inventario general">
-                <h3><i class="fas fa-boxes"></i> Inventario General</h3>
-                <p>Vista general del inventario en todos los almacenes. Control de stock y productos.</p>
+            <a href="uniformes/historial_entregas_uniformes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Gestión de uniformes">
+                <h3><i class="fas fa-tshirt"></i> Gestión de Uniformes</h3>
+                <p>Administrar entregas de uniformes y equipamiento. Control de distribución de materiales.</p>
                 <div class="card-footer">
                     <span class="card-action">
-                        <i class="fas fa-arrow-right"></i> Ver Inventario
+                        <i class="fas fa-arrow-right"></i> Ver Entregas
                     </span>
                 </div>
             </a>
@@ -271,7 +258,7 @@ require_once "config/database.php";
             <!-- Regular User Dashboard Cards -->
             <a href="almacenes/listar.php" class="dashboard-card warehouse-card" tabindex="0" aria-label="Mi almacén">
                 <h3><i class="fas fa-warehouse"></i> Mi Almacén</h3>
-                <p>Ver información detallada de tu almacén asignado y productos disponibles.</p>
+                <p>Ver información detallada de tu almacén asignado y gestionar el inventario disponible.</p>
                 <div class="card-footer">
                     <span class="card-action">
                         <i class="fas fa-arrow-right"></i> Ver Mi Almacén
@@ -302,22 +289,22 @@ require_once "config/database.php";
                 </div>
             </a>
 
-            <a href="productos/listar.php" class="dashboard-card product-card" tabindex="0" aria-label="Productos disponibles">
-                <h3><i class="fas fa-boxes"></i> Productos Disponibles</h3>
-                <p>Explorar el catálogo de productos disponibles en el sistema.</p>
+            <a href="uniformes/historial_entregas_uniformes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Entregas de uniformes">
+                <h3><i class="fas fa-tshirt"></i> Entregas de Uniformes</h3>
+                <p>Consultar historial de entregas de uniformes y equipamiento asignado.</p>
                 <div class="card-footer">
                     <span class="card-action">
-                        <i class="fas fa-arrow-right"></i> Ver Productos
+                        <i class="fas fa-arrow-right"></i> Ver Entregas
                     </span>
                 </div>
             </a>
 
-            <a href="uniformes/historial_entregas_uniformes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Entregas de uniformes">
-                <h3><i class="fas fa-tshirt"></i> Entregas de Uniformes</h3>
-                <p>Consultar historial de entregas de uniformes y equipamiento.</p>
+            <a href="reportes/inventario.php" class="dashboard-card report-card" tabindex="0" aria-label="Reportes de mi almacén">
+                <h3><i class="fas fa-chart-bar"></i> Reportes de Almacén</h3>
+                <p>Generar reportes específicos de tu almacén asignado y movimientos realizados.</p>
                 <div class="card-footer">
                     <span class="card-action">
-                        <i class="fas fa-arrow-right"></i> Ver Entregas
+                        <i class="fas fa-arrow-right"></i> Ver Reportes
                     </span>
                 </div>
             </a>

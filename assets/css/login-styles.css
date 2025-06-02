@@ -1,10 +1,10 @@
 /* ===================================================================
-   COMSEPROA - ESTILOS EXCLUSIVOS PARA LOGIN
+   GRUPO SEAL - ESTILOS EXCLUSIVOS PARA LOGIN (MEJORADO)
    ================================================================== */
 
 /* ===== VARIABLES ESPECÍFICAS PARA LOGIN ===== */
 :root {
-    /* Paleta de colores COMSEPROA */
+    /* Paleta de colores GRUPO SEAL */
     --comseproa-primary: #0a253c;
     --comseproa-secondary: #c8c9ca;
     --comseproa-white: #ffffff;
@@ -197,6 +197,13 @@ form {
     gap: 25px;
 }
 
+/* ===== CONTENEDORES DE CAMPOS ===== */
+.input-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
 /* ===== LABELS ===== */
 label {
     font-weight: 600;
@@ -221,6 +228,41 @@ input {
     transition: var(--login-transition);
     outline: none;
     position: relative;
+}
+
+/* Campo de contraseña con botón de mostrar/ocultar */
+.password-container {
+    position: relative;
+}
+
+.password-container input {
+    padding-right: 50px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--comseproa-secondary);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 5px;
+    transition: var(--login-transition);
+    z-index: 3;
+}
+
+.password-toggle:hover {
+    color: var(--comseproa-primary);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.password-toggle:focus {
+    outline: 2px solid var(--comseproa-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 input:focus {
@@ -257,7 +299,7 @@ input:invalid:not(:placeholder-shown) {
 }
 
 /* ===== BOTÓN ===== */
-button {
+button[type="submit"] {
     width: 100%;
     padding: 18px 20px;
     background: linear-gradient(135deg, var(--comseproa-primary) 0%, #0d2d47 100%);
@@ -276,7 +318,7 @@ button {
     margin-top: 10px;
 }
 
-button::before {
+button[type="submit"]::before {
     content: '';
     position: absolute;
     top: 0;
@@ -291,7 +333,7 @@ button::before {
     transition: left 0.5s ease;
 }
 
-button:hover {
+button[type="submit"]:hover {
     background: linear-gradient(135deg, #0d2d47 0%, var(--comseproa-primary) 100%);
     transform: translateY(-3px);
     box-shadow: 
@@ -299,20 +341,46 @@ button:hover {
         0 5px 10px rgba(10, 37, 60, 0.2);
 }
 
-button:hover::before {
+button[type="submit"]:hover::before {
     left: 100%;
 }
 
-button:active {
+button[type="submit"]:active {
     transform: translateY(-1px);
     box-shadow: 
         0 5px 15px rgba(10, 37, 60, 0.3),
         0 2px 5px rgba(10, 37, 60, 0.2);
 }
 
-button:focus {
+button[type="submit"]:focus {
     outline: 3px solid rgba(10, 37, 60, 0.3);
     outline-offset: 2px;
+}
+
+/* Estado de carga */
+button[type="submit"].loading {
+    pointer-events: none;
+    position: relative;
+    color: transparent;
+}
+
+button[type="submit"].loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--comseproa-white);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
@@ -386,7 +454,16 @@ button:focus {
         font-size: 16px; /* Evita zoom en iOS */
     }
     
-    button {
+    .password-container input {
+        padding-right: 45px;
+    }
+    
+    .password-toggle {
+        right: 12px;
+        font-size: 16px;
+    }
+    
+    button[type="submit"] {
         padding: 16px 20px;
         font-size: 16px;
     }
@@ -423,7 +500,16 @@ button:focus {
         border-radius: 6px;
     }
     
-    button {
+    .password-container input {
+        padding-right: 40px;
+    }
+    
+    .password-toggle {
+        right: 10px;
+        font-size: 14px;
+    }
+    
+    button[type="submit"] {
         padding: 14px 18px;
         border-radius: 6px;
         font-size: 15px;
@@ -440,7 +526,7 @@ button:focus {
         font-size: 22px;
     }
     
-    input, button {
+    input, button[type="submit"] {
         padding: 12px;
         font-size: 14px;
     }
@@ -504,9 +590,17 @@ button:focus {
         --comseproa-white: #ffffff;
     }
     
-    input, button {
+    input, button[type="submit"] {
         border-width: 3px;
     }
+}
+
+/* ===== NAVEGACIÓN POR TECLADO ===== */
+.keyboard-navigation input:focus,
+.keyboard-navigation button:focus,
+.keyboard-navigation .password-toggle:focus {
+    outline: 3px solid var(--comseproa-primary) !important;
+    outline-offset: 2px !important;
 }
 
 /* ===== PRINT STYLES ===== */
@@ -524,7 +618,7 @@ button:focus {
         display: none;
     }
     
-    button {
+    button[type="submit"] {
         background: #000 !important;
         color: #fff !important;
     }
@@ -538,34 +632,8 @@ button:focus {
 }
 
 /* Aplicar animación de pulse al botón cuando está en focus */
-button:focus {
+button[type="submit"]:focus {
     animation: pulse 1.5s infinite;
-}
-
-/* ===== ESTADOS DE CARGA ===== */
-button.loading {
-    pointer-events: none;
-    position: relative;
-    color: transparent;
-}
-
-button.loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 20px;
-    height: 20px;
-    border: 2px solid transparent;
-    border-top: 2px solid var(--comseproa-white);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    100% { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* ===== FINAL DEL ARCHIVO ===== */
