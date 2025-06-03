@@ -154,7 +154,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/productos-listar.css">
     
-    <!-- Estilos adicionales para los controles de stock -->
+    <!-- Estilos adicionales para entrega múltiple -->
     <style>
         /* Estilos para controles de stock */
         .stock-display {
@@ -264,21 +264,459 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             font-size: 11px;
             font-weight: 500;
         }
-        
+
+        /* ===== ESTILOS PARA ENTREGA MÚLTIPLE ===== */
+
+        /* Botón de entrega múltiple */
+        .btn-entregar-personal {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-entregar-personal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-entregar-personal.active {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        /* Modo selección */
+        .modo-seleccion .product-card {
+            border: 2px dashed #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .modo-seleccion .product-card:hover {
+            border-color: #28a745;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+        }
+
+        .modo-seleccion .product-card.selected {
+            border: 2px solid #28a745;
+            background: rgba(40, 167, 69, 0.05);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        /* Checkbox de selección */
+        .product-selection {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+        }
+
+        .selection-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #28a745;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .selection-checkbox:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .selection-checkbox.checked {
+            background: #28a745;
+            color: white;
+        }
+
+        .selection-checkbox i {
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .selection-checkbox.checked i {
+            opacity: 1;
+        }
+
+        /* Panel de productos seleccionados */
+        .carrito-entrega {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            min-width: 350px;
+            max-width: 400px;
+            max-height: 500px;
+            display: none;
+            flex-direction: column;
+            border: 2px solid #28a745;
+        }
+
+        .carrito-entrega.visible {
+            display: flex;
+            animation: slideInUp 0.4s ease;
+        }
+
+        .carrito-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .carrito-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .carrito-contador {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .carrito-lista {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            max-height: 300px;
+        }
+
+        .carrito-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #28a745;
+        }
+
+        .carrito-item-info {
+            flex: 1;
+        }
+
+        .carrito-item-nombre {
+            font-weight: 600;
+            font-size: 14px;
+            color: #0a253c;
+            margin-bottom: 4px;
+        }
+
+        .carrito-item-detalles {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .carrito-item-cantidad {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 15px;
+        }
+
+        .cantidad-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: white;
+            border-radius: 6px;
+            padding: 4px;
+        }
+
+        .cantidad-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: #28a745;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .cantidad-btn:hover {
+            background: #1e7e34;
+        }
+
+        .cantidad-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .cantidad-input {
+            width: 40px;
+            text-align: center;
+            border: none;
+            font-weight: 600;
+            font-size: 12px;
+            background: transparent;
+        }
+
+        .btn-remover {
+            background: #dc3545;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: background 0.2s ease;
+            margin-left: 10px;
+        }
+
+        .btn-remover:hover {
+            background: #c82333;
+        }
+
+        .carrito-footer {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            background: #f8f9fa;
+            border-radius: 0 0 15px 15px;
+        }
+
+        .carrito-resumen {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .carrito-total {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0a253c;
+        }
+
+        .carrito-acciones {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-carrito {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-limpiar {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-limpiar:hover {
+            background: #5a6268;
+        }
+
+        .btn-proceder {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-proceder:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .carrito-vacio {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .carrito-vacio i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Modal de datos del destinatario */
+        .modal-entrega {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-entrega.visible {
+            display: flex;
+        }
+
+        .modal-entrega-content {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            animation: modalEnter 0.3s ease;
+        }
+
+        .modal-entrega-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .modal-entrega-header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .modal-entrega-body {
+            padding: 30px;
+        }
+
+        .resumen-entrega {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid #28a745;
+        }
+
+        .resumen-titulo {
+            font-weight: 600;
+            color: #0a253c;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .productos-resumen {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .producto-resumen-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .producto-resumen-item:last-child {
+            border-bottom: none;
+        }
+
+        .total-unidades {
+            background: #28a745;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        /* Animaciones */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes modalEnter {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
+
         /* Animación de actualización de stock */
         .stock-value.updating {
             animation: pulse 0.5s ease-in-out;
         }
-        
+
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); background: var(--accent-color); color: white; }
             100% { transform: scale(1); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .carrito-entrega {
+                bottom: 20px;
+                right: 20px;
+                left: 20px;
+                min-width: auto;
+                max-width: none;
+            }
+
+            .modal-entrega-content {
+                width: 95%;
+                margin: 20px;
+            }
+
+            .carrito-acciones {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -343,7 +781,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     </a>
                 </li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
-                <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Historial de Entregas</a></li>
+                <li><a href="../entregas/historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
             </ul>
         </li>
 
@@ -428,6 +866,12 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </div>
             
             <div class="header-actions">
+                <!-- NUEVO: Botón de Entrega a Personal -->
+                <button id="btnEntregarPersonal" class="btn-entregar-personal">
+                    <i class="fas fa-hand-holding"></i>
+                    <span>Entregar a Personal</span>
+                </button>
+
                 <?php if ($usuario_rol == 'admin'): ?>
                 <a href="registrar.php<?php 
                     $params = [];
@@ -553,11 +997,18 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     </section>
 
     <!-- Lista de productos -->
-    <section class="products-section">
+    <section class="products-section" id="productsSection">
         <?php if ($result_productos && $result_productos->num_rows > 0): ?>
             <div class="products-grid">
                 <?php while ($producto = $result_productos->fetch_assoc()): ?>
                     <div class="product-card" data-producto-id="<?php echo $producto['id']; ?>">
+                        <!-- NUEVO: Checkbox de selección para entrega múltiple -->
+                        <div class="product-selection" style="display: none;">
+                            <div class="selection-checkbox" data-id="<?php echo $producto['id']; ?>">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+
                         <div class="card-header">
                             <div class="product-info">
                                 <h3 class="product-name"><?php echo htmlspecialchars($producto['nombre']); ?></h3>
@@ -678,6 +1129,20 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 <?php endif; ?>
                             </div>
                         </div>
+
+                        <!-- Datos para la entrega múltiple -->
+                        <script type="application/json" class="product-data">
+                        {
+                            "id": <?php echo $producto['id']; ?>,
+                            "nombre": "<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>",
+                            "almacen": <?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>,
+                            "almacen_nombre": "<?php echo htmlspecialchars($almacen_info ? $almacen_info['nombre'] : $producto['almacen_nombre'], ENT_QUOTES, 'UTF-8'); ?>",
+                            "cantidad": <?php echo $producto['cantidad']; ?>,
+                            "modelo": "<?php echo htmlspecialchars($producto['modelo'] ?? '', ENT_QUOTES, 'UTF-8'); ?>",
+                            "color": "<?php echo htmlspecialchars($producto['color'] ?? '', ENT_QUOTES, 'UTF-8'); ?>",
+                            "talla": "<?php echo htmlspecialchars($producto['talla_dimensiones'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                        }
+                        </script>
                     </div>
                 <?php endwhile; ?>
             </div>
@@ -716,7 +1181,121 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     </section>
 </main>
 
-<!-- Modal de Transferencia de Producto -->
+<!-- NUEVO: Panel flotante del carrito de entrega -->
+<div id="carritoEntrega" class="carrito-entrega">
+    <div class="carrito-header">
+        <div class="carrito-title">
+            <i class="fas fa-hand-holding"></i>
+            Productos para Entrega
+            <span class="carrito-contador">0</span>
+        </div>
+    </div>
+    
+    <div class="carrito-lista" id="carritoLista">
+        <div class="carrito-vacio">
+            <i class="fas fa-hand-holding"></i>
+            <p>Selecciona productos para entregar</p>
+        </div>
+    </div>
+    
+    <div class="carrito-footer">
+        <div class="carrito-resumen">
+            <div class="carrito-total">
+                Total: <span id="totalUnidades">0</span> unidades
+            </div>
+        </div>
+        
+        <div class="carrito-acciones">
+            <button class="btn-carrito btn-limpiar" onclick="limpiarCarrito()">
+                <i class="fas fa-trash"></i>
+                Limpiar
+            </button>
+            <button class="btn-carrito btn-proceder" onclick="procederEntrega()" disabled>
+                <i class="fas fa-user"></i>
+                Proceder
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- NUEVO: Modal para datos del destinatario -->
+<div id="modalEntrega" class="modal-entrega">
+    <div class="modal-entrega-content">
+        <div class="modal-entrega-header">
+            <h2>
+                <i class="fas fa-user"></i>
+                Datos del Destinatario
+            </h2>
+        </div>
+        
+        <div class="modal-entrega-body">
+            <div class="resumen-entrega">
+                <div class="resumen-titulo">
+                    <i class="fas fa-clipboard-list"></i>
+                    Resumen de la Entrega
+                </div>
+                
+                <div class="productos-resumen" id="productosResumen">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                
+                <div class="total-unidades">
+                    <i class="fas fa-boxes"></i>
+                    Total: <span id="totalUnidadesModal">0</span> unidades de <span id="totalTiposModal">0</span> tipo(s) de productos
+                </div>
+            </div>
+            
+            <form id="formEntregaPersonal">
+                <div class="form-group">
+                    <label for="nombreDestinatario" class="form-label">
+                        <i class="fas fa-user"></i>
+                        Nombre Completo del Destinatario *
+                    </label>
+                    <input 
+                        type="text" 
+                        id="nombreDestinatario" 
+                        name="nombre_destinatario" 
+                        required 
+                        class="form-control"
+                        placeholder="Ingrese el nombre completo"
+                        autocomplete="name"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="dniDestinatario" class="form-label">
+                        <i class="fas fa-id-card"></i>
+                        DNI del Destinatario *
+                    </label>
+                    <input 
+                        type="text" 
+                        id="dniDestinatario" 
+                        name="dni_destinatario" 
+                        required 
+                        class="form-control"
+                        placeholder="12345678"
+                        pattern="[0-9]{8}"
+                        maxlength="8"
+                        title="Ingrese exactamente 8 dígitos"
+                    >
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn-modal btn-cancel" onclick="cerrarModalEntrega()">
+                <i class="fas fa-times"></i>
+                Cancelar
+            </button>
+            <button type="button" class="btn-modal btn-confirm" onclick="confirmarEntrega()">
+                <i class="fas fa-hand-holding"></i>
+                Confirmar Entrega
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Transferencia de Producto (existente) -->
 <div id="modalTransferencia" class="modal" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
     <div class="modal-content">
         <div class="modal-header">
@@ -807,8 +1386,514 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript SOLO el archivo externo - SIN script adicional -->
+<!-- JavaScript -->
 <script src="../assets/js/productos-listar.js"></script>
+
+<!-- NUEVO: JavaScript para funcionalidad de entrega múltiple -->
+<script>
+// ===== SISTEMA DE ENTREGA MÚLTIPLE =====
+
+class EntregaMultiple {
+    constructor() {
+        this.modoSeleccion = false;
+        this.productosSeleccionados = new Map();
+        this.inicializar();
+    }
+
+    inicializar() {
+        this.btnEntregarPersonal = document.getElementById('btnEntregarPersonal');
+        this.carritoEntrega = document.getElementById('carritoEntrega');
+        this.modalEntrega = document.getElementById('modalEntrega');
+        
+        this.btnEntregarPersonal.addEventListener('click', () => this.toggleModoSeleccion());
+        
+        // Configurar validación de DNI
+        const dniInput = document.getElementById('dniDestinatario');
+        if (dniInput) {
+            dniInput.addEventListener('input', this.validarDNI.bind(this));
+        }
+    }
+
+    toggleModoSeleccion() {
+        this.modoSeleccion = !this.modoSeleccion;
+        
+        if (this.modoSeleccion) {
+            this.activarModoSeleccion();
+        } else {
+            this.desactivarModoSeleccion();
+        }
+    }
+
+    activarModoSeleccion() {
+        const productsSection = document.getElementById('productsSection');
+        productsSection.classList.add('modo-seleccion');
+        
+        // Cambiar texto del botón
+        this.btnEntregarPersonal.innerHTML = '<i class="fas fa-times"></i><span>Cancelar Selección</span>';
+        this.btnEntregarPersonal.classList.add('active');
+        
+        // Mostrar checkboxes
+        document.querySelectorAll('.product-selection').forEach(el => {
+            el.style.display = 'block';
+        });
+        
+        // Configurar click handlers
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', this.handleProductClick.bind(this));
+        });
+        
+        // Configurar checkboxes
+        document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', this.handleCheckboxClick.bind(this));
+        });
+        
+        // Mostrar carrito si hay productos seleccionados
+        if (this.productosSeleccionados.size > 0) {
+            this.mostrarCarrito();
+        }
+    }
+
+    desactivarModoSeleccion() {
+        const productsSection = document.getElementById('productsSection');
+        productsSection.classList.remove('modo-seleccion');
+        
+        // Restaurar texto del botón
+        this.btnEntregarPersonal.innerHTML = '<i class="fas fa-hand-holding"></i><span>Entregar a Personal</span>';
+        this.btnEntregarPersonal.classList.remove('active');
+        
+        // Ocultar checkboxes
+        document.querySelectorAll('.product-selection').forEach(el => {
+            el.style.display = 'none';
+        });
+        
+        // Remover click handlers
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.removeEventListener('click', this.handleProductClick);
+            card.classList.remove('selected');
+        });
+        
+        // Ocultar carrito
+        this.ocultarCarrito();
+        
+        // Limpiar selecciones
+        this.productosSeleccionados.clear();
+        document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
+            checkbox.classList.remove('checked');
+        });
+    }
+
+    handleProductClick(e) {
+        if (!this.modoSeleccion) return;
+        
+        // Evitar que se active si se clickea en botones
+        if (e.target.closest('.btn-action, .btn-card, .stock-btn')) {
+            return;
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const card = e.currentTarget;
+        const productId = card.dataset.productoId;
+        const checkbox = card.querySelector('.selection-checkbox');
+        
+        this.toggleProducto(productId, card, checkbox);
+    }
+
+    handleCheckboxClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const checkbox = e.currentTarget;
+        const productId = checkbox.dataset.id;
+        const card = document.querySelector(`[data-producto-id="${productId}"]`);
+        
+        this.toggleProducto(productId, card, checkbox);
+    }
+
+    toggleProducto(productId, card, checkbox) {
+        const stockValue = card.querySelector('.stock-value');
+        const stock = parseInt(stockValue.textContent.replace(/,/g, ''));
+        
+        // Verificar si tiene stock
+        if (stock <= 0) {
+            this.mostrarNotificacion('Este producto no tiene stock disponible', 'warning');
+            return;
+        }
+        
+        if (this.productosSeleccionados.has(productId)) {
+            // Deseleccionar
+            this.productosSeleccionados.delete(productId);
+            card.classList.remove('selected');
+            checkbox.classList.remove('checked');
+        } else {
+            // Seleccionar
+            const productData = this.extraerDatosProducto(card);
+            this.productosSeleccionados.set(productId, {
+                ...productData,
+                cantidadSeleccionada: 1
+            });
+            card.classList.add('selected');
+            checkbox.classList.add('checked');
+        }
+        
+        this.actualizarCarrito();
+    }
+
+    extraerDatosProducto(card) {
+        const scriptTag = card.querySelector('.product-data');
+        if (scriptTag) {
+            try {
+                return JSON.parse(scriptTag.textContent);
+            } catch (e) {
+                console.error('Error parsing product data:', e);
+            }
+        }
+        
+        // Fallback manual
+        return {
+            id: card.dataset.productoId,
+            nombre: card.querySelector('.product-name').textContent,
+            cantidad: parseInt(card.querySelector('.stock-value').textContent.replace(/,/g, '')),
+            almacen: document.body.dataset.almacenId
+        };
+    }
+
+    actualizarCarrito() {
+        if (this.productosSeleccionados.size > 0) {
+            this.mostrarCarrito();
+            this.renderizarCarrito();
+        } else {
+            this.ocultarCarrito();
+        }
+    }
+
+    mostrarCarrito() {
+        this.carritoEntrega.classList.add('visible');
+    }
+
+    ocultarCarrito() {
+        this.carritoEntrega.classList.remove('visible');
+    }
+
+    renderizarCarrito() {
+        const contador = document.querySelector('.carrito-contador');
+        const lista = document.getElementById('carritoLista');
+        const totalUnidades = document.getElementById('totalUnidades');
+        const btnProceder = document.querySelector('.btn-proceder');
+        
+        contador.textContent = this.productosSeleccionados.size;
+        
+        if (this.productosSeleccionados.size === 0) {
+            lista.innerHTML = `
+                <div class="carrito-vacio">
+                    <i class="fas fa-hand-holding"></i>
+                    <p>Selecciona productos para entregar</p>
+                </div>
+            `;
+            btnProceder.disabled = true;
+            totalUnidades.textContent = '0';
+            return;
+        }
+        
+        let html = '';
+        let total = 0;
+        
+        this.productosSeleccionados.forEach((producto, id) => {
+            total += producto.cantidadSeleccionada;
+            
+            html += `
+                <div class="carrito-item" data-id="${id}">
+                    <div class="carrito-item-info">
+                        <div class="carrito-item-nombre">${producto.nombre}</div>
+                        <div class="carrito-item-detalles">
+                            Stock: ${producto.cantidad.toLocaleString()} | Almacén: ${producto.almacen_nombre || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="carrito-item-cantidad">
+                        <div class="cantidad-control">
+                            <button class="cantidad-btn" onclick="entregaMultiple.ajustarCantidad('${id}', -1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="cantidad-input" value="${producto.cantidadSeleccionada}" 
+                                   min="1" max="${producto.cantidad}"
+                                   onchange="entregaMultiple.cambiarCantidad('${id}', this.value)">
+                            <button class="cantidad-btn" onclick="entregaMultiple.ajustarCantidad('${id}', 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <button class="btn-remover" onclick="entregaMultiple.removerProducto('${id}')" title="Remover producto">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        lista.innerHTML = html;
+        totalUnidades.textContent = total.toLocaleString();
+        btnProceder.disabled = false;
+    }
+
+    ajustarCantidad(productId, delta) {
+        const producto = this.productosSeleccionados.get(productId);
+        if (!producto) return;
+        
+        const nuevaCantidad = producto.cantidadSeleccionada + delta;
+        
+        if (nuevaCantidad < 1 || nuevaCantidad > producto.cantidad) {
+            if (nuevaCantidad > producto.cantidad) {
+                this.mostrarNotificacion('No puedes seleccionar más del stock disponible', 'warning');
+            }
+            return;
+        }
+        
+        producto.cantidadSeleccionada = nuevaCantidad;
+        this.renderizarCarrito();
+    }
+
+    cambiarCantidad(productId, nuevaCantidad) {
+        const producto = this.productosSeleccionados.get(productId);
+        if (!producto) return;
+        
+        nuevaCantidad = parseInt(nuevaCantidad);
+        
+        if (isNaN(nuevaCantidad) || nuevaCantidad < 1 || nuevaCantidad > producto.cantidad) {
+            this.renderizarCarrito(); // Restaurar valor anterior
+            return;
+        }
+        
+        producto.cantidadSeleccionada = nuevaCantidad;
+        this.renderizarCarrito();
+    }
+
+    removerProducto(productId) {
+        this.productosSeleccionados.delete(productId);
+        
+        // Actualizar UI
+        const card = document.querySelector(`[data-producto-id="${productId}"]`);
+        const checkbox = card?.querySelector('.selection-checkbox');
+        
+        if (card) card.classList.remove('selected');
+        if (checkbox) checkbox.classList.remove('checked');
+        
+        this.actualizarCarrito();
+    }
+
+    limpiarCarrito() {
+        // Limpiar selecciones visuales
+        document.querySelectorAll('.product-card.selected').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        document.querySelectorAll('.selection-checkbox.checked').forEach(checkbox => {
+            checkbox.classList.remove('checked');
+        });
+        
+        // Limpiar datos
+        this.productosSeleccionados.clear();
+        this.actualizarCarrito();
+    }
+
+    procederEntrega() {
+        if (this.productosSeleccionados.size === 0) {
+            this.mostrarNotificacion('No hay productos seleccionados', 'warning');
+            return;
+        }
+        
+        this.mostrarModalEntrega();
+    }
+
+    mostrarModalEntrega() {
+        // Preparar resumen
+        const productosResumen = document.getElementById('productosResumen');
+        const totalUnidadesModal = document.getElementById('totalUnidadesModal');
+        const totalTiposModal = document.getElementById('totalTiposModal');
+        
+        let html = '';
+        let totalUnidades = 0;
+        
+        this.productosSeleccionados.forEach(producto => {
+            totalUnidades += producto.cantidadSeleccionada;
+            
+            html += `
+                <div class="producto-resumen-item">
+                    <div>
+                        <strong>${producto.nombre}</strong>
+                        ${producto.modelo ? `<br><small>Modelo: ${producto.modelo}</small>` : ''}
+                        ${producto.color ? `<br><small>Color: ${producto.color}</small>` : ''}
+                        ${producto.talla ? `<br><small>Talla: ${producto.talla}</small>` : ''}
+                    </div>
+                    <div>
+                        <strong>${producto.cantidadSeleccionada} unidad${producto.cantidadSeleccionada !== 1 ? 'es' : ''}</strong>
+                    </div>
+                </div>
+            `;
+        });
+        
+        productosResumen.innerHTML = html;
+        totalUnidadesModal.textContent = totalUnidades.toLocaleString();
+        totalTiposModal.textContent = this.productosSeleccionados.size;
+        
+        // Limpiar formulario
+        document.getElementById('formEntregaPersonal').reset();
+        
+        // Mostrar modal
+        this.modalEntrega.classList.add('visible');
+        document.body.style.overflow = 'hidden';
+        
+        // Focus en primer campo
+        setTimeout(() => {
+            document.getElementById('nombreDestinatario').focus();
+        }, 300);
+    }
+
+    cerrarModalEntrega() {
+        this.modalEntrega.classList.remove('visible');
+        document.body.style.overflow = '';
+    }
+
+    validarDNI(e) {
+        const valor = e.target.value;
+        // Solo permitir números
+        e.target.value = valor.replace(/[^0-9]/g, '');
+        
+        const btnConfirmar = document.querySelector('.modal-entrega .btn-confirm');
+        if (btnConfirmar) {
+            btnConfirmar.disabled = e.target.value.length !== 8;
+        }
+    }
+
+    async confirmarEntrega() {
+        const form = document.getElementById('formEntregaPersonal');
+        const formData = new FormData(form);
+        
+        // Validaciones
+        const nombre = formData.get('nombre_destinatario').trim();
+        const dni = formData.get('dni_destinatario').trim();
+        
+        if (!nombre || nombre.length < 3) {
+            this.mostrarNotificacion('El nombre debe tener al menos 3 caracteres', 'error');
+            return;
+        }
+        
+        if (!dni || dni.length !== 8 || !/^\d{8}$/.test(dni)) {
+            this.mostrarNotificacion('El DNI debe tener exactamente 8 dígitos', 'error');
+            return;
+        }
+        
+        // Preparar datos de productos
+        const productos = Array.from(this.productosSeleccionados.values()).map(p => ({
+            id: p.id,
+            cantidad: p.cantidadSeleccionada,
+            almacen: p.almacen
+        }));
+        
+        formData.append('productos', JSON.stringify(productos));
+        
+        // Mostrar loading
+        const btnConfirmar = document.querySelector('.modal-entrega .btn-confirm');
+        const textoOriginal = btnConfirmar.innerHTML;
+        btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        btnConfirmar.disabled = true;
+        
+        try {
+            const response = await fetch('../entregas/Procesar_entrega.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.mostrarNotificacion(data.message, 'exito', 8000);
+                this.cerrarModalEntrega();
+                this.desactivarModoSeleccion();
+                
+                // Actualizar stock en la interfaz
+                if (data.productos_actualizados) {
+                    data.productos_actualizados.forEach(prod => {
+                        const stockElement = document.getElementById(`cantidad-${prod.id}`);
+                        if (stockElement) {
+                            stockElement.textContent = prod.nuevo_stock.toLocaleString();
+                            
+                            // Actualizar clases de color
+                            const stockValue = stockElement.closest('.stock-value') || stockElement;
+                            stockValue.classList.remove('stock-critical', 'stock-warning', 'stock-good');
+                            
+                            if (prod.nuevo_stock < 5) {
+                                stockValue.classList.add('stock-critical');
+                            } else if (prod.nuevo_stock < 10) {
+                                stockValue.classList.add('stock-warning');
+                            } else {
+                                stockValue.classList.add('stock-good');
+                            }
+                        }
+                    });
+                }
+                
+                // Recargar página después de un momento
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+                
+            } else {
+                this.mostrarNotificacion(data.message || 'Error al procesar la entrega', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+            this.mostrarNotificacion('Error de conexión al procesar la entrega', 'error');
+        } finally {
+            btnConfirmar.innerHTML = textoOriginal;
+            btnConfirmar.disabled = false;
+        }
+    }
+
+    mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
+        // Usar el sistema existente de notificaciones
+        if (window.productosListar && window.productosListar.mostrarNotificacion) {
+            window.productosListar.mostrarNotificacion(mensaje, tipo, duracion);
+        } else {
+            // Fallback
+            alert(mensaje);
+        }
+    }
+}
+
+// Inicializar sistema de entrega múltiple
+let entregaMultiple;
+
+document.addEventListener('DOMContentLoaded', () => {
+    entregaMultiple = new EntregaMultiple();
+});
+
+// Funciones globales para el carrito
+function limpiarCarrito() {
+    entregaMultiple.limpiarCarrito();
+}
+
+function procederEntrega() {
+    entregaMultiple.procederEntrega();
+}
+
+function cerrarModalEntrega() {
+    entregaMultiple.cerrarModalEntrega();
+}
+
+function confirmarEntrega() {
+    entregaMultiple.confirmarEntrega();
+}
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        if (entregaMultiple.modalEntrega.classList.contains('visible')) {
+            entregaMultiple.cerrarModalEntrega();
+        }
+    }
+});
+</script>
 
 </body>
 </html>
