@@ -749,7 +749,7 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
         </li>
         <?php endif; ?>
 
-        <!-- Warehouses Section -->
+        <!-- Warehouses Section - Adjusted according to permissions -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-warehouse"></i> Almacenes</span>
@@ -762,37 +762,26 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
                 <li><a href="../almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
-
-        <!-- Products Section -->
+        
+        <!-- Historial Section - Reemplaza la sección de Entregas -->
         <li class="submenu-container">
-            <a href="#" aria-label="Menú Productos" aria-expanded="false" role="button" tabindex="0">
-                <span><i class="fas fa-boxes"></i> Productos</span>
+            <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
+                <span><i class="fas fa-history"></i> Historial</span>
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                <?php if ($usuario_rol == 'admin'): ?>
-                <li><a href="../productos/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Producto</a></li>
-                <?php endif; ?>
-                <li><a href="../productos/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Productos</a></li>
-                <li><a href="../productos/categorias.php" role="menuitem"><i class="fas fa-tags"></i> Categorías</a></li>
-            </ul>
-        </li>
-
-        <!-- Entregas Section -->
-        <li class="submenu-container">
-            <a href="#" aria-label="Menú Entregas" aria-expanded="false" role="button" tabindex="0">
-                <span><i class="fas fa-hand-holding"></i> Entregas</span>
-                <i class="fas fa-chevron-down"></i>
-            </a>
-            <ul class="submenu" role="menu">
-                <li><a href="historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Entregas</a></li>
+                <li><a href="historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
+                <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
+                <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Historial de Uniformes</a></li>
             </ul>
         </li>
         
-        <!-- Notifications Section -->
+        <!-- Notifications Section - Con badge rojo de notificaciones -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
-                <span><i class="fas fa-bell"></i> Notificaciones</span>
+                <span>
+                    <i class="fas fa-bell"></i> Notificaciones
+                </span>
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
@@ -804,7 +793,6 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
                         <?php endif; ?>
                     </a>
                 </li>
-                <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
             </ul>
         </li>
 
