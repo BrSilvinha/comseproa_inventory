@@ -123,7 +123,7 @@ require_once "config/database.php";
                     </a>
                 </li>
                 <li><a href="notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
-                <li><a href="uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Historial de Entregas</a></li>
+                <li><a href="uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Ver Historial de Entregas</a></li>
             </ul>
         </li>
 
@@ -249,7 +249,7 @@ require_once "config/database.php";
                 <p>Administrar entregas de uniformes y equipamiento. Control de distribución de materiales.</p>
                 <div class="card-footer">
                     <span class="card-action">
-                        <i class="fas fa-arrow-right"></i> Ver Entregas
+                        <i class="fas fa-arrow-right"></i> Ver Historial de Entregas
                     </span>
                 </div>
             </a>
@@ -291,10 +291,10 @@ require_once "config/database.php";
 
             <a href="uniformes/historial_entregas_uniformes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Entregas de uniformes">
                 <h3><i class="fas fa-tshirt"></i> Entregas de Uniformes</h3>
-                <p>Consultar historial de entregas de uniformes y equipamiento asignado.</p>
+                <p>Consultar Ver Historial de Entregas de uniformes y equipamiento asignado.</p>
                 <div class="card-footer">
                     <span class="card-action">
-                        <i class="fas fa-arrow-right"></i> Ver Entregas
+                        <i class="fas fa-arrow-right"></i> Ver Historial de Entregas
                     </span>
                 </div>
             </a>

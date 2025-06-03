@@ -781,7 +781,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     </a>
                 </li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
-                <li><a href="../entregas/historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
+                <li><a href="../entregas/historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Ver Historial de Entregas</a></li>
             </ul>
         </li>
 

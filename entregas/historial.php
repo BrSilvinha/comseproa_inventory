@@ -41,6 +41,14 @@ $offset = ($pagina_actual - 1) * $registros_por_pagina;
 
 // Función para obtener entregas por almacén con paginación
 function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = null, $offset = null) {
+    // Verificar si la tabla existe
+    $check_table = "SHOW TABLES LIKE 'entrega_uniformes'";
+    $table_result = $conn->query($check_table);
+    
+    if ($table_result->num_rows == 0) {
+        return [];
+    }
+
     $query = '
         SELECT 
             eu.id,
@@ -64,47 +72,54 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
     ';
 
     $params = [$almacen_id];
+    $types = 'i';
 
     // Agregar filtros
     if (!empty($filtros['dni'])) {
         $query .= ' AND eu.dni_destinatario LIKE ?';
         $params[] = '%' . $filtros['dni'] . '%';
+        $types .= 's';
     }
 
     if (!empty($filtros['nombre'])) {
         $query .= ' AND eu.nombre_destinatario LIKE ?';
         $params[] = '%' . $filtros['nombre'] . '%';
+        $types .= 's';
     }
 
     // Filtros de fecha
     if (!empty($filtros['fecha_inicio'])) {
         $query .= ' AND DATE(eu.fecha_entrega) >= ?';
         $params[] = $filtros['fecha_inicio'];
+        $types .= 's';
     }
     if (!empty($filtros['fecha_fin'])) {
         $query .= ' AND DATE(eu.fecha_entrega) <= ?';
         $params[] = $filtros['fecha_fin'];
+        $types .= 's';
     }
 
     $query .= ' ORDER BY eu.fecha_entrega DESC';
 
     // Agregar límite y offset para paginación
     if ($limite !== null && $offset !== null) {
-        $query_with_limit = $query . ' LIMIT ? OFFSET ?';
-        $params_with_limit = $params;
-        $params_with_limit[] = $limite;
-        $params_with_limit[] = $offset;
-        
-        $stmt = $conn->prepare($query_with_limit);
-        $types = str_repeat('s', count($params)) . 'ii';
-        $stmt->bind_param($types, ...$params_with_limit);
-    } else {
-        $stmt = $conn->prepare($query);
-        $types = str_repeat('s', count($params));
-        $stmt->bind_param($types, ...$params);
+        $query .= ' LIMIT ? OFFSET ?';
+        $params[] = $limite;
+        $params[] = $offset;
+        $types .= 'ii';
     }
     
-    $stmt->execute();
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        return [];
+    }
+    
+    $stmt->bind_param($types, ...$params);
+    
+    if (!$stmt->execute()) {
+        return [];
+    }
+    
     $result = $stmt->get_result();
 
     $entregasAgrupadas = [];
@@ -144,35 +159,108 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
     return array_values($entregasAgrupadas);
 }
 
+// Función para obtener resumen de productos entregados por almacén
+function obtenerResumenProductosPorAlmacen($conn, $almacen_id, $filtros = []) {
+    $query = '
+        SELECT 
+            p.id as producto_id,
+            p.nombre as producto_nombre,
+            SUM(eu.cantidad) as total_entregado,
+            COUNT(DISTINCT eu.dni_destinatario) as personas_atendidas,
+            MIN(eu.fecha_entrega) as primera_entrega,
+            MAX(eu.fecha_entrega) as ultima_entrega
+        FROM 
+            entrega_uniformes eu
+        JOIN 
+            productos p ON eu.producto_id = p.id
+        WHERE 
+            eu.almacen_id = ?
+    ';
+
+    $params = [$almacen_id];
+    $types = 'i';
+
+    // Agregar filtros de fecha si existen
+    if (!empty($filtros['fecha_inicio'])) {
+        $query .= ' AND DATE(eu.fecha_entrega) >= ?';
+        $params[] = $filtros['fecha_inicio'];
+        $types .= 's';
+    }
+    if (!empty($filtros['fecha_fin'])) {
+        $query .= ' AND DATE(eu.fecha_entrega) <= ?';
+        $params[] = $filtros['fecha_fin'];
+        $types .= 's';
+    }
+
+    $query .= ' GROUP BY p.id, p.nombre ORDER BY total_entregado DESC';
+    
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        return [];
+    }
+    
+    $stmt->bind_param($types, ...$params);
+    
+    if (!$stmt->execute()) {
+        return [];
+    }
+    
+    $result = $stmt->get_result();
+    $resumen = [];
+    
+    while ($row = $result->fetch_assoc()) {
+        // Agregar código simulado basado en el ID del producto
+        $row['producto_codigo'] = 'PRD-' . str_pad($row['producto_id'], 4, '0', STR_PAD_LEFT);
+        $resumen[] = $row;
+    }
+
+    return $resumen;
+}
+
+// Preparar filtros
+$filtros = [
+    'dni' => $_GET['dni'] ?? '',
+    'nombre' => $_GET['nombre'] ?? '',
+    'fecha_inicio' => $_GET['fecha_inicio'] ?? '',
+    'fecha_fin' => $_GET['fecha_fin'] ?? ''
+];
+
+// Determinar qué almacén mostrar
+$almacen_id_mostrar = null;
+
+if ($usuario_rol == 'admin') {
+    // Si es admin y se seleccionó un almacén específico
+    $almacen_id_mostrar = isset($_GET['almacen_id']) ? intval($_GET['almacen_id']) : null;
+} else {
+    // Si no es admin, usar su almacén asignado
+    $almacen_id_mostrar = $usuario_almacen_id;
+}
+
 // Función para contar el total de entregas (para la paginación)
 function contarEntregasPorAlmacen($conn, $almacen_id, $filtros = []) {
     $entregas = obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros);
     return count($entregas);
 }
 
-// Preparar filtros
-$filtros = [];
-if (isset($_GET['dni']) || isset($_GET['nombre']) || isset($_GET['fecha_inicio']) || isset($_GET['fecha_fin']) || isset($_GET['almacen_id'])) {
-    $filtros = [
-        'dni' => $_GET['dni'] ?? '',
-        'nombre' => $_GET['nombre'] ?? '',
-        'fecha_inicio' => $_GET['fecha_inicio'] ?? '',
-        'fecha_fin' => $_GET['fecha_fin'] ?? ''
-    ];
+// Obtener entregas si hay un almacén seleccionado
+$resumen_productos = [];
+if ($almacen_id_mostrar) {
+    $total_entregas = contarEntregasPorAlmacen($conn, $almacen_id_mostrar, $filtros);
+    $entregas = obtenerEntregasPorAlmacen($conn, $almacen_id_mostrar, $filtros, $registros_por_pagina, $offset);
+    $resumen_productos = obtenerResumenProductosPorAlmacen($conn, $almacen_id_mostrar, $filtros);
     
-    // Si es admin y se seleccionó un almacén específico
-    $almacen_id_seleccionado = isset($_GET['almacen_id']) ? intval($_GET['almacen_id']) : null;
-    if ($usuario_rol == 'admin' && $almacen_id_seleccionado) {
-        $total_entregas = contarEntregasPorAlmacen($conn, $almacen_id_seleccionado, $filtros);
-        $entregas = obtenerEntregasPorAlmacen($conn, $almacen_id_seleccionado, $filtros, $registros_por_pagina, $offset);
-    } elseif ($usuario_rol != 'admin' && $usuario_almacen_id) {
-        $total_entregas = contarEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros);
-        $entregas = obtenerEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros, $registros_por_pagina, $offset);
+    // Obtener nombre del almacén seleccionado
+    $nombre_almacen_seleccionado = '';
+    if ($almacen_id_mostrar) {
+        $sql_nombre = "SELECT nombre FROM almacenes WHERE id = ?";
+        $stmt_nombre = $conn->prepare($sql_nombre);
+        $stmt_nombre->bind_param("i", $almacen_id_mostrar);
+        $stmt_nombre->execute();
+        $result_nombre = $stmt_nombre->get_result();
+        if ($row_nombre = $result_nombre->fetch_assoc()) {
+            $nombre_almacen_seleccionado = $row_nombre['nombre'];
+        }
     }
-} elseif ($usuario_rol != 'admin' && $usuario_almacen_id) {
-    // Si no es admin, obtener entregas del almacén asignado con paginación
-    $total_entregas = contarEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros);
-    $entregas = obtenerEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros, $registros_por_pagina, $offset);
 }
 
 // Calcular total de páginas
@@ -183,10 +271,10 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Entregas - GRUPO SEAL</title>
+    <title>Ver Historial de Entregas - GRUPO SEAL</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Historial de entregas de productos - Sistema de gestión GRUPO SEAL">
+    <meta name="description" content="Ver Historial de Entregas de productos - Sistema de gestión GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -200,247 +288,9 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
     
     <!-- CSS consistente con el dashboard -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    <link rel="stylesheet" href="../assets/css/dashboard-consistent.css">
     
-    <style>
-        .almacenes-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .almacen-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border: 1px solid #e0e0e0;
-            transition: all 0.3s ease;
-        }
-
-        .almacen-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
-
-        .almacen-card h3 {
-            color: #0a253c;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-
-        .btn-ver {
-            background: #0a253c;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 6px;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.3s ease;
-        }
-
-        .btn-ver:hover {
-            background: #ff6b35;
-            color: white;
-        }
-
-        .filter-form {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .filter-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            align-items: end;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-label {
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #0a253c;
-        }
-
-        .form-control {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .btn-filter {
-            background: #0a253c;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-filter:hover {
-            background: #ff6b35;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.3s ease;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-            color: white;
-        }
-
-        .table-responsive {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 0;
-        }
-
-        .table thead {
-            background: #0a253c;
-            color: white;
-        }
-
-        .table th,
-        .table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        .table tbody tr:hover {
-            background: #f8f9fa;
-        }
-
-        .productos-lista {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .productos-lista li {
-            background: #f8f9fa;
-            padding: 5px 10px;
-            margin: 2px 0;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-
-        .no-results-message {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-style: italic;
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
-        .pagination a,
-        .pagination span {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            text-decoration: none;
-            color: #0a253c;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-        }
-
-        .pagination a:hover {
-            background: #0a253c;
-            color: white;
-        }
-
-        .pagination .active {
-            background: #0a253c;
-            color: white;
-            border-color: #0a253c;
-        }
-
-        .pagination .disabled {
-            color: #6c757d;
-            cursor: not-allowed;
-        }
-
-        .btn-volver {
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-volver:hover {
-            background: #5a6268;
-        }
-
-        @media (max-width: 768px) {
-            .filter-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .almacenes-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .table-responsive {
-                overflow-x: auto;
-            }
-            
-            .pagination {
-                gap: 5px;
-            }
-            
-            .pagination a,
-            .pagination span {
-                padding: 6px 8px;
-                font-size: 14px;
-            }
-        }
-    </style>
+    <!-- CSS específico del historial -->
+    <link rel="stylesheet" href="../assets/css/historial-entregas.css">
 </head>
 <body>
 
@@ -509,7 +359,7 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                <li><a href="historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Entregas</a></li>
+                <li><a href="historial.php" role="menuitem"><i class="fas fa-history"></i> Ver Historial de Entregas</a></li>
             </ul>
         </li>
         
@@ -589,17 +439,34 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
 
 <!-- Main Content -->
 <main class="content" id="main-content" role="main">
-    <h2><i class="fas fa-history"></i> Historial de Entregas</h2>
+    <div class="historial-header-section">
+        <div class="historial-title-container">
+            <h2 class="historial-title">
+                <i class="fas fa-history"></i> 
+                <?php if ($usuario_rol == 'admin' && !isset($_GET['almacen_id'])): ?>
+                    Ver Historial de Entregas - Seleccionar Almacén
+                <?php else: ?>
+                    Ver Historial de Entregas
+                <?php endif; ?>
+            </h2>
+            
+            <?php if ($usuario_rol == 'admin' && isset($_GET['almacen_id'])): ?>
+                <a href="historial.php" class="historial-btn historial-btn-back">
+                    <i class="fas fa-arrow-left"></i> Volver a la lista de almacenes
+                </a>
+            <?php endif; ?>
+        </div>
+    </div>
 
-    <?php if ($usuario_rol == 'admin'): ?>
-        <div class="almacenes-container">
+    <?php if ($usuario_rol == 'admin' && !isset($_GET['almacen_id'])): ?>
+        <div class="historial-almacenes-container">
             <?php if ($result_almacenes && $result_almacenes->num_rows > 0): ?>
                 <?php while ($almacen = $result_almacenes->fetch_assoc()): ?>
-                    <div class="almacen-card">
+                    <div class="historial-almacen-card">
                         <h3><i class="fas fa-warehouse"></i> <?php echo htmlspecialchars($almacen["nombre"]); ?></h3>
                         <p><strong>Ubicación:</strong> <?php echo htmlspecialchars($almacen["ubicacion"]); ?></p>
-                        <a href="#" class="btn-ver mostrar-entregas" data-almacen-id="<?php echo $almacen['id']; ?>">
-                            <i class="fas fa-eye"></i> Ver Entregas
+                        <a href="#" class="historial-btn historial-btn-primary mostrar-entregas" data-almacen-id="<?php echo $almacen['id']; ?>" data-almacen-nombre="<?php echo htmlspecialchars($almacen['nombre']); ?>">
+                            <i class="fas fa-eye"></i> Ver Historial de Entregas
                         </a>
                     </div>
                 <?php endwhile; ?>
@@ -609,177 +476,329 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
         </div>
     <?php endif; ?>
 
-    <div id="contenedor-historial-entregas" style="<?php echo $usuario_rol != 'admin' ? 'display:block;' : 'display:none;'; ?>">
-        <form method="GET" class="filter-form" id="formulario-filtros">
-            <div class="filter-row">
-                <div class="form-group">
-                    <label for="filtro-nombre" class="form-label">Filtrar por Nombre</label>
-                    <input type="text" class="form-control" id="filtro-nombre" name="nombre" 
-                           placeholder="Nombre del destinatario" 
-                           value="<?php echo htmlspecialchars($_GET['nombre'] ?? ''); ?>">
-                </div>
-                <div class="form-group">
-                    <label for="filtro-dni" class="form-label">Filtrar por DNI</label>
-                    <input type="text" class="form-control" id="filtro-dni" name="dni" 
-                           placeholder="Número de DNI" 
-                           value="<?php echo htmlspecialchars($_GET['dni'] ?? ''); ?>">
-                </div>
-                <div class="form-group">
-                    <label for="filtro-fecha-inicio" class="form-label">Fecha de Inicio</label>
-                    <input type="date" class="form-control" id="filtro-fecha-inicio" 
-                           name="fecha_inicio"
-                           value="<?php echo htmlspecialchars($_GET['fecha_inicio'] ?? ''); ?>">
-                </div>
-                <div class="form-group">
-                    <label for="filtro-fecha-fin" class="form-label">Fecha de Fin</label>
-                    <input type="date" class="form-control" id="filtro-fecha-fin" 
-                           name="fecha_fin"
-                           value="<?php echo htmlspecialchars($_GET['fecha_fin'] ?? ''); ?>">
-                </div>
-            </div>
-            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="submit" class="btn-filter">
-                    <i class="fas fa-search"></i> Buscar
-                </button>
-                <a href="?" class="btn-secondary">
-                    <i class="fas fa-times"></i> Limpiar Filtros
-                </a>
-            </div>
-            <!-- Conservar el almacén seleccionado durante la paginación -->
-            <?php if (isset($_GET['almacen_id'])): ?>
-                <input type="hidden" name="almacen_id" value="<?php echo htmlspecialchars($_GET['almacen_id']); ?>">
-            <?php endif; ?>
-        </form>
-
-        <div class="table-responsive">
-            <table class="table" id="tabla-historial-entregas">
-                <thead>
-                    <tr>
-                        <th><i class="fas fa-warehouse"></i> Almacén</th>
-                        <th><i class="fas fa-calendar"></i> Fecha</th>
-                        <th><i class="fas fa-user"></i> Destinatario</th>
-                        <th><i class="fas fa-id-card"></i> DNI</th>
-                        <th><i class="fas fa-boxes"></i> Productos Entregados</th>
-                        <th><i class="fas fa-user-shield"></i> Responsable</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($entregas)): ?>
-                        <tr>
-                            <td colspan="6" class="no-results-message">
-                                <i class="fas fa-inbox"></i><br>
-                                No hay entregas para mostrar
-                            </td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($entregas as $entrega): ?>
-                            <tr>
-                                <td>
-                                    <i class="fas fa-warehouse" style="color: #0a253c;"></i>
-                                    <?php echo htmlspecialchars($entrega['almacen_nombre']); ?>
-                                </td>
-                                <td>
-                                    <?php 
-                                    $fecha = new DateTime($entrega['fecha_entrega']);
-                                    echo $fecha->format('d/m/Y H:i'); 
-                                    ?>
-                                </td>
-                                <td>
-                                    <strong><?php echo htmlspecialchars($entrega['nombre_destinatario']); ?></strong>
-                                </td>
-                                <td>
-                                    <code><?php echo htmlspecialchars($entrega['dni_destinatario']); ?></code>
-                                </td>
-                                <td>
-                                    <ul class="productos-lista">
-                                        <?php foreach ($entrega['productos'] as $producto): ?>
-                                            <li>
-                                                <i class="fas fa-box" style="color: #0a253c;"></i>
-                                                <?php 
-                                                echo htmlspecialchars($producto['nombre']) . 
-                                                     ' <strong>(' . 
-                                                     htmlspecialchars($producto['cantidad']) . 
-                                                     ' unidad' . ($producto['cantidad'] != 1 ? 'es' : '') . ')</strong>'; 
-                                                ?>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                </td>
-                                <td>
-                                    <i class="fas fa-user-shield" style="color: #0a253c;"></i>
-                                    <?php echo htmlspecialchars($entrega['usuario_responsable'] ?? 'No registrado'); ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Paginación -->
-        <?php if ($total_paginas > 1): ?>
-        <div class="pagination">
-            <?php
-            // Parámetros actuales de URL para mantener en los enlaces de paginación
-            $params = [];
-            foreach ($_GET as $key => $value) {
-                if ($key != 'pagina') {
-                    $params[] = $key . '=' . urlencode($value);
-                }
-            }
-            $url_params = !empty($params) ? '?' . implode('&', $params) . '&' : '?';
-            
-            // Mostrar enlace "Anterior" si no estamos en la primera página
-            if ($pagina_actual > 1): ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual - 1; ?>">
-                    <i class="fas fa-chevron-left"></i> Anterior
-                </a>
-            <?php else: ?>
-                <span class="disabled"><i class="fas fa-chevron-left"></i> Anterior</span>
-            <?php endif; ?>
-            
-            <?php
-            // Definir cuántas páginas mostrar a cada lado de la página actual
-            $paginas_mostrar = 2;
-            $inicio_paginas = max(1, $pagina_actual - $paginas_mostrar);
-            $fin_paginas = min($total_paginas, $pagina_actual + $paginas_mostrar);
-            
-            // Mostrar página 1 si estamos muy lejos
-            if ($inicio_paginas > 1): ?>
-                <a href="<?php echo $url_params; ?>pagina=1">1</a>
-                <?php if ($inicio_paginas > 2): ?>
-                    <span>...</span>
-                <?php endif; ?>
-            <?php endif; ?>
-            
-            <!-- Mostrar enlaces numerados -->
-            <?php for ($i = $inicio_paginas; $i <= $fin_paginas; $i++): ?>
-                <?php if ($i == $pagina_actual): ?>
-                    <span class="active"><?php echo $i; ?></span>
-                <?php else: ?>
-                    <a href="<?php echo $url_params; ?>pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
-                <?php endif; ?>
-            <?php endfor; ?>
-            
-            <!-- Mostrar última página si estamos muy lejos -->
-            <?php if ($fin_paginas < $total_paginas): ?>
-                <?php if ($fin_paginas < $total_paginas - 1): ?>
-                    <span>...</span>
-                <?php endif; ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $total_paginas; ?>"><?php echo $total_paginas; ?></a>
-            <?php endif; ?>
-            
-            <!-- Mostrar enlace "Siguiente" si no estamos en la última página -->
-            <?php if ($pagina_actual < $total_paginas): ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual + 1; ?>">
-                    Siguiente <i class="fas fa-chevron-right"></i>
-                </a>
-            <?php else: ?>
-                <span class="disabled">Siguiente <i class="fas fa-chevron-right"></i></span>
-            <?php endif; ?>
+    <?php if (($usuario_rol != 'admin') || ($usuario_rol == 'admin' && isset($_GET['almacen_id']))): ?>
+    
+    <div id="contenedor-historial-entregas">
+        
+        <?php if (isset($nombre_almacen_seleccionado) && $nombre_almacen_seleccionado): ?>
+        <div class="historial-almacen-seleccionado">
+            <h3><i class="fas fa-warehouse"></i> <?php echo htmlspecialchars($nombre_almacen_seleccionado); ?></h3>
+            <p>Ver Historial de Entregas y resumen de productos</p>
         </div>
         <?php endif; ?>
+
+        <!-- Sistema de Pestañas -->
+        <div class="historial-tabs-container">
+            <div class="historial-tabs-nav">
+                <button class="historial-tab-btn active" data-tab="historial">
+                    <i class="fas fa-history"></i> Ver Historial de Entregas
+                </button>
+                <button class="historial-tab-btn" data-tab="resumen">
+                    <i class="fas fa-chart-pie"></i> Resumen de Productos
+                </button>
+            </div>
+
+            <!-- Pestaña: Ver Historial de Entregas -->
+            <div class="historial-tab-content active" id="tab-historial">
+                <form method="GET" class="historial-filter-form" id="formulario-filtros">
+                    <div class="historial-filter-row">
+                        <div class="historial-form-group">
+                            <label for="filtro-nombre" class="historial-form-label">Filtrar por Nombre</label>
+                            <input type="text" class="historial-form-control" id="filtro-nombre" name="nombre" 
+                                   placeholder="Nombre del destinatario" 
+                                   value="<?php echo htmlspecialchars($_GET['nombre'] ?? ''); ?>">
+                        </div>
+                        <div class="historial-form-group">
+                            <label for="filtro-dni" class="historial-form-label">Filtrar por DNI</label>
+                            <input type="text" class="historial-form-control" id="filtro-dni" name="dni" 
+                                   placeholder="Número de DNI" 
+                                   value="<?php echo htmlspecialchars($_GET['dni'] ?? ''); ?>">
+                        </div>
+                        <div class="historial-form-group">
+                            <label for="filtro-fecha-inicio" class="historial-form-label">Fecha de Inicio</label>
+                            <input type="date" class="historial-form-control" id="filtro-fecha-inicio" 
+                                   name="fecha_inicio"
+                                   value="<?php echo htmlspecialchars($_GET['fecha_inicio'] ?? ''); ?>">
+                        </div>
+                        <div class="historial-form-group">
+                            <label for="filtro-fecha-fin" class="historial-form-label">Fecha de Fin</label>
+                            <input type="date" class="historial-form-control" id="filtro-fecha-fin" 
+                                   name="fecha_fin"
+                                   value="<?php echo htmlspecialchars($_GET['fecha_fin'] ?? ''); ?>">
+                        </div>
+                    </div>
+                    <div class="historial-filter-actions">
+                        <button type="submit" class="historial-btn historial-btn-primary">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                        <a href="?" class="historial-btn historial-btn-secondary">
+                            <i class="fas fa-times"></i> Limpiar Filtros
+                        </a>
+                    </div>
+                    <!-- Conservar el almacén seleccionado durante la paginación -->
+                    <?php if (isset($_GET['almacen_id'])): ?>
+                        <input type="hidden" name="almacen_id" value="<?php echo htmlspecialchars($_GET['almacen_id']); ?>">
+                    <?php endif; ?>
+                </form>
+
+                <div class="historial-table-container">
+                    <div class="historial-table-responsive">
+                        <table class="historial-table" id="tabla-historial-entregas">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-warehouse"></i> Almacén</th>
+                                    <th><i class="fas fa-calendar"></i> Fecha</th>
+                                    <th><i class="fas fa-user"></i> Destinatario</th>
+                                    <th><i class="fas fa-id-card"></i> DNI</th>
+                                    <th><i class="fas fa-boxes"></i> Productos Entregados</th>
+                                    <th><i class="fas fa-user-shield"></i> Responsable</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($entregas)): ?>
+                                    <tr>
+                                        <td colspan="6" class="historial-no-results">
+                                            <i class="fas fa-inbox"></i>
+                                            <?php if ($almacen_id_mostrar): ?>
+                                                No hay entregas registradas para este almacén
+                                                <?php if ($usuario_rol == 'admin'): ?>
+                                                    <br><small>Almacén ID: <?php echo $almacen_id_mostrar; ?></small>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                Seleccione un almacén para ver las entregas
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($entregas as $entrega): ?>
+                                        <tr>
+                                            <td class="historial-almacen-cell">
+                                                <i class="fas fa-warehouse"></i>
+                                                <?php echo htmlspecialchars($entrega['almacen_nombre']); ?>
+                                            </td>
+                                            <td class="historial-fecha-cell">
+                                                <?php 
+                                                $fecha = new DateTime($entrega['fecha_entrega']);
+                                                echo $fecha->format('d/m/Y H:i'); 
+                                                ?>
+                                            </td>
+                                            <td class="historial-destinatario-cell">
+                                                <?php echo htmlspecialchars($entrega['nombre_destinatario']); ?>
+                                            </td>
+                                            <td>
+                                                <span class="historial-dni-cell">
+                                                    <?php echo htmlspecialchars($entrega['dni_destinatario']); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <ul class="historial-productos-lista">
+                                                    <?php foreach ($entrega['productos'] as $producto): ?>
+                                                        <li class="historial-producto-item">
+                                                            <i class="fas fa-box"></i>
+                                                            <?php echo htmlspecialchars($producto['nombre']); ?>
+                                                            <span class="historial-producto-cantidad">
+                                                                (<?php echo htmlspecialchars($producto['cantidad']); ?> unidad<?php echo ($producto['cantidad'] != 1) ? 'es' : ''; ?>)
+                                                            </span>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </td>
+                                            <td class="historial-responsable-cell">
+                                                <i class="fas fa-user-shield"></i>
+                                                <?php echo htmlspecialchars($entrega['usuario_responsable'] ?? 'No registrado'); ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Paginación -->
+                <?php if ($total_paginas > 1): ?>
+                <div class="historial-pagination">
+                    <?php
+                    // Parámetros actuales de URL para mantener en los enlaces de paginación
+                    $params = [];
+                    foreach ($_GET as $key => $value) {
+                        if ($key != 'pagina') {
+                            $params[] = $key . '=' . urlencode($value);
+                        }
+                    }
+                    $url_params = !empty($params) ? '?' . implode('&', $params) . '&' : '?';
+                    
+                    // Mostrar enlace "Anterior" si no estamos en la primera página
+                    if ($pagina_actual > 1): ?>
+                        <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual - 1; ?>">
+                            <i class="fas fa-chevron-left"></i> Anterior
+                        </a>
+                    <?php else: ?>
+                        <span class="historial-pagination-disabled">
+                            <i class="fas fa-chevron-left"></i> Anterior
+                        </span>
+                    <?php endif; ?>
+                    
+                    <?php
+                    // Definir cuántas páginas mostrar a cada lado de la página actual
+                    $paginas_mostrar = 2;
+                    $inicio_paginas = max(1, $pagina_actual - $paginas_mostrar);
+                    $fin_paginas = min($total_paginas, $pagina_actual + $paginas_mostrar);
+                    
+                    // Mostrar página 1 si estamos muy lejos
+                    if ($inicio_paginas > 1): ?>
+                        <a href="<?php echo $url_params; ?>pagina=1">1</a>
+                        <?php if ($inicio_paginas > 2): ?>
+                            <span class="historial-pagination-ellipsis">...</span>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                    
+                    <!-- Mostrar enlaces numerados -->
+                    <?php for ($i = $inicio_paginas; $i <= $fin_paginas; $i++): ?>
+                        <?php if ($i == $pagina_actual): ?>
+                            <span class="historial-pagination-active"><?php echo $i; ?></span>
+                        <?php else: ?>
+                            <a href="<?php echo $url_params; ?>pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
+                        <?php endif; ?>
+                    <?php endfor; ?>
+                    
+                    <!-- Mostrar última página si estamos muy lejos -->
+                    <?php if ($fin_paginas < $total_paginas): ?>
+                        <?php if ($fin_paginas < $total_paginas - 1): ?>
+                            <span class="historial-pagination-ellipsis">...</span>
+                        <?php endif; ?>
+                        <a href="<?php echo $url_params; ?>pagina=<?php echo $total_paginas; ?>"><?php echo $total_paginas; ?></a>
+                    <?php endif; ?>
+                    
+                    <!-- Mostrar enlace "Siguiente" si no estamos en la última página -->
+                    <?php if ($pagina_actual < $total_paginas): ?>
+                        <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual + 1; ?>">
+                            Siguiente <i class="fas fa-chevron-right"></i>
+                        </a>
+                    <?php else: ?>
+                        <span class="historial-pagination-disabled">
+                            Siguiente <i class="fas fa-chevron-right"></i>
+                        </span>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Pestaña: Resumen de Productos -->
+            <div class="historial-tab-content" id="tab-resumen">
+                <div class="historial-resumen-stats">
+                    <div class="historial-stat-card">
+                        <div class="historial-stat-icon">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="historial-stat-info">
+                            <h4><?php echo count($resumen_productos); ?></h4>
+                            <p>Productos Diferentes</p>
+                        </div>
+                    </div>
+                    <div class="historial-stat-card">
+                        <div class="historial-stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="historial-stat-info">
+                            <h4><?php 
+                            // Calcular personas únicas totales (no sumar por producto)
+                            if ($almacen_id_mostrar && !empty($entregas)) {
+                                $personas_unicas = [];
+                                foreach ($entregas as $entrega) {
+                                    $personas_unicas[$entrega['dni_destinatario']] = true;
+                                }
+                                echo count($personas_unicas);
+                            } else {
+                                echo "0";
+                            }
+                            ?></h4>
+                            <p>Personas Atendidas</p>
+                        </div>
+                    </div>
+                    <div class="historial-stat-card">
+                        <div class="historial-stat-icon">
+                            <i class="fas fa-hand-holding"></i>
+                        </div>
+                        <div class="historial-stat-info">
+                            <h4><?php echo array_sum(array_column($resumen_productos, 'total_entregado')); ?></h4>
+                            <p>Total Entregado</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="historial-table-container">
+                    <div class="historial-table-responsive">
+                        <table class="historial-table">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-barcode"></i> Código</th>
+                                    <th><i class="fas fa-box"></i> Producto</th>
+                                    <th><i class="fas fa-calculator"></i> Total Entregado</th>
+                                    <th><i class="fas fa-users"></i> Personas Atendidas</th>
+                                    <th><i class="fas fa-calendar-alt"></i> Primera Entrega</th>
+                                    <th><i class="fas fa-calendar-check"></i> Última Entrega</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($resumen_productos)): ?>
+                                    <tr>
+                                        <td colspan="6" class="historial-no-results">
+                                            <i class="fas fa-chart-pie"></i>
+                                            No hay datos de productos para mostrar
+                                        </td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($resumen_productos as $producto): ?>
+                                        <tr>
+                                            <td class="historial-codigo-cell">
+                                                <span class="historial-codigo-badge">
+                                                    <?php echo htmlspecialchars($producto['producto_codigo'] ?? 'Sin código'); ?>
+                                                </span>
+                                            </td>
+                                            <td class="historial-producto-nombre">
+                                                <strong><?php echo htmlspecialchars($producto['producto_nombre']); ?></strong>
+                                            </td>
+                                            <td class="historial-cantidad-total">
+                                                <span class="historial-badge-cantidad">
+                                                    <?php echo number_format($producto['total_entregado']); ?>
+                                                </span>
+                                            </td>
+                                            <td class="historial-personas-atendidas">
+                                                <?php echo number_format($producto['personas_atendidas']); ?>
+                                            </td>
+                                            <td class="historial-fecha-cell">
+                                                <?php 
+                                                if ($producto['primera_entrega']) {
+                                                    $fecha_primera = new DateTime($producto['primera_entrega']);
+                                                    echo $fecha_primera->format('d/m/Y');
+                                                } else {
+                                                    echo 'N/A';
+                                                }
+                                                ?>
+                                            </td>
+                                            <td class="historial-fecha-cell">
+                                                <?php 
+                                                if ($producto['ultima_entrega']) {
+                                                    $fecha_ultima = new DateTime($producto['ultima_entrega']);
+                                                    echo $fecha_ultima->format('d/m/Y');
+                                                } else {
+                                                    echo 'N/A';
+                                                }
+                                                ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    
+    <?php endif; ?>
 </main>
 
 <!-- Container for dynamic notifications -->
@@ -858,41 +877,59 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Manejar clic en "Ver Entregas" para admin
+    // Manejar clic en "Ver Historial de Entregas" para admin
     const botonesVerEntregas = document.querySelectorAll('.mostrar-entregas');
     const contenedorHistorial = document.getElementById('contenedor-historial-entregas');
-    const almacenesContainer = document.querySelector('.almacenes-container');
+    const almacenesContainer = document.querySelector('.historial-almacenes-container');
 
     botonesVerEntregas.forEach(boton => {
         boton.addEventListener('click', function(e) {
             e.preventDefault();
             const almacenId = this.dataset.almacenId;
+            const almacenNombre = this.dataset.almacenNombre;
 
-            // Ocultar los cuadros de almacén
-            if (almacenesContainer) {
-                almacenesContainer.style.display = 'none';
-            }
+            // Cambiar el texto del botón
+            this.innerHTML = '<i class="fas fa-history"></i> Ver Ver Historial de Entregas';
 
             // Redirigir con el almacen_id seleccionado
             window.location.href = `?almacen_id=${almacenId}`;
         });
     });
 
-    // Agregar botón para volver a la lista de almacenes (para admin)
-    <?php if ($usuario_rol == 'admin' && isset($_GET['almacen_id'])): ?>
-    const mainContentElement = document.getElementById('main-content');
-    const volverBtn = document.createElement('button');
-    volverBtn.className = 'btn-volver';
-    volverBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Volver a la lista de almacenes';
-    volverBtn.style.marginBottom = '20px';
-    volverBtn.addEventListener('click', function() {
-        window.location.href = 'historial.php';
+    // Sistema de pestañas
+    const tabButtons = document.querySelectorAll('.historial-tab-btn');
+    const tabContents = document.querySelectorAll('.historial-tab-content');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+
+            // Remover clase active de todos los botones y contenidos
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // Agregar clase active al botón y contenido seleccionado
+            this.classList.add('active');
+            document.getElementById('tab-' + targetTab).classList.add('active');
+
+            // Efectos de transición
+            const activeContent = document.getElementById('tab-' + targetTab);
+            activeContent.style.opacity = '0';
+            activeContent.style.transform = 'translateY(10px)';
+            
+            setTimeout(() => {
+                activeContent.style.transition = 'all 0.3s ease';
+                activeContent.style.opacity = '1';
+                activeContent.style.transform = 'translateY(0)';
+            }, 50);
+        });
     });
-    mainContentElement.insertBefore(volverBtn, contenedorHistorial);
-    <?php endif; ?>
+
+    // Agregar botón para volver a la lista de almacenes (para admin)
+    // Ya no es necesario, ahora está manejado por PHP
 
     // Validación de fechas
-    const form = document.querySelector('.filter-form');
+    const form = document.querySelector('.historial-filter-form');
     if (form) {
         form.addEventListener('submit', function(e) {
             const fechaInicio = document.getElementById('filtro-fecha-inicio').value;
@@ -942,6 +979,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('mousedown', function() {
         document.body.classList.remove('keyboard-navigation');
     });
+
+    // Efecto de carga para la tabla
+    const tabla = document.getElementById('tabla-historial-entregas');
+    if (tabla) {
+        tabla.style.opacity = '0';
+        tabla.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            tabla.style.transition = 'all 0.6s ease';
+            tabla.style.opacity = '1';
+            tabla.style.transform = 'translateY(0)';
+        }, 200);
+    }
 });
 
 // Función para cerrar sesión con confirmación
@@ -951,6 +1001,51 @@ async function manejarCerrarSesion(event) {
     if (confirm('¿Está seguro de que desea cerrar sesión?')) {
         window.location.href = '../logout.php';
     }
+}
+
+// Función para mostrar notificaciones (si se necesita)
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 3000) {
+    const container = document.getElementById('notificaciones-container');
+    if (!container) return;
+    
+    const notificacion = document.createElement('div');
+    notificacion.className = `historial-notificacion historial-${tipo}`;
+    notificacion.textContent = mensaje;
+    
+    // Estilos básicos para la notificación
+    notificacion.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: var(--historial-primary);
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    `;
+    
+    container.appendChild(notificacion);
+    
+    // Mostrar notificación
+    setTimeout(() => {
+        notificacion.style.opacity = '1';
+        notificacion.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Ocultar y eliminar notificación
+    setTimeout(() => {
+        notificacion.style.opacity = '0';
+        notificacion.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (container.contains(notificacion)) {
+                container.removeChild(notificacion);
+            }
+        }, 300);
+    }, duracion);
 }
 </script>
 </body>
