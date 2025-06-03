@@ -61,7 +61,7 @@ if ($usuario_rol == 'admin') {
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- Menú Lateral -->
+<!-- Sidebar Navigation -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
     <h2>GRUPO SEAL</h2>
     <ul>
@@ -71,7 +71,7 @@ if ($usuario_rol == 'admin') {
             </a>
         </li>
 
-        <!-- Users - Only visible to administrators -->
+        <!-- Users Section - Only visible to administrators -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
             <a href="#" aria-label="Menú Usuarios" aria-expanded="false" role="button" tabindex="0">
@@ -85,7 +85,7 @@ if ($usuario_rol == 'admin') {
         </li>
         <?php endif; ?>
 
-        <!-- Warehouses - Adjusted according to permissions -->
+        <!-- Warehouses Section - Adjusted according to permissions -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-warehouse"></i> Almacenes</span>
@@ -93,47 +93,42 @@ if ($usuario_rol == 'admin') {
             </a>
             <ul class="submenu" role="menu">
                 <?php if ($usuario_rol == 'admin'): ?>
-                <li><a href="registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                <li><a href="../almacenes/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
                 <?php endif; ?>
-                <li class="active"><a href="listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                <li><a href="../almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
         
-
+        <!-- Historial Section - Reemplaza la sección de Entregas -->
+        <li class="submenu-container">
+            <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
+                <span><i class="fas fa-history"></i> Historial</span>
+                <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu" role="menu">
+                <li><a href="historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
+                <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
+                <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Historial de Uniformes</a></li>
+            </ul>
+        </li>
         
-        <!-- Notifications -->
+        <!-- Notifications Section - Con badge rojo de notificaciones -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
-                <span><i class="fas fa-bell"></i> Notificaciones</span>
+                <span>
+                    <i class="fas fa-bell"></i> Notificaciones
+                </span>
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
                 <li>
                     <a href="../notificaciones/pendientes.php" role="menuitem">
-                        <i class="fas fa-clock"></i> Solicitudes Pendientes 
-                        <?php 
-                        $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
-                        if ($usuario_rol != 'admin') {
-                            $sql_pendientes .= " AND almacen_destino = ?";
-                            $stmt_pendientes = $conn->prepare($sql_pendientes);
-                            $stmt_pendientes->bind_param("i", $usuario_almacen_id);
-                            $stmt_pendientes->execute();
-                            $result_pendientes = $stmt_pendientes->get_result();
-                        } else {
-                            $result_pendientes = $conn->query($sql_pendientes);
-                        }
-                        
-                        if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
-                            $total_pendientes = $row_pendientes['total'];
-                            if ($total_pendientes > 0) {
-                                echo '<span class="badge-small">' . $total_pendientes . '</span>';
-                            }
-                        }
-                        ?>
+                        <i class="fas fa-clock"></i> Solicitudes Pendientes
+                        <?php if ($total_pendientes > 0): ?>
+                        <span class="badge-small"><?php echo $total_pendientes; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
-                <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
-                <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Ver Historial de Entregas</a></li>
             </ul>
         </li>
 

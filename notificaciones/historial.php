@@ -181,23 +181,36 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </ul>
         </li>
         
-        <!-- Notifications Section -->
+        <!-- Historial Section - Reemplaza la sección de Entregas -->
+        <li class="submenu-container">
+            <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
+                <span><i class="fas fa-history"></i> Historial</span>
+                <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu" role="menu">
+                <li><a href="historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
+                <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
+                <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Historial de Uniformes</a></li>
+            </ul>
+        </li>
+        
+        <!-- Notifications Section - Con badge rojo de notificaciones -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
-                <span><i class="fas fa-bell"></i> Notificaciones</span>
+                <span>
+                    <i class="fas fa-bell"></i> Notificaciones
+                </span>
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
                 <li>
-                    <a href="pendientes.php" role="menuitem">
+                    <a href="../notificaciones/pendientes.php" role="menuitem">
                         <i class="fas fa-clock"></i> Solicitudes Pendientes
                         <?php if ($total_pendientes > 0): ?>
-                        <span class="badge-small" aria-label="<?php echo $total_pendientes; ?> solicitudes pendientes"><?php echo $total_pendientes; ?></span>
+                        <span class="badge-small"><?php echo $total_pendientes; ?></span>
                         <?php endif; ?>
                     </a>
                 </li>
-                <li><a href="historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
-                <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Ver Historial de Entregas</a></li>
             </ul>
         </li>
 

@@ -13,7 +13,36 @@ $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] :
 $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
 
 // Require database connection
+// Require database connection
 require_once "config/database.php";
+
+// ===== CONTAR SOLICITUDES PENDIENTES PARA EL BADGE =====
+$total_pendientes = 0;
+
+// Contar solicitudes pendientes para el badge
+$sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+
+if ($usuario_rol != 'admin') {
+    // Si no es admin, solo mostrar solicitudes de su almacén
+    $sql_pendientes .= " AND almacen_destino = ?";
+    $stmt_pendientes = $conn->prepare($sql_pendientes);
+    $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+    $stmt_pendientes->execute();
+    $result_pendientes = $stmt_pendientes->get_result();
+    $stmt_pendientes->close();
+} else {
+    // Si es admin, mostrar todas las solicitudes pendientes
+    $result_pendientes = $conn->query($sql_pendientes);
+}
+
+if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+    $total_pendientes = $row_pendientes['total'];
+}
+
+// Liberar resultado
+if ($result_pendientes) {
+    $result_pendientes->free();
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
