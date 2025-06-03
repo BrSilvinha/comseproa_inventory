@@ -15,7 +15,7 @@ $user_name = $_SESSION["user_name"] ?? "Usuario";
 $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 $usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
 
-// NUEVO: Obtener filtros de la URL
+// Obtener filtros de la URL
 $filtro_almacen_id = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : null;
 $filtro_categoria_id = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : null;
 $busqueda = isset($_GET['busqueda']) ? trim($_GET['busqueda']) : '';
@@ -154,7 +154,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/productos-listar.css">
     
-    <!-- Estilos adicionales para los controles de stock -->
+    <!-- Estilos adicionales para entrega múltiple -->
     <style>
         /* Estilos para controles de stock */
         .stock-display {
@@ -192,14 +192,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             opacity: 0.6;
         }
         
-        .stock-btn.loading {
-            pointer-events: none;
-        }
-        
-        .stock-btn.loading i {
-            animation: spin 1s linear infinite;
-        }
-        
         .stock-value {
             font-weight: 600;
             font-size: 16px;
@@ -228,57 +220,230 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             background: rgba(40, 167, 69, 0.1);
             border: 1px solid rgba(40, 167, 69, 0.3);
         }
-        
-        .stock-hint {
+
+        /* NUEVO: Checkbox de selección de productos */
+        .product-selector {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .product-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .product-card.selected {
+            border: 2px solid #28a745;
+            background: rgba(40, 167, 69, 0.05);
+        }
+
+        /* Botón de entregar productos seleccionados */
+        .delivery-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+            display: none;
+            z-index: 1000;
+        }
+
+        .delivery-controls.show {
+            display: block;
+        }
+
+        .btn-deliver-selected {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 4px;
-            margin-top: 5px;
-            opacity: 0.7;
-            font-size: 11px;
-            color: var(--text-muted);
+            gap: 10px;
+            transition: all 0.3s ease;
+            width: 100%;
         }
-        
-        .stock-hint i {
-            font-size: 10px;
+
+        .btn-deliver-selected:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
         }
-        
-        .admin-hint {
+
+        .selected-count {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* Modal de entrega múltiple */
+        .modal-entrega-multiple {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+        }
+
+        .modal-content-entrega {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow: hidden;
+            width: 90%;
+        }
+
+        .modal-header-entrega {
+            background: #0a253c;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body-entrega {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer-entrega {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .producto-seleccionado {
             display: flex;
             align-items: center;
-            gap: 5px;
-            padding: 8px 12px;
-            background: rgba(10, 37, 60, 0.1);
-            border-radius: 6px;
-            color: var(--primary-color);
-            border: 1px solid rgba(10, 37, 60, 0.2);
-            margin-left: 10px;
+            justify-content: space-between;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
         }
-        
-        .admin-hint i {
-            font-size: 12px;
-            opacity: 0.8;
+
+        .producto-info {
+            flex-grow: 1;
         }
-        
-        .admin-hint small {
-            font-size: 11px;
-            font-weight: 500;
+
+        .producto-nombre {
+            font-weight: 600;
+            color: #0a253c;
         }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .producto-detalles {
+            font-size: 14px;
+            color: #666;
+            margin-top: 4px;
         }
-        
-        /* Animación de actualización de stock */
-        .stock-value.updating {
-            animation: pulse 0.5s ease-in-out;
+
+        .cantidad-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); background: var(--accent-color); color: white; }
-            100% { transform: scale(1); }
+
+        .cantidad-input {
+            width: 60px;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .btn-cantidad {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #0a253c;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-cantidad:hover {
+            background: #ff6b35;
+        }
+
+        .btn-remove-producto {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-remove-producto:hover {
+            background: #c82333;
+        }
+
+        .form-destinatario {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #0a253c;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .warning-message {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .warning-message.show {
+            display: block;
         }
     </style>
 </head>
@@ -326,6 +491,32 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <li><a href="../almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
+
+        <!-- Products -->
+        <li class="submenu-container">
+            <a href="#" aria-label="Menú Productos" aria-expanded="false" role="button" tabindex="0">
+                <span><i class="fas fa-boxes"></i> Productos</span>
+                <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu" role="menu">
+                <?php if ($usuario_rol == 'admin'): ?>
+                <li><a href="registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Producto</a></li>
+                <?php endif; ?>
+                <li><a href="listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Productos</a></li>
+                <li><a href="categorias.php" role="menuitem"><i class="fas fa-tags"></i> Categorías</a></li>
+            </ul>
+        </li>
+
+        <!-- Entregas Section -->
+        <li class="submenu-container">
+            <a href="#" aria-label="Menú Entregas" aria-expanded="false" role="button" tabindex="0">
+                <span><i class="fas fa-hand-holding"></i> Entregas</span>
+                <i class="fas fa-chevron-down"></i>
+            </a>
+            <ul class="submenu" role="menu">
+                <li><a href="../entregas/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Entregas</a></li>
+            </ul>
+        </li>
         
         <!-- Notifications -->
         <li class="submenu-container">
@@ -343,7 +534,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     </a>
                 </li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
-                <li><a href="../uniformes/historial_entregas_uniformes.php" role="menuitem"><i class="fas fa-tshirt"></i> Historial de Entregas</a></li>
             </ul>
         </li>
 
@@ -417,13 +607,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <?php endif; ?>
                 </h1>
                 <p class="page-description">
-                    <?php if ($almacen_info): ?>
-                        Productos registrados en este almacén específico
-                    <?php elseif ($categoria_info): ?>
-                        Productos de la categoría seleccionada
-                    <?php else: ?>
-                        Gestiona todos los productos del sistema
-                    <?php endif; ?>
+                    Selecciona productos para realizar entregas a usuarios
                 </p>
             </div>
             
@@ -438,11 +622,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <i class="fas fa-plus"></i>
                     <span>Nuevo Producto</span>
                 </a>
-                
-                <div class="admin-hint">
-                    <i class="fas fa-info-circle"></i>
-                    <small>Usa los botones + y - para ajustar stock</small>
-                </div>
                 <?php endif; ?>
                 
                 <?php if ($filtro_almacen_id): ?>
@@ -459,105 +638,27 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <nav class="breadcrumb" aria-label="Ruta de navegación">
         <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
         <span><i class="fas fa-chevron-right"></i></span>
-        
-        <?php if ($almacen_info): ?>
-            <a href="../almacenes/listar.php">Almacenes</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-            <a href="../almacenes/ver-almacen.php?id=<?php echo $filtro_almacen_id; ?>"><?php echo htmlspecialchars($almacen_info['nombre']); ?></a>
-            <span><i class="fas fa-chevron-right"></i></span>
-        <?php endif; ?>
-        
-        <?php if ($categoria_info && !$almacen_info): ?>
-            <a href="categorias.php">Categorías</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-            <span class="current"><?php echo htmlspecialchars($categoria_info['nombre']); ?></span>
-        <?php else: ?>
-            <span class="current">Productos</span>
-        <?php endif; ?>
+        <span class="current">Productos</span>
     </nav>
-
-    <!-- Filtros y búsqueda -->
-    <section class="filters-section">
-        <div class="search-container">
-            <form method="GET" class="search-form">
-                <!-- Mantener filtros existentes -->
-                <?php if ($filtro_almacen_id): ?>
-                    <input type="hidden" name="almacen_id" value="<?php echo $filtro_almacen_id; ?>">
-                <?php endif; ?>
-                <?php if ($filtro_categoria_id): ?>
-                    <input type="hidden" name="categoria_id" value="<?php echo $filtro_categoria_id; ?>">
-                <?php endif; ?>
-                
-                <div class="search-input-group">
-                    <div class="search-icon">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <input 
-                        type="text" 
-                        name="busqueda" 
-                        placeholder="Buscar productos por nombre, modelo o color..." 
-                        value="<?php echo htmlspecialchars($busqueda); ?>"
-                        class="search-input"
-                    >
-                    <button type="submit" class="search-btn">
-                        <i class="fas fa-search"></i>
-                        Buscar
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Filtros activos (si existen) -->
-        <?php if ($filtro_almacen_id || $filtro_categoria_id || !empty($busqueda)): ?>
-        <div class="active-filters">
-            <div class="filters-header">
-                <span class="filters-title">
-                    <i class="fas fa-filter"></i> Filtros activos:
-                </span>
-                <a href="listar.php" class="clear-all-filters">
-                    <i class="fas fa-times-circle"></i> Limpiar todos
-                </a>
-            </div>
-            <div class="filter-tags">
-                <?php if ($almacen_info): ?>
-                    <span class="filter-tag almacen">
-                        <i class="fas fa-warehouse"></i>
-                        <?php echo htmlspecialchars($almacen_info['nombre']); ?>
-                        <a href="listar.php<?php echo $filtro_categoria_id ? '?categoria_id=' . $filtro_categoria_id : ''; ?>" class="remove-filter">×</a>
-                    </span>
-                <?php endif; ?>
-                
-                <?php if ($categoria_info): ?>
-                    <span class="filter-tag categoria">
-                        <i class="fas fa-tag"></i>
-                        <?php echo htmlspecialchars($categoria_info['nombre']); ?>
-                        <a href="listar.php<?php echo $filtro_almacen_id ? '?almacen_id=' . $filtro_almacen_id : ''; ?>" class="remove-filter">×</a>
-                    </span>
-                <?php endif; ?>
-                
-                <?php if (!empty($busqueda)): ?>
-                    <span class="filter-tag busqueda">
-                        <i class="fas fa-search"></i>
-                        "<?php echo htmlspecialchars($busqueda); ?>"
-                        <a href="<?php 
-                            $url_params = [];
-                            if ($filtro_almacen_id) $url_params[] = 'almacen_id=' . $filtro_almacen_id;
-                            if ($filtro_categoria_id) $url_params[] = 'categoria_id=' . $filtro_categoria_id;
-                            echo 'listar.php' . (!empty($url_params) ? '?' . implode('&', $url_params) : '');
-                        ?>" class="remove-filter">×</a>
-                    </span>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-    </section>
 
     <!-- Lista de productos -->
     <section class="products-section">
         <?php if ($result_productos && $result_productos->num_rows > 0): ?>
             <div class="products-grid">
                 <?php while ($producto = $result_productos->fetch_assoc()): ?>
-                    <div class="product-card" data-producto-id="<?php echo $producto['id']; ?>">
+                    <div class="product-card" data-producto-id="<?php echo $producto['id']; ?>" 
+                         data-nombre="<?php echo htmlspecialchars($producto['nombre']); ?>"
+                         data-stock="<?php echo $producto['cantidad']; ?>"
+                         data-almacen="<?php echo $producto['almacen_id']; ?>">
+                        
+                        <!-- Checkbox de selección -->
+                        <div class="product-selector">
+                            <input type="checkbox" 
+                                   class="product-checkbox" 
+                                   data-id="<?php echo $producto['id']; ?>"
+                                   <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?>>
+                        </div>
+
                         <div class="card-header">
                             <div class="product-info">
                                 <h3 class="product-name"><?php echo htmlspecialchars($producto['nombre']); ?></h3>
@@ -642,13 +743,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                         </button>
                                         <?php endif; ?>
                                     </div>
-                                    
-                                    <?php if ($usuario_rol == 'admin'): ?>
-                                    <div class="stock-hint">
-                                        <i class="fas fa-info-circle"></i>
-                                        <small>Clic en + o - para ajustar</small>
-                                    </div>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -687,117 +781,88 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <i class="fas fa-box-open"></i>
                 </div>
                 <h3>No hay productos registrados</h3>
-                <p>
-                    <?php if ($filtro_almacen_id && $filtro_categoria_id): ?>
-                        No se encontraron productos de esta categoría en este almacén.
-                    <?php elseif ($filtro_almacen_id): ?>
-                        Este almacén aún no tiene productos registrados.
-                    <?php elseif ($filtro_categoria_id): ?>
-                        Esta categoría aún no tiene productos registrados.
-                    <?php elseif (!empty($busqueda)): ?>
-                        No se encontraron productos que coincidan con "<?php echo htmlspecialchars($busqueda); ?>".
-                    <?php else: ?>
-                        Aún no se han registrado productos en el sistema.
-                    <?php endif; ?>
-                </p>
-                
-                <?php if ($usuario_rol == 'admin'): ?>
-                <a href="registrar.php<?php 
-                    $params = [];
-                    if ($filtro_almacen_id) $params[] = 'almacen_id=' . $filtro_almacen_id;
-                    if ($filtro_categoria_id) $params[] = 'categoria_id=' . $filtro_categoria_id;
-                    echo !empty($params) ? '?' . implode('&', $params) : '';
-                ?>" class="btn-primary">
-                    <i class="fas fa-plus"></i> Registrar Primer Producto
-                </a>
-                <?php endif; ?>
+                <p>No se encontraron productos para mostrar.</p>
             </div>
         <?php endif; ?>
     </section>
 </main>
 
-<!-- Modal de Transferencia de Producto -->
-<div id="modalTransferencia" class="modal" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="modalTitle">
-                <i class="fas fa-paper-plane"></i>
-                Transferir Producto
+<!-- Controles de entrega flotantes -->
+<div class="delivery-controls" id="deliveryControls">
+    <div style="margin-bottom: 10px; text-align: center;">
+        <small><strong>Productos seleccionados:</strong></small>
+        <div class="selected-count" id="selectedCount">0</div>
+    </div>
+    <button class="btn-deliver-selected" id="btnDeliverSelected">
+        <i class="fas fa-hand-holding"></i>
+        <span>Entregar Productos</span>
+    </button>
+</div>
+
+<!-- Modal de Entrega Múltiple -->
+<div class="modal-entrega-multiple" id="modalEntregaMultiple">
+    <div class="modal-content-entrega">
+        <div class="modal-header-entrega">
+            <h2>
+                <i class="fas fa-hand-holding"></i>
+                Entrega de Productos
             </h2>
-            <button class="modal-close" onclick="cerrarModal()" aria-label="Cerrar modal">
+            <button class="modal-close" onclick="cerrarModalEntrega()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         
-        <form id="formTransferencia" method="POST" action="procesar_formulario.php">
-            <div class="modal-body">
-                <input type="hidden" id="producto_id" name="producto_id">
-                <input type="hidden" id="almacen_origen" name="almacen_origen">
-                
-                <div class="transfer-info">
-                    <div class="product-summary">
-                        <div class="product-icon">
-                            <i class="fas fa-box"></i>
-                        </div>
-                        <div class="product-details-modal">
-                            <h3 id="producto_nombre"></h3>
-                            <p>Stock disponible: <span id="stock_disponible" class="stock-highlight"></span></p>
-                        </div>
-                    </div>
+        <form id="formEntregaMultiple">
+            <div class="modal-body-entrega">
+                <h3>Productos a entregar:</h3>
+                <div id="productosSeleccionados">
+                    <!-- Los productos seleccionados se cargarán aquí -->
                 </div>
-                
-                <div class="form-group">
-                    <label for="cantidad" class="form-label">
-                        <i class="fas fa-sort-numeric-up"></i>
-                        Cantidad a transferir
-                    </label>
-                    <div class="quantity-input">
-                        <button type="button" class="qty-btn minus" onclick="adjustQuantity(-1)">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <input type="number" id="cantidad" name="cantidad" min="1" value="1" class="qty-input">
-                        <button type="button" class="qty-btn plus" onclick="adjustQuantity(1)">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
+
+                <div class="warning-message" id="warningCantidad">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Recomendación:</strong> Para entregas a usuarios, lo recomendado es una unidad por producto seleccionado.
                 </div>
-                
-                <div class="form-group">
-                    <label for="almacen_destino" class="form-label">
-                        <i class="fas fa-warehouse"></i>
-                        Almacén de destino
-                    </label>
-                    <select id="almacen_destino" name="almacen_destino" required class="form-select">
-                        <option value="">Seleccione un almacén</option>
-                        <?php
-                        // Obtener lista de almacenes
-                        $sql_almacenes = "SELECT id, nombre FROM almacenes ORDER BY nombre";
-                        if ($filtro_almacen_id) {
-                            $sql_almacenes = "SELECT id, nombre FROM almacenes WHERE id != ? ORDER BY nombre";
-                            $stmt_almacenes = $conn->prepare($sql_almacenes);
-                            $stmt_almacenes->bind_param("i", $filtro_almacen_id);
-                            $stmt_almacenes->execute();
-                            $result_almacenes = $stmt_almacenes->get_result();
-                        } else {
-                            $result_almacenes = $conn->query($sql_almacenes);
-                        }
-                        
-                        while ($almacen_destino = $result_almacenes->fetch_assoc()) {
-                            echo "<option value='{$almacen_destino['id']}'>{$almacen_destino['nombre']}</option>";
-                        }
-                        ?>
-                    </select>
+
+                <div class="form-destinatario">
+                    <h4><i class="fas fa-user"></i> Datos del Destinatario</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="nombreDestinatario">
+                            <i class="fas fa-user"></i> Nombre Completo *
+                        </label>
+                        <input type="text" 
+                               id="nombreDestinatario" 
+                               name="nombre_destinatario" 
+                               class="form-control" 
+                               placeholder="Ingrese el nombre completo del destinatario"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="dniDestinatario">
+                            <i class="fas fa-id-card"></i> DNI *
+                        </label>
+                        <input type="text" 
+                               id="dniDestinatario" 
+                               name="dni_destinatario" 
+                               class="form-control" 
+                               placeholder="12345678"
+                               pattern="[0-9]{8}"
+                               maxlength="8"
+                               required>
+                    </div>
                 </div>
             </div>
             
-            <div class="modal-footer">
-                <button type="button" class="btn-modal btn-cancel" onclick="cerrarModal()">
+            <div class="modal-footer-entrega">
+                <button type="button" class="btn-cancel" onclick="cerrarModalEntrega()">
                     <i class="fas fa-times"></i>
                     Cancelar
                 </button>
-                <button type="submit" class="btn-modal btn-confirm">
-                    <i class="fas fa-paper-plane"></i>
-                    Transferir Producto
+                <button type="submit" class="btn-deliver-selected">
+                    <i class="fas fa-check"></i>
+                    Confirmar Entrega
                 </button>
             </div>
         </form>
@@ -807,8 +872,438 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript SOLO el archivo externo - SIN script adicional -->
-<script src="../assets/js/productos-listar.js"></script>
+<!-- JavaScript -->
+<script>
+let productosSeleccionados = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Elementos principales del menú
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    const submenuContainers = document.querySelectorAll('.submenu-container');
+    
+    // Toggle del menú móvil
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            if (mainContent) {
+                mainContent.classList.toggle('with-sidebar');
+            }
+            
+            const icon = this.querySelector('i');
+            if (sidebar.classList.contains('active')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        });
+    }
+    
+    // Funcionalidad de submenús
+    submenuContainers.forEach(container => {
+        const link = container.querySelector('a');
+        const submenu = container.querySelector('.submenu');
+        const chevron = link.querySelector('.fa-chevron-down');
+        
+        if (link && submenu) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                submenuContainers.forEach(otherContainer => {
+                    if (otherContainer !== container) {
+                        const otherSubmenu = otherContainer.querySelector('.submenu');
+                        const otherChevron = otherContainer.querySelector('.fa-chevron-down');
+                        
+                        if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
+                            otherSubmenu.classList.remove('activo');
+                            if (otherChevron) {
+                                otherChevron.style.transform = 'rotate(0deg)';
+                            }
+                        }
+                    }
+                });
+                
+                submenu.classList.toggle('activo');
+                const isExpanded = submenu.classList.contains('activo');
+                
+                if (chevron) {
+                    chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            });
+        }
+    });
+
+    // Event listeners para checkboxes de productos
+    document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const productCard = this.closest('.product-card');
+            const productId = this.dataset.id;
+            
+            if (this.checked) {
+                productCard.classList.add('selected');
+                agregarProductoSeleccionado(productCard);
+            } else {
+                productCard.classList.remove('selected');
+                removerProductoSeleccionado(productId);
+            }
+            
+            actualizarControlsEntrega();
+        });
+    });
+
+    // Event listener para botón de entregar
+    document.getElementById('btnDeliverSelected').addEventListener('click', function() {
+        if (productosSeleccionados.length > 0) {
+            abrirModalEntrega();
+        }
+    });
+
+    // Event listener para formulario de entrega
+    document.getElementById('formEntregaMultiple').addEventListener('submit', function(e) {
+        e.preventDefault();
+        procesarEntrega();
+    });
+
+    // Validación de DNI en tiempo real
+    document.getElementById('dniDestinatario').addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length > 8) {
+            this.value = this.value.slice(0, 8);
+        }
+    });
+
+    // Cerrar menú móvil al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+            if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+                if (mainContent) {
+                    mainContent.classList.remove('with-sidebar');
+                }
+            }
+        }
+    });
+});
+
+function agregarProductoSeleccionado(productCard) {
+    const id = productCard.dataset.productoId;
+    const nombre = productCard.dataset.nombre;
+    const stock = parseInt(productCard.dataset.stock);
+    const almacen = productCard.dataset.almacen;
+    
+    // Obtener detalles adicionales del producto
+    const modelo = productCard.querySelector('.detail-value') ? 
+        productCard.querySelector('.detail-item:has(.detail-label:contains("Modelo")) .detail-value')?.textContent || '' : '';
+    const color = productCard.querySelector('.detail-item:has(.detail-label:contains("Color")) .detail-value')?.textContent || '';
+    const talla = productCard.querySelector('.detail-item:has(.detail-label:contains("Talla")) .detail-value')?.textContent || '';
+    
+    const producto = {
+        id: id,
+        nombre: nombre,
+        modelo: modelo,
+        color: color,
+        talla: talla,
+        stock: stock,
+        almacen: almacen,
+        cantidad: 1 // Cantidad por defecto
+    };
+    
+    productosSeleccionados.push(producto);
+}
+
+function removerProductoSeleccionado(productId) {
+    productosSeleccionados = productosSeleccionados.filter(p => p.id !== productId);
+}
+
+function actualizarControlsEntrega() {
+    const controls = document.getElementById('deliveryControls');
+    const count = document.getElementById('selectedCount');
+    
+    if (productosSeleccionados.length > 0) {
+        controls.classList.add('show');
+        count.textContent = productosSeleccionados.length;
+    } else {
+        controls.classList.remove('show');
+    }
+}
+
+function abrirModalEntrega() {
+    const modal = document.getElementById('modalEntregaMultiple');
+    const container = document.getElementById('productosSeleccionados');
+    
+    // Limpiar container
+    container.innerHTML = '';
+    
+    // Agregar cada producto seleccionado
+    productosSeleccionados.forEach(producto => {
+        const productoDiv = document.createElement('div');
+        productoDiv.className = 'producto-seleccionado';
+        productoDiv.innerHTML = `
+            <div class="producto-info">
+                <div class="producto-nombre">${producto.nombre}</div>
+                <div class="producto-detalles">
+                    ${producto.modelo ? 'Modelo: ' + producto.modelo + ' | ' : ''}
+                    ${producto.color ? 'Color: ' + producto.color + ' | ' : ''}
+                    ${producto.talla ? 'Talla: ' + producto.talla + ' | ' : ''}
+                    Stock: ${producto.stock}
+                </div>
+            </div>
+            <div class="cantidad-control">
+                <button type="button" class="btn-cantidad" onclick="cambiarCantidad('${producto.id}', -1)">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <input type="number" 
+                       class="cantidad-input" 
+                       value="${producto.cantidad}" 
+                       min="1" 
+                       max="${producto.stock}"
+                       data-id="${producto.id}"
+                       onchange="actualizarCantidad('${producto.id}', this.value)">
+                <button type="button" class="btn-cantidad" onclick="cambiarCantidad('${producto.id}', 1)">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <button type="button" class="btn-remove-producto" onclick="removerDelModal('${producto.id}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.appendChild(productoDiv);
+    });
+    
+    modal.style.display = 'block';
+}
+
+function cerrarModalEntrega() {
+    const modal = document.getElementById('modalEntregaMultiple');
+    modal.style.display = 'none';
+    
+    // Limpiar formulario
+    document.getElementById('nombreDestinatario').value = '';
+    document.getElementById('dniDestinatario').value = '';
+    document.getElementById('warningCantidad').classList.remove('show');
+}
+
+function cambiarCantidad(productId, cambio) {
+    const producto = productosSeleccionados.find(p => p.id === productId);
+    if (!producto) return;
+    
+    const nuevaCantidad = producto.cantidad + cambio;
+    
+    if (nuevaCantidad >= 1 && nuevaCantidad <= producto.stock) {
+        producto.cantidad = nuevaCantidad;
+        
+        // Actualizar input
+        const input = document.querySelector(`input[data-id="${productId}"]`);
+        if (input) input.value = nuevaCantidad;
+        
+        // Mostrar/ocultar advertencia
+        verificarAdvertencia();
+    }
+}
+
+function actualizarCantidad(productId, nuevaCantidad) {
+    const producto = productosSeleccionados.find(p => p.id === productId);
+    if (!producto) return;
+    
+    nuevaCantidad = parseInt(nuevaCantidad);
+    
+    if (nuevaCantidad >= 1 && nuevaCantidad <= producto.stock) {
+        producto.cantidad = nuevaCantidad;
+        verificarAdvertencia();
+    }
+}
+
+function removerDelModal(productId) {
+    // Remover del array
+    productosSeleccionados = productosSeleccionados.filter(p => p.id !== productId);
+    
+    // Desmarcar checkbox
+    const checkbox = document.querySelector(`input[data-id="${productId}"]`);
+    if (checkbox) {
+        checkbox.checked = false;
+        checkbox.closest('.product-card').classList.remove('selected');
+    }
+    
+    // Si no quedan productos, cerrar modal
+    if (productosSeleccionados.length === 0) {
+        cerrarModalEntrega();
+        actualizarControlsEntrega();
+        return;
+    }
+    
+    // Recargar modal
+    abrirModalEntrega();
+    actualizarControlsEntrega();
+}
+
+function verificarAdvertencia() {
+    const warning = document.getElementById('warningCantidad');
+    const hayMasDeUno = productosSeleccionados.some(p => p.cantidad > 1);
+    
+    if (hayMasDeUno) {
+        warning.classList.add('show');
+    } else {
+        warning.classList.remove('show');
+    }
+}
+
+function procesarEntrega() {
+    const nombre = document.getElementById('nombreDestinatario').value.trim();
+    const dni = document.getElementById('dniDestinatario').value.trim();
+    
+    if (!nombre || !dni) {
+        mostrarNotificacion('Complete todos los campos obligatorios', 'error');
+        return;
+    }
+    
+    if (dni.length !== 8) {
+        mostrarNotificacion('El DNI debe tener exactamente 8 dígitos', 'error');
+        return;
+    }
+    
+    if (productosSeleccionados.length === 0) {
+        mostrarNotificacion('Debe seleccionar al menos un producto', 'error');
+        return;
+    }
+    
+    // Preparar datos para envío
+    const formData = new FormData();
+    formData.append('nombre_destinatario', nombre);
+    formData.append('dni_destinatario', dni);
+    formData.append('productos', JSON.stringify(productosSeleccionados));
+    
+    // Mostrar indicador de carga
+    const btnSubmit = document.querySelector('#formEntregaMultiple button[type="submit"]');
+    const originalText = btnSubmit.innerHTML;
+    btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    btnSubmit.disabled = true;
+    
+    // Enviar datos
+    fetch('../entregas/procesar_entrega.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarNotificacion(data.message, 'exito');
+            
+            // Limpiar selección
+            productosSeleccionados = [];
+            document.querySelectorAll('.product-checkbox:checked').forEach(cb => {
+                cb.checked = false;
+                cb.closest('.product-card').classList.remove('selected');
+            });
+            
+            actualizarControlsEntrega();
+            cerrarModalEntrega();
+            
+            // Actualizar stock en las tarjetas
+            if (data.productos_actualizados) {
+                data.productos_actualizados.forEach(prod => {
+                    const stockElement = document.getElementById(`cantidad-${prod.id}`);
+                    if (stockElement) {
+                        stockElement.textContent = prod.nuevo_stock;
+                        
+                        // Actualizar clases de stock
+                        stockElement.className = 'stock-value';
+                        if (prod.nuevo_stock < 5) stockElement.classList.add('stock-critical');
+                        else if (prod.nuevo_stock < 10) stockElement.classList.add('stock-warning');
+                        else stockElement.classList.add('stock-good');
+                        
+                        // Deshabilitar checkbox si no hay stock
+                        if (prod.nuevo_stock <= 0) {
+                            const checkbox = document.querySelector(`input[data-id="${prod.id}"]`);
+                            if (checkbox) checkbox.disabled = true;
+                        }
+                    }
+                });
+            }
+            
+        } else {
+            mostrarNotificacion(data.error || 'Error al procesar la entrega', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarNotificacion('Error de conexión. Intente nuevamente.', 'error');
+    })
+    .finally(() => {
+        btnSubmit.innerHTML = originalText;
+        btnSubmit.disabled = false;
+    });
+}
+
+// Función para mostrar notificaciones
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
+    const container = document.getElementById('notificaciones-container');
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    
+    const iconos = {
+        'exito': 'fas fa-check-circle',
+        'error': 'fas fa-exclamation-circle', 
+        'info': 'fas fa-info-circle',
+        'warning': 'fas fa-exclamation-triangle'
+    };
+    
+    notificacion.innerHTML = `
+        <i class="${iconos[tipo] || iconos['info']}"></i>
+        <span>${mensaje}</span>
+        <button class="cerrar" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(notificacion);
+    
+    if (duracion > 0) {
+        setTimeout(() => {
+            if (notificacion.parentElement) {
+                notificacion.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => notificacion.remove(), 300);
+            }
+        }, duracion);
+    }
+}
+
+// Funciones adicionales para compatibilidad
+function editarProducto(id) {
+    window.location.href = `editar.php?id=${id}`;
+}
+
+function eliminarProducto(id, nombre) {
+    if (confirm(`¿Está seguro de que desea eliminar el producto "${nombre}"?`)) {
+        // Implementar eliminación
+        console.log('Eliminar producto:', id);
+    }
+}
+
+function verProducto(id) {
+    window.location.href = `ver-producto.php?id=${id}`;
+}
+
+function abrirModalEnvio(btn) {
+    // Función para transferencias (mantener funcionalidad existente)
+    console.log('Abrir modal de transferencia para:', btn.dataset.id);
+}
+
+// Función para cerrar sesión
+async function manejarCerrarSesion(event) {
+    event.preventDefault();
+    
+    if (confirm('¿Está seguro de que desea cerrar sesión?')) {
+        mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+        
+        setTimeout(() => {
+            window.location.href = '../logout.php';
+        }, 1000);
+    }
+}
+</script>
 
 </body>
 </html>
