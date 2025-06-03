@@ -14,12 +14,22 @@ $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 
 require_once "../config/database.php";
 
+// Obtener parámetros de filtro
+$filtro_almacen_id = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : null;
+$filtro_categoria_id = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : null;
+
+// Verificar permisos
+if ($filtro_almacen_id && $usuario_rol != 'admin' && $usuario_almacen_id != $filtro_almacen_id) {
+    $_SESSION['error'] = "No tienes permiso para ver entregas de este almacén";
+    header("Location: ../dashboard.php");
+    exit();
+}
+
 // Obtener almacenes
 if ($usuario_rol == 'admin') {
     $sql_almacenes = "SELECT id, nombre, ubicacion FROM almacenes ORDER BY id DESC";
     $result_almacenes = $conn->query($sql_almacenes);
 } else {
-    // Si no es admin, mostrar solo el almacén asignado
     if ($usuario_almacen_id) {
         $sql_almacenes = "SELECT id, nombre, ubicacion FROM almacenes WHERE id = ?";
         $stmt_almacenes = $conn->prepare($sql_almacenes);
@@ -31,24 +41,56 @@ if ($usuario_rol == 'admin') {
     }
 }
 
-// Variable para almacenar entregas
-$entregas = [];
+// Determinar qué almacén mostrar
+$almacen_id_mostrar = null;
+if ($usuario_rol == 'admin') {
+    $almacen_id_mostrar = $filtro_almacen_id;
+} else {
+    $almacen_id_mostrar = $usuario_almacen_id;
+}
 
-// Configuración de paginación
-$registros_por_pagina = 10;
-$pagina_actual = isset($_GET['pagina']) ? intval($_GET['pagina']) : 1;
-$offset = ($pagina_actual - 1) * $registros_por_pagina;
+// Obtener información del almacén seleccionado
+$almacen_info = null;
+if ($almacen_id_mostrar) {
+    $sql_almacen = "SELECT * FROM almacenes WHERE id = ?";
+    $stmt = $conn->prepare($sql_almacen);
+    $stmt->bind_param("i", $almacen_id_mostrar);
+    $stmt->execute();
+    $almacen_info = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+}
 
-// Función para obtener entregas por almacén con paginación
-function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = null, $offset = null) {
-    // Verificar si la tabla existe
-    $check_table = "SHOW TABLES LIKE 'entrega_uniformes'";
-    $table_result = $conn->query($check_table);
-    
-    if ($table_result->num_rows == 0) {
-        return [];
-    }
+// Obtener categorías que tienen entregas en este almacén
+$categorias_con_entregas = [];
+if ($almacen_id_mostrar) {
+    $sql_categorias = "SELECT DISTINCT c.id, c.nombre, COUNT(eu.id) as total_entregas,
+                       SUM(eu.cantidad) as total_productos_entregados
+                       FROM categorias c
+                       INNER JOIN productos p ON c.id = p.categoria_id
+                       INNER JOIN entrega_uniformes eu ON p.id = eu.producto_id
+                       WHERE eu.almacen_id = ?
+                       GROUP BY c.id, c.nombre
+                       ORDER BY c.nombre";
+    $stmt_categorias = $conn->prepare($sql_categorias);
+    $stmt_categorias->bind_param("i", $almacen_id_mostrar);
+    $stmt_categorias->execute();
+    $categorias_con_entregas = $stmt_categorias->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt_categorias->close();
+}
 
+// Obtener información de la categoría seleccionada
+$categoria_info = null;
+if ($filtro_categoria_id) {
+    $sql_categoria = "SELECT * FROM categorias WHERE id = ?";
+    $stmt = $conn->prepare($sql_categoria);
+    $stmt->bind_param("i", $filtro_categoria_id);
+    $stmt->execute();
+    $categoria_info = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+}
+
+// Función mejorada para obtener entregas con filtro de categoría
+function obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id, $categoria_id = null, $filtros = [], $limite = null, $offset = null) {
     $query = '
         SELECT 
             eu.id,
@@ -58,13 +100,16 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
             p.nombre as producto_nombre,
             eu.cantidad,
             a.nombre as almacen_nombre,
-            u.nombre as usuario_responsable
+            u.nombre as usuario_responsable,
+            c.nombre as categoria_nombre
         FROM 
             entrega_uniformes eu
         JOIN 
             productos p ON eu.producto_id = p.id
         JOIN 
             almacenes a ON eu.almacen_id = a.id
+        JOIN
+            categorias c ON p.categoria_id = c.id
         LEFT JOIN
             usuarios u ON eu.usuario_responsable_id = u.id
         WHERE 
@@ -74,7 +119,14 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
     $params = [$almacen_id];
     $types = 'i';
 
-    // Agregar filtros
+    // Filtro por categoría
+    if ($categoria_id) {
+        $query .= ' AND p.categoria_id = ?';
+        $params[] = $categoria_id;
+        $types .= 'i';
+    }
+
+    // Otros filtros
     if (!empty($filtros['dni'])) {
         $query .= ' AND eu.dni_destinatario LIKE ?';
         $params[] = '%' . $filtros['dni'] . '%';
@@ -87,7 +139,6 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
         $types .= 's';
     }
 
-    // Filtros de fecha
     if (!empty($filtros['fecha_inicio'])) {
         $query .= ' AND DATE(eu.fecha_entrega) >= ?';
         $params[] = $filtros['fecha_inicio'];
@@ -101,7 +152,6 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
 
     $query .= ' ORDER BY eu.fecha_entrega DESC';
 
-    // Agregar límite y offset para paginación
     if ($limite !== null && $offset !== null) {
         $query .= ' LIMIT ? OFFSET ?';
         $params[] = $limite;
@@ -121,11 +171,10 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
     }
     
     $result = $stmt->get_result();
-
     $entregasAgrupadas = [];
     
     while ($row = $result->fetch_assoc()) {
-        $key = $row['fecha_entrega'] . '|' . $row['nombre_destinatario'] . '|' . $row['dni_destinatario'] . '|' . $row['almacen_nombre'];
+        $key = $row['fecha_entrega'] . '|' . $row['nombre_destinatario'] . '|' . $row['dni_destinatario'];
         
         if (!isset($entregasAgrupadas[$key])) {
             $entregasAgrupadas[$key] = [
@@ -135,86 +184,18 @@ function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = 
                 'dni_destinatario' => $row['dni_destinatario'],
                 'almacen_nombre' => $row['almacen_nombre'],
                 'usuario_responsable' => $row['usuario_responsable'],
+                'categoria_nombre' => $row['categoria_nombre'],
                 'productos' => []
             ];
         }
         
-        $productoExistente = false;
-        foreach ($entregasAgrupadas[$key]['productos'] as &$producto) {
-            if ($producto['nombre'] === $row['producto_nombre']) {
-                $producto['cantidad'] += $row['cantidad'];
-                $productoExistente = true;
-                break;
-            }
-        }
-        
-        if (!$productoExistente) {
-            $entregasAgrupadas[$key]['productos'][] = [
-                'nombre' => $row['producto_nombre'],
-                'cantidad' => $row['cantidad']
-            ];
-        }
+        $entregasAgrupadas[$key]['productos'][] = [
+            'nombre' => $row['producto_nombre'],
+            'cantidad' => $row['cantidad']
+        ];
     }
 
     return array_values($entregasAgrupadas);
-}
-
-// Función para obtener resumen de productos entregados por almacén
-function obtenerResumenProductosPorAlmacen($conn, $almacen_id, $filtros = []) {
-    $query = '
-        SELECT 
-            p.id as producto_id,
-            p.nombre as producto_nombre,
-            SUM(eu.cantidad) as total_entregado,
-            COUNT(DISTINCT eu.dni_destinatario) as personas_atendidas,
-            MIN(eu.fecha_entrega) as primera_entrega,
-            MAX(eu.fecha_entrega) as ultima_entrega
-        FROM 
-            entrega_uniformes eu
-        JOIN 
-            productos p ON eu.producto_id = p.id
-        WHERE 
-            eu.almacen_id = ?
-    ';
-
-    $params = [$almacen_id];
-    $types = 'i';
-
-    // Agregar filtros de fecha si existen
-    if (!empty($filtros['fecha_inicio'])) {
-        $query .= ' AND DATE(eu.fecha_entrega) >= ?';
-        $params[] = $filtros['fecha_inicio'];
-        $types .= 's';
-    }
-    if (!empty($filtros['fecha_fin'])) {
-        $query .= ' AND DATE(eu.fecha_entrega) <= ?';
-        $params[] = $filtros['fecha_fin'];
-        $types .= 's';
-    }
-
-    $query .= ' GROUP BY p.id, p.nombre ORDER BY total_entregado DESC';
-    
-    $stmt = $conn->prepare($query);
-    if (!$stmt) {
-        return [];
-    }
-    
-    $stmt->bind_param($types, ...$params);
-    
-    if (!$stmt->execute()) {
-        return [];
-    }
-    
-    $result = $stmt->get_result();
-    $resumen = [];
-    
-    while ($row = $result->fetch_assoc()) {
-        // Agregar código simulado basado en el ID del producto
-        $row['producto_codigo'] = 'PRD-' . str_pad($row['producto_id'], 4, '0', STR_PAD_LEFT);
-        $resumen[] = $row;
-    }
-
-    return $resumen;
 }
 
 // Preparar filtros
@@ -225,60 +206,52 @@ $filtros = [
     'fecha_fin' => $_GET['fecha_fin'] ?? ''
 ];
 
-// Determinar qué almacén mostrar
-$almacen_id_mostrar = null;
+// Configuración de paginación
+$registros_por_pagina = 10;
+$pagina_actual = isset($_GET['pagina']) ? intval($_GET['pagina']) : 1;
+$offset = ($pagina_actual - 1) * $registros_por_pagina;
 
-if ($usuario_rol == 'admin') {
-    // Si es admin y se seleccionó un almacén específico
-    $almacen_id_mostrar = isset($_GET['almacen_id']) ? intval($_GET['almacen_id']) : null;
+// Obtener entregas si hay almacén y categoría seleccionados
+$entregas = [];
+$total_entregas = 0;
+if ($almacen_id_mostrar && $filtro_categoria_id) {
+    $entregas = obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id_mostrar, $filtro_categoria_id, $filtros, $registros_por_pagina, $offset);
+    $total_entregas_temp = obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id_mostrar, $filtro_categoria_id, $filtros);
+    $total_entregas = count($total_entregas_temp);
+}
+
+$total_paginas = ceil($total_entregas / $registros_por_pagina);
+
+// Contar solicitudes pendientes para el badge
+$sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+if ($usuario_rol != 'admin') {
+    $sql_pendientes .= " AND almacen_destino = ?";
+    $stmt_pendientes = $conn->prepare($sql_pendientes);
+    $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+    $stmt_pendientes->execute();
+    $result_pendientes = $stmt_pendientes->get_result();
 } else {
-    // Si no es admin, usar su almacén asignado
-    $almacen_id_mostrar = $usuario_almacen_id;
+    $result_pendientes = $conn->query($sql_pendientes);
 }
 
-// Función para contar el total de entregas (para la paginación)
-function contarEntregasPorAlmacen($conn, $almacen_id, $filtros = []) {
-    $entregas = obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros);
-    return count($entregas);
+$total_pendientes = 0;
+if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+    $total_pendientes = $row_pendientes['total'];
 }
-
-// Obtener entregas si hay un almacén seleccionado
-$resumen_productos = [];
-if ($almacen_id_mostrar) {
-    $total_entregas = contarEntregasPorAlmacen($conn, $almacen_id_mostrar, $filtros);
-    $entregas = obtenerEntregasPorAlmacen($conn, $almacen_id_mostrar, $filtros, $registros_por_pagina, $offset);
-    $resumen_productos = obtenerResumenProductosPorAlmacen($conn, $almacen_id_mostrar, $filtros);
-    
-    // Obtener nombre del almacén seleccionado
-    $nombre_almacen_seleccionado = '';
-    if ($almacen_id_mostrar) {
-        $sql_nombre = "SELECT nombre FROM almacenes WHERE id = ?";
-        $stmt_nombre = $conn->prepare($sql_nombre);
-        $stmt_nombre->bind_param("i", $almacen_id_mostrar);
-        $stmt_nombre->execute();
-        $result_nombre = $stmt_nombre->get_result();
-        if ($row_nombre = $result_nombre->fetch_assoc()) {
-            $nombre_almacen_seleccionado = $row_nombre['nombre'];
-        }
-    }
-}
-
-// Calcular total de páginas
-$total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_pagina) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ver Historial de Entregas - GRUPO SEAL</title>
+    <title>Historial de Entregas por Categoría - GRUPO SEAL</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Ver Historial de Entregas de productos - Sistema de gestión GRUPO SEAL">
+    <meta name="description" content="Historial de entregas organizadas por categoría - Sistema GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
-    <!-- Preconnect para optimizar carga de fuentes -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -286,11 +259,208 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS consistente con el dashboard -->
+    <!-- CSS específico -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    
-    <!-- CSS específico del historial -->
     <link rel="stylesheet" href="../assets/css/historial-entregas.css">
+    
+    <style>
+        /* Estilos específicos para categorías */
+        .categorias-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .categoria-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .categoria-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #0a253c, #1e4a72);
+        }
+
+        .categoria-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-color: #0a253c;
+        }
+
+        .categoria-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .categoria-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #0a253c, #1e4a72);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            margin-right: 15px;
+        }
+
+        .categoria-info h3 {
+            color: #0a253c;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 5px 0;
+        }
+
+        .categoria-info p {
+            color: #666;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .categoria-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(10, 37, 60, 0.05);
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+            color: #0a253c;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .categoria-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-categoria {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-ver-entregas {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-ver-entregas:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .categoria-breadcrumb {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #0a253c;
+        }
+
+        .categoria-breadcrumb h4 {
+            margin: 0 0 5px 0;
+            color: #0a253c;
+            font-size: 18px;
+        }
+
+        .categoria-breadcrumb p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .filtros-categoria {
+            background: linear-gradient(135deg, #0a253c, #1e4a72);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filtros-categoria h3 {
+            margin: 0 0 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            background: #5a6268;
+            transform: translateX(-3px);
+        }
+
+        /* Iconos específicos por categoría */
+        .categoria-uniformes .categoria-icon { background: linear-gradient(135deg, #007bff, #0056b3); }
+        .categoria-armas .categoria-icon { background: linear-gradient(135deg, #dc3545, #c82333); }
+        .categoria-equipos .categoria-icon { background: linear-gradient(135deg, #ffc107, #e0a800); }
+        .categoria-vehiculos .categoria-icon { background: linear-gradient(135deg, #28a745, #1e7e34); }
+        .categoria-comunicaciones .categoria-icon { background: linear-gradient(135deg, #17a2b8, #138496); }
+
+        @media (max-width: 768px) {
+            .categorias-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .categoria-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -359,7 +529,7 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                <li><a href="historial.php" role="menuitem"><i class="fas fa-history"></i> Ver Historial de Entregas</a></li>
+                <li><a href="historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Entregas</a></li>
             </ul>
         </li>
         
@@ -373,28 +543,9 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
                 <li>
                     <a href="../notificaciones/pendientes.php" role="menuitem">
                         <i class="fas fa-clock"></i> Solicitudes Pendientes
-                        <?php 
-                        // Count pending requests to show in badge
-                        $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
-                        
-                        // If user is not admin, filter by their warehouse
-                        if ($usuario_rol != 'admin') {
-                            $sql_pendientes .= " AND almacen_destino = ?";
-                            $stmt_pendientes = $conn->prepare($sql_pendientes);
-                            $stmt_pendientes->bind_param("i", $usuario_almacen_id);
-                            $stmt_pendientes->execute();
-                            $result_pendientes = $stmt_pendientes->get_result();
-                        } else {
-                            $result_pendientes = $conn->query($sql_pendientes);
-                        }
-                        
-                        if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
-                            $total_pendientes = $row_pendientes['total'];
-                            if ($total_pendientes > 0) {
-                                echo '<span class="badge-small" aria-label="' . $total_pendientes . ' solicitudes pendientes">' . $total_pendientes . '</span>';
-                            }
-                        }
-                        ?>
+                        <?php if ($total_pendientes > 0): ?>
+                        <span class="badge-small"><?php echo $total_pendientes; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-history"></i> Historial de Solicitudes</a></li>
@@ -443,30 +594,268 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
         <div class="historial-title-container">
             <h2 class="historial-title">
                 <i class="fas fa-history"></i> 
-                <?php if ($usuario_rol == 'admin' && !isset($_GET['almacen_id'])): ?>
-                    Ver Historial de Entregas - Seleccionar Almacén
+                <?php if ($almacen_info && $categoria_info): ?>
+                    Historial de Entregas - <?php echo htmlspecialchars($categoria_info['nombre']); ?>
+                <?php elseif ($almacen_info): ?>
+                    Historial de Entregas - <?php echo htmlspecialchars($almacen_info['nombre']); ?>
+                <?php elseif ($usuario_rol == 'admin' && !$filtro_almacen_id): ?>
+                    Seleccionar Almacén para Ver Entregas
                 <?php else: ?>
-                    Ver Historial de Entregas
+                    Historial de Entregas por Categoría
                 <?php endif; ?>
             </h2>
-            
-            <?php if ($usuario_rol == 'admin' && isset($_GET['almacen_id'])): ?>
-                <a href="historial.php" class="historial-btn historial-btn-back">
-                    <i class="fas fa-arrow-left"></i> Volver a la lista de almacenes
-                </a>
-            <?php endif; ?>
         </div>
     </div>
 
-    <?php if ($usuario_rol == 'admin' && !isset($_GET['almacen_id'])): ?>
+    <!-- Navegación por niveles -->
+    <?php if ($almacen_info && $categoria_info): ?>
+        <!-- Viendo entregas de una categoría específica -->
+        <a href="?almacen_id=<?php echo $almacen_info['id']; ?>" class="back-button">
+            <i class="fas fa-arrow-left"></i>
+            Volver a Categorías de <?php echo htmlspecialchars($almacen_info['nombre']); ?>
+        </a>
+
+        <div class="categoria-breadcrumb">
+            <h4>
+                <i class="fas fa-tag"></i>
+                <?php echo htmlspecialchars($categoria_info['nombre']); ?>
+            </h4>
+            <p>Entregas realizadas en <?php echo htmlspecialchars($almacen_info['nombre']); ?></p>
+        </div>
+
+        <!-- Filtros para la categoría específica -->
+        <div class="filtros-categoria">
+            <h3>
+                <i class="fas fa-filter"></i>
+                Filtros de Búsqueda
+            </h3>
+            <form method="GET" class="historial-filter-form" id="formulario-filtros">
+                <input type="hidden" name="almacen_id" value="<?php echo $filtro_almacen_id; ?>">
+                <input type="hidden" name="categoria_id" value="<?php echo $filtro_categoria_id; ?>">
+                
+                <div class="historial-filter-row">
+                    <div class="historial-form-group">
+                        <label for="filtro-nombre" class="historial-form-label">Filtrar por Nombre</label>
+                        <input type="text" class="historial-form-control" id="filtro-nombre" name="nombre" 
+                               placeholder="Nombre del destinatario" 
+                               value="<?php echo htmlspecialchars($_GET['nombre'] ?? ''); ?>">
+                    </div>
+                    <div class="historial-form-group">
+                        <label for="filtro-dni" class="historial-form-label">Filtrar por DNI</label>
+                        <input type="text" class="historial-form-control" id="filtro-dni" name="dni" 
+                               placeholder="Número de DNI" 
+                               value="<?php echo htmlspecialchars($_GET['dni'] ?? ''); ?>">
+                    </div>
+                    <div class="historial-form-group">
+                        <label for="filtro-fecha-inicio" class="historial-form-label">Fecha de Inicio</label>
+                        <input type="date" class="historial-form-control" id="filtro-fecha-inicio" 
+                               name="fecha_inicio"
+                               value="<?php echo htmlspecialchars($_GET['fecha_inicio'] ?? ''); ?>">
+                    </div>
+                    <div class="historial-form-group">
+                        <label for="filtro-fecha-fin" class="historial-form-label">Fecha de Fin</label>
+                        <input type="date" class="historial-form-control" id="filtro-fecha-fin" 
+                               name="fecha_fin"
+                               value="<?php echo htmlspecialchars($_GET['fecha_fin'] ?? ''); ?>">
+                    </div>
+                </div>
+                <div class="historial-filter-actions">
+                    <button type="submit" class="historial-btn historial-btn-primary">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <a href="?almacen_id=<?php echo $filtro_almacen_id; ?>&categoria_id=<?php echo $filtro_categoria_id; ?>" class="historial-btn historial-btn-secondary">
+                        <i class="fas fa-times"></i> Limpiar Filtros
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tabla de entregas de la categoría -->
+        <div class="historial-table-container">
+            <div class="historial-table-responsive">
+                <table class="historial-table" id="tabla-historial-entregas">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-calendar"></i> Fecha</th>
+                            <th><i class="fas fa-user"></i> Destinatario</th>
+                            <th><i class="fas fa-id-card"></i> DNI</th>
+                            <th><i class="fas fa-boxes"></i> Productos Entregados</th>
+                            <th><i class="fas fa-user-shield"></i> Responsable</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($entregas)): ?>
+                            <tr>
+                                <td colspan="5" class="historial-no-results">
+                                    <i class="fas fa-inbox"></i>
+                                    No hay entregas registradas para esta categoría
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($entregas as $entrega): ?>
+                                <tr>
+                                    <td class="historial-fecha-cell">
+                                        <?php 
+                                        $fecha = new DateTime($entrega['fecha_entrega']);
+                                        echo $fecha->format('d/m/Y H:i'); 
+                                        ?>
+                                    </td>
+                                    <td class="historial-destinatario-cell">
+                                        <?php echo htmlspecialchars($entrega['nombre_destinatario']); ?>
+                                    </td>
+                                    <td>
+                                        <span class="historial-dni-cell">
+                                            <?php echo htmlspecialchars($entrega['dni_destinatario']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <ul class="historial-productos-lista">
+                                            <?php foreach ($entrega['productos'] as $producto): ?>
+                                                <li class="historial-producto-item">
+                                                    <i class="fas fa-box"></i>
+                                                    <?php echo htmlspecialchars($producto['nombre']); ?>
+                                                    <span class="historial-producto-cantidad">
+                                                        (<?php echo htmlspecialchars($producto['cantidad']); ?> unidad<?php echo ($producto['cantidad'] != 1) ? 'es' : ''; ?>)
+                                                    </span>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </td>
+                                    <td class="historial-responsable-cell">
+                                        <i class="fas fa-user-shield"></i>
+                                        <?php echo htmlspecialchars($entrega['usuario_responsable'] ?? 'No registrado'); ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Paginación -->
+        <?php if ($total_paginas > 1): ?>
+        <div class="historial-pagination">
+            <?php
+            $params = [];
+            foreach ($_GET as $key => $value) {
+                if ($key != 'pagina') {
+                    $params[] = $key . '=' . urlencode($value);
+                }
+            }
+            $url_params = !empty($params) ? '?' . implode('&', $params) . '&' : '?';
+            
+            if ($pagina_actual > 1): ?>
+                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual - 1; ?>">
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </a>
+            <?php endif; ?>
+            
+            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                <?php if ($i == $pagina_actual): ?>
+                    <span class="historial-pagination-active"><?php echo $i; ?></span>
+                <?php else: ?>
+                    <a href="<?php echo $url_params; ?>pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
+                <?php endif; ?>
+            <?php endfor; ?>
+            
+            <?php if ($pagina_actual < $total_paginas): ?>
+                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual + 1; ?>">
+                    Siguiente <i class="fas fa-chevron-right"></i>
+                </a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+    <?php elseif ($almacen_info): ?>
+        <!-- Mostrando categorías del almacén -->
+        <?php if ($usuario_rol == 'admin'): ?>
+        <a href="historial.php" class="back-button">
+            <i class="fas fa-arrow-left"></i>
+            Volver a Lista de Almacenes
+        </a>
+        <?php endif; ?>
+
+        <div class="categoria-breadcrumb">
+            <h4>
+                <i class="fas fa-warehouse"></i>
+                <?php echo htmlspecialchars($almacen_info['nombre']); ?>
+            </h4>
+            <p>Selecciona una categoría para ver las entregas realizadas</p>
+        </div>
+
+        <?php if (!empty($categorias_con_entregas)): ?>
+            <div class="categorias-grid">
+                <?php foreach ($categorias_con_entregas as $categoria): ?>
+                    <div class="categoria-card categoria-<?php echo strtolower(str_replace(' ', '-', $categoria['nombre'])); ?>">
+                        <div class="categoria-header">
+                            <div class="categoria-icon">
+                                <?php
+                                // Iconos específicos por categoría
+                                $iconos = [
+                                    'uniforme' => 'fas fa-tshirt',
+                                    'arma' => 'fas fa-crosshairs',
+                                    'equipo' => 'fas fa-tools',
+                                    'vehiculo' => 'fas fa-car',
+                                    'comunicacion' => 'fas fa-radio',
+                                    'default' => 'fas fa-box'
+                                ];
+                                
+                                $icono = 'fas fa-box';
+                                foreach ($iconos as $key => $value) {
+                                    if (stripos($categoria['nombre'], $key) !== false) {
+                                        $icono = $value;
+                                        break;
+                                    }
+                                }
+                                ?>
+                                <i class="<?php echo $icono; ?>"></i>
+                            </div>
+                            <div class="categoria-info">
+                                <h3><?php echo htmlspecialchars($categoria['nombre']); ?></h3>
+                                <p>Entregas registradas en esta categoría</p>
+                            </div>
+                        </div>
+
+                        <div class="categoria-stats">
+                            <div class="stat-item">
+                                <span class="stat-value"><?php echo number_format($categoria['total_entregas']); ?></span>
+                                <span class="stat-label">Entregas</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value"><?php echo number_format($categoria['total_productos_entregados']); ?></span>
+                                <span class="stat-label">Productos</span>
+                            </div>
+                        </div>
+
+                        <div class="categoria-actions">
+                            <a href="?almacen_id=<?php echo $almacen_info['id']; ?>&categoria_id=<?php echo $categoria['id']; ?>" 
+                               class="btn-categoria btn-ver-entregas">
+                                <i class="fas fa-history"></i>
+                                Ver Entregas
+                            </a>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="historial-no-results">
+                <i class="fas fa-inbox"></i>
+                <h3>No hay entregas registradas</h3>
+                <p>Este almacén aún no tiene entregas registradas en ninguna categoría.</p>
+            </div>
+        <?php endif; ?>
+
+    <?php elseif ($usuario_rol == 'admin' && !$filtro_almacen_id): ?>
+        <!-- Lista de almacenes para admin -->
         <div class="historial-almacenes-container">
             <?php if ($result_almacenes && $result_almacenes->num_rows > 0): ?>
                 <?php while ($almacen = $result_almacenes->fetch_assoc()): ?>
                     <div class="historial-almacen-card">
                         <h3><i class="fas fa-warehouse"></i> <?php echo htmlspecialchars($almacen["nombre"]); ?></h3>
                         <p><strong>Ubicación:</strong> <?php echo htmlspecialchars($almacen["ubicacion"]); ?></p>
-                        <a href="#" class="historial-btn historial-btn-primary mostrar-entregas" data-almacen-id="<?php echo $almacen['id']; ?>" data-almacen-nombre="<?php echo htmlspecialchars($almacen['nombre']); ?>">
-                            <i class="fas fa-eye"></i> Ver Historial de Entregas
+                        <a href="?almacen_id=<?php echo $almacen['id']; ?>" class="historial-btn historial-btn-primary">
+                            <i class="fas fa-eye"></i> Ver Entregas por Categoría
                         </a>
                     </div>
                 <?php endwhile; ?>
@@ -474,330 +863,69 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
                 <p>No hay almacenes registrados.</p>
             <?php endif; ?>
         </div>
-    <?php endif; ?>
 
-    <?php if (($usuario_rol != 'admin') || ($usuario_rol == 'admin' && isset($_GET['almacen_id']))): ?>
-    
-    <div id="contenedor-historial-entregas">
-        
-        <?php if (isset($nombre_almacen_seleccionado) && $nombre_almacen_seleccionado): ?>
-        <div class="historial-almacen-seleccionado">
-            <h3><i class="fas fa-warehouse"></i> <?php echo htmlspecialchars($nombre_almacen_seleccionado); ?></h3>
-            <p>Ver Historial de Entregas y resumen de productos</p>
-        </div>
-        <?php endif; ?>
-
-        <!-- Sistema de Pestañas -->
-        <div class="historial-tabs-container">
-            <div class="historial-tabs-nav">
-                <button class="historial-tab-btn active" data-tab="historial">
-                    <i class="fas fa-history"></i> Ver Historial de Entregas
-                </button>
-                <button class="historial-tab-btn" data-tab="resumen">
-                    <i class="fas fa-chart-pie"></i> Resumen de Productos
-                </button>
-            </div>
-
-            <!-- Pestaña: Ver Historial de Entregas -->
-            <div class="historial-tab-content active" id="tab-historial">
-                <form method="GET" class="historial-filter-form" id="formulario-filtros">
-                    <div class="historial-filter-row">
-                        <div class="historial-form-group">
-                            <label for="filtro-nombre" class="historial-form-label">Filtrar por Nombre</label>
-                            <input type="text" class="historial-form-control" id="filtro-nombre" name="nombre" 
-                                   placeholder="Nombre del destinatario" 
-                                   value="<?php echo htmlspecialchars($_GET['nombre'] ?? ''); ?>">
-                        </div>
-                        <div class="historial-form-group">
-                            <label for="filtro-dni" class="historial-form-label">Filtrar por DNI</label>
-                            <input type="text" class="historial-form-control" id="filtro-dni" name="dni" 
-                                   placeholder="Número de DNI" 
-                                   value="<?php echo htmlspecialchars($_GET['dni'] ?? ''); ?>">
-                        </div>
-                        <div class="historial-form-group">
-                            <label for="filtro-fecha-inicio" class="historial-form-label">Fecha de Inicio</label>
-                            <input type="date" class="historial-form-control" id="filtro-fecha-inicio" 
-                                   name="fecha_inicio"
-                                   value="<?php echo htmlspecialchars($_GET['fecha_inicio'] ?? ''); ?>">
-                        </div>
-                        <div class="historial-form-group">
-                            <label for="filtro-fecha-fin" class="historial-form-label">Fecha de Fin</label>
-                            <input type="date" class="historial-form-control" id="filtro-fecha-fin" 
-                                   name="fecha_fin"
-                                   value="<?php echo htmlspecialchars($_GET['fecha_fin'] ?? ''); ?>">
-                        </div>
-                    </div>
-                    <div class="historial-filter-actions">
-                        <button type="submit" class="historial-btn historial-btn-primary">
-                            <i class="fas fa-search"></i> Buscar
-                        </button>
-                        <a href="?" class="historial-btn historial-btn-secondary">
-                            <i class="fas fa-times"></i> Limpiar Filtros
-                        </a>
-                    </div>
-                    <!-- Conservar el almacén seleccionado durante la paginación -->
-                    <?php if (isset($_GET['almacen_id'])): ?>
-                        <input type="hidden" name="almacen_id" value="<?php echo htmlspecialchars($_GET['almacen_id']); ?>">
-                    <?php endif; ?>
-                </form>
-
-                <div class="historial-table-container">
-                    <div class="historial-table-responsive">
-                        <table class="historial-table" id="tabla-historial-entregas">
-                            <thead>
-                                <tr>
-                                    <th><i class="fas fa-warehouse"></i> Almacén</th>
-                                    <th><i class="fas fa-calendar"></i> Fecha</th>
-                                    <th><i class="fas fa-user"></i> Destinatario</th>
-                                    <th><i class="fas fa-id-card"></i> DNI</th>
-                                    <th><i class="fas fa-boxes"></i> Productos Entregados</th>
-                                    <th><i class="fas fa-user-shield"></i> Responsable</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($entregas)): ?>
-                                    <tr>
-                                        <td colspan="6" class="historial-no-results">
-                                            <i class="fas fa-inbox"></i>
-                                            <?php if ($almacen_id_mostrar): ?>
-                                                No hay entregas registradas para este almacén
-                                                <?php if ($usuario_rol == 'admin'): ?>
-                                                    <br><small>Almacén ID: <?php echo $almacen_id_mostrar; ?></small>
-                                                <?php endif; ?>
-                                            <?php else: ?>
-                                                Seleccione un almacén para ver las entregas
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <?php else: ?>
-                                    <?php foreach ($entregas as $entrega): ?>
-                                        <tr>
-                                            <td class="historial-almacen-cell">
-                                                <i class="fas fa-warehouse"></i>
-                                                <?php echo htmlspecialchars($entrega['almacen_nombre']); ?>
-                                            </td>
-                                            <td class="historial-fecha-cell">
-                                                <?php 
-                                                $fecha = new DateTime($entrega['fecha_entrega']);
-                                                echo $fecha->format('d/m/Y H:i'); 
-                                                ?>
-                                            </td>
-                                            <td class="historial-destinatario-cell">
-                                                <?php echo htmlspecialchars($entrega['nombre_destinatario']); ?>
-                                            </td>
-                                            <td>
-                                                <span class="historial-dni-cell">
-                                                    <?php echo htmlspecialchars($entrega['dni_destinatario']); ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <ul class="historial-productos-lista">
-                                                    <?php foreach ($entrega['productos'] as $producto): ?>
-                                                        <li class="historial-producto-item">
-                                                            <i class="fas fa-box"></i>
-                                                            <?php echo htmlspecialchars($producto['nombre']); ?>
-                                                            <span class="historial-producto-cantidad">
-                                                                (<?php echo htmlspecialchars($producto['cantidad']); ?> unidad<?php echo ($producto['cantidad'] != 1) ? 'es' : ''; ?>)
-                                                            </span>
-                                                        </li>
-                                                    <?php endforeach; ?>
-                                                </ul>
-                                            </td>
-                                            <td class="historial-responsable-cell">
-                                                <i class="fas fa-user-shield"></i>
-                                                <?php echo htmlspecialchars($entrega['usuario_responsable'] ?? 'No registrado'); ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Paginación -->
-                <?php if ($total_paginas > 1): ?>
-                <div class="historial-pagination">
-                    <?php
-                    // Parámetros actuales de URL para mantener en los enlaces de paginación
-                    $params = [];
-                    foreach ($_GET as $key => $value) {
-                        if ($key != 'pagina') {
-                            $params[] = $key . '=' . urlencode($value);
-                        }
-                    }
-                    $url_params = !empty($params) ? '?' . implode('&', $params) . '&' : '?';
-                    
-                    // Mostrar enlace "Anterior" si no estamos en la primera página
-                    if ($pagina_actual > 1): ?>
-                        <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual - 1; ?>">
-                            <i class="fas fa-chevron-left"></i> Anterior
-                        </a>
-                    <?php else: ?>
-                        <span class="historial-pagination-disabled">
-                            <i class="fas fa-chevron-left"></i> Anterior
-                        </span>
-                    <?php endif; ?>
-                    
-                    <?php
-                    // Definir cuántas páginas mostrar a cada lado de la página actual
-                    $paginas_mostrar = 2;
-                    $inicio_paginas = max(1, $pagina_actual - $paginas_mostrar);
-                    $fin_paginas = min($total_paginas, $pagina_actual + $paginas_mostrar);
-                    
-                    // Mostrar página 1 si estamos muy lejos
-                    if ($inicio_paginas > 1): ?>
-                        <a href="<?php echo $url_params; ?>pagina=1">1</a>
-                        <?php if ($inicio_paginas > 2): ?>
-                            <span class="historial-pagination-ellipsis">...</span>
-                        <?php endif; ?>
-                    <?php endif; ?>
-                    
-                    <!-- Mostrar enlaces numerados -->
-                    <?php for ($i = $inicio_paginas; $i <= $fin_paginas; $i++): ?>
-                        <?php if ($i == $pagina_actual): ?>
-                            <span class="historial-pagination-active"><?php echo $i; ?></span>
-                        <?php else: ?>
-                            <a href="<?php echo $url_params; ?>pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
-                        <?php endif; ?>
-                    <?php endfor; ?>
-                    
-                    <!-- Mostrar última página si estamos muy lejos -->
-                    <?php if ($fin_paginas < $total_paginas): ?>
-                        <?php if ($fin_paginas < $total_paginas - 1): ?>
-                            <span class="historial-pagination-ellipsis">...</span>
-                        <?php endif; ?>
-                        <a href="<?php echo $url_params; ?>pagina=<?php echo $total_paginas; ?>"><?php echo $total_paginas; ?></a>
-                    <?php endif; ?>
-                    
-                    <!-- Mostrar enlace "Siguiente" si no estamos en la última página -->
-                    <?php if ($pagina_actual < $total_paginas): ?>
-                        <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual + 1; ?>">
-                            Siguiente <i class="fas fa-chevron-right"></i>
-                        </a>
-                    <?php else: ?>
-                        <span class="historial-pagination-disabled">
-                            Siguiente <i class="fas fa-chevron-right"></i>
-                        </span>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Pestaña: Resumen de Productos -->
-            <div class="historial-tab-content" id="tab-resumen">
-                <div class="historial-resumen-stats">
-                    <div class="historial-stat-card">
-                        <div class="historial-stat-icon">
-                            <i class="fas fa-boxes"></i>
-                        </div>
-                        <div class="historial-stat-info">
-                            <h4><?php echo count($resumen_productos); ?></h4>
-                            <p>Productos Diferentes</p>
-                        </div>
-                    </div>
-                    <div class="historial-stat-card">
-                        <div class="historial-stat-icon">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="historial-stat-info">
-                            <h4><?php 
-                            // Calcular personas únicas totales (no sumar por producto)
-                            if ($almacen_id_mostrar && !empty($entregas)) {
-                                $personas_unicas = [];
-                                foreach ($entregas as $entrega) {
-                                    $personas_unicas[$entrega['dni_destinatario']] = true;
+    <?php else: ?>
+        <!-- Usuario no admin - mostrar directamente las categorías de su almacén -->
+        <?php if (!empty($categorias_con_entregas)): ?>
+            <div class="categorias-grid">
+                <?php foreach ($categorias_con_entregas as $categoria): ?>
+                    <div class="categoria-card categoria-<?php echo strtolower(str_replace(' ', '-', $categoria['nombre'])); ?>">
+                        <div class="categoria-header">
+                            <div class="categoria-icon">
+                                <?php
+                                $iconos = [
+                                    'uniforme' => 'fas fa-tshirt',
+                                    'arma' => 'fas fa-crosshairs',
+                                    'equipo' => 'fas fa-tools',
+                                    'vehiculo' => 'fas fa-car',
+                                    'comunicacion' => 'fas fa-radio',
+                                    'default' => 'fas fa-box'
+                                ];
+                                
+                                $icono = 'fas fa-box';
+                                foreach ($iconos as $key => $value) {
+                                    if (stripos($categoria['nombre'], $key) !== false) {
+                                        $icono = $value;
+                                        break;
+                                    }
                                 }
-                                echo count($personas_unicas);
-                            } else {
-                                echo "0";
-                            }
-                            ?></h4>
-                            <p>Personas Atendidas</p>
+                                ?>
+                                <i class="<?php echo $icono; ?>"></i>
+                            </div>
+                            <div class="categoria-info">
+                                <h3><?php echo htmlspecialchars($categoria['nombre']); ?></h3>
+                                <p>Entregas registradas en esta categoría</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="historial-stat-card">
-                        <div class="historial-stat-icon">
-                            <i class="fas fa-hand-holding"></i>
-                        </div>
-                        <div class="historial-stat-info">
-                            <h4><?php echo array_sum(array_column($resumen_productos, 'total_entregado')); ?></h4>
-                            <p>Total Entregado</p>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="historial-table-container">
-                    <div class="historial-table-responsive">
-                        <table class="historial-table">
-                            <thead>
-                                <tr>
-                                    <th><i class="fas fa-barcode"></i> Código</th>
-                                    <th><i class="fas fa-box"></i> Producto</th>
-                                    <th><i class="fas fa-calculator"></i> Total Entregado</th>
-                                    <th><i class="fas fa-users"></i> Personas Atendidas</th>
-                                    <th><i class="fas fa-calendar-alt"></i> Primera Entrega</th>
-                                    <th><i class="fas fa-calendar-check"></i> Última Entrega</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($resumen_productos)): ?>
-                                    <tr>
-                                        <td colspan="6" class="historial-no-results">
-                                            <i class="fas fa-chart-pie"></i>
-                                            No hay datos de productos para mostrar
-                                        </td>
-                                    </tr>
-                                <?php else: ?>
-                                    <?php foreach ($resumen_productos as $producto): ?>
-                                        <tr>
-                                            <td class="historial-codigo-cell">
-                                                <span class="historial-codigo-badge">
-                                                    <?php echo htmlspecialchars($producto['producto_codigo'] ?? 'Sin código'); ?>
-                                                </span>
-                                            </td>
-                                            <td class="historial-producto-nombre">
-                                                <strong><?php echo htmlspecialchars($producto['producto_nombre']); ?></strong>
-                                            </td>
-                                            <td class="historial-cantidad-total">
-                                                <span class="historial-badge-cantidad">
-                                                    <?php echo number_format($producto['total_entregado']); ?>
-                                                </span>
-                                            </td>
-                                            <td class="historial-personas-atendidas">
-                                                <?php echo number_format($producto['personas_atendidas']); ?>
-                                            </td>
-                                            <td class="historial-fecha-cell">
-                                                <?php 
-                                                if ($producto['primera_entrega']) {
-                                                    $fecha_primera = new DateTime($producto['primera_entrega']);
-                                                    echo $fecha_primera->format('d/m/Y');
-                                                } else {
-                                                    echo 'N/A';
-                                                }
-                                                ?>
-                                            </td>
-                                            <td class="historial-fecha-cell">
-                                                <?php 
-                                                if ($producto['ultima_entrega']) {
-                                                    $fecha_ultima = new DateTime($producto['ultima_entrega']);
-                                                    echo $fecha_ultima->format('d/m/Y');
-                                                } else {
-                                                    echo 'N/A';
-                                                }
-                                                ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                        <div class="categoria-stats">
+                            <div class="stat-item">
+                                <span class="stat-value"><?php echo number_format($categoria['total_entregas']); ?></span>
+                                <span class="stat-label">Entregas</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value"><?php echo number_format($categoria['total_productos_entregados']); ?></span>
+                                <span class="stat-label">Productos</span>
+                            </div>
+                        </div>
+
+                        <div class="categoria-actions">
+                            <a href="?almacen_id=<?php echo $almacen_id_mostrar; ?>&categoria_id=<?php echo $categoria['id']; ?>" 
+                               class="btn-categoria btn-ver-entregas">
+                                <i class="fas fa-history"></i>
+                                Ver Entregas
+                            </a>
+                        </div>
                     </div>
-                </div>
+                <?php endforeach; ?>
             </div>
-        </div>
-    </div>
-    
+        <?php else: ?>
+            <div class="historial-no-results">
+                <i class="fas fa-inbox"></i>
+                <h3>No hay entregas registradas</h3>
+                <p>Tu almacén aún no tiene entregas registradas en ninguna categoría.</p>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </main>
 
@@ -877,70 +1005,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Manejar clic en "Ver Historial de Entregas" para admin
-    const botonesVerEntregas = document.querySelectorAll('.mostrar-entregas');
-    const contenedorHistorial = document.getElementById('contenedor-historial-entregas');
-    const almacenesContainer = document.querySelector('.historial-almacenes-container');
-
-    botonesVerEntregas.forEach(boton => {
-        boton.addEventListener('click', function(e) {
-            e.preventDefault();
-            const almacenId = this.dataset.almacenId;
-            const almacenNombre = this.dataset.almacenNombre;
-
-            // Cambiar el texto del botón
-            this.innerHTML = '<i class="fas fa-history"></i> Ver Ver Historial de Entregas';
-
-            // Redirigir con el almacen_id seleccionado
-            window.location.href = `?almacen_id=${almacenId}`;
-        });
-    });
-
-    // Sistema de pestañas
-    const tabButtons = document.querySelectorAll('.historial-tab-btn');
-    const tabContents = document.querySelectorAll('.historial-tab-content');
-
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const targetTab = this.dataset.tab;
-
-            // Remover clase active de todos los botones y contenidos
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-
-            // Agregar clase active al botón y contenido seleccionado
-            this.classList.add('active');
-            document.getElementById('tab-' + targetTab).classList.add('active');
-
-            // Efectos de transición
-            const activeContent = document.getElementById('tab-' + targetTab);
-            activeContent.style.opacity = '0';
-            activeContent.style.transform = 'translateY(10px)';
-            
-            setTimeout(() => {
-                activeContent.style.transition = 'all 0.3s ease';
-                activeContent.style.opacity = '1';
-                activeContent.style.transform = 'translateY(0)';
-            }, 50);
-        });
-    });
-
-    // Agregar botón para volver a la lista de almacenes (para admin)
-    // Ya no es necesario, ahora está manejado por PHP
-
-    // Validación de fechas
+    // Validación de fechas en formularios
     const form = document.querySelector('.historial-filter-form');
     if (form) {
         form.addEventListener('submit', function(e) {
-            const fechaInicio = document.getElementById('filtro-fecha-inicio').value;
-            const fechaFin = document.getElementById('filtro-fecha-fin').value;
-
-            if (fechaInicio && fechaFin && new Date(fechaInicio) > new Date(fechaFin)) {
-                e.preventDefault();
-                alert('La fecha de inicio no puede ser mayor que la fecha de fin');
+            const fechaInicio = document.getElementById('filtro-fecha-inicio');
+            const fechaFin = document.getElementById('filtro-fecha-fin');
+            
+            if (fechaInicio && fechaFin && fechaInicio.value && fechaFin.value) {
+                if (new Date(fechaInicio.value) > new Date(fechaFin.value)) {
+                    e.preventDefault();
+                    alert('La fecha de inicio no puede ser mayor que la fecha de fin');
+                }
             }
         });
     }
+
+    // Animaciones para las tarjetas de categoría
+    const categoriaCards = document.querySelectorAll('.categoria-card');
+    
+    // Intersection Observer para animaciones al scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    
+    categoriaCards.forEach((card, index) => {
+        // Configurar estado inicial para animación
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = `all 0.6s ease ${index * 0.1}s`;
+        
+        // Observar para animación
+        observer.observe(card);
+        
+        // Efecto hover mejorado
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-8px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
 
     // Cerrar menú móvil al hacer clic fuera
     document.addEventListener('click', function(e) {
@@ -980,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.remove('keyboard-navigation');
     });
 
-    // Efecto de carga para la tabla
+    // Efecto de carga para la tabla (si existe)
     const tabla = document.getElementById('tabla-historial-entregas');
     if (tabla) {
         tabla.style.opacity = '0';
