@@ -18,172 +18,115 @@ ini_set('display_errors', 1);
 // Database connection configuration
 require_once "../config/database.php";
 
-// Consultar almacenes
-if ($usuario_rol == 'admin') {
-    $sql_almacenes = "SELECT id, nombre, ubicacion FROM almacenes ORDER BY id DESC";
-    $result_almacenes = $conn->query($sql_almacenes);
-} else {
-    // Si no es admin, mostrar solo el almacén asignado
-    if ($usuario_almacen_id) {
-        $sql_almacenes = "SELECT id, nombre, ubicacion FROM almacenes WHERE id = ?";
-        $stmt_almacenes = $conn->prepare($sql_almacenes);
-        $stmt_almacenes->bind_param("i", $usuario_almacen_id);
-        $stmt_almacenes->execute();
-        $result_almacenes = $stmt_almacenes->get_result();
+// Obtener estadísticas generales
+function obtenerEstadisticas($conn, $usuario_rol, $usuario_almacen_id) {
+    $stats = [];
+    
+    // Total de entregas
+    $sql_entregas = "SELECT COUNT(*) as total FROM entrega_uniformes";
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $sql_entregas .= " WHERE almacen_id = ?";
+        $stmt = $conn->prepare($sql_entregas);
+        $stmt->bind_param("i", $usuario_almacen_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
     } else {
-        $result_almacenes = false;
+        $result = $conn->query($sql_entregas);
     }
-}
-
-// Variable para almacenar entregas
-$entregas = [];
-$error_mensaje = '';
-
-// Configuración de paginación
-$registros_por_pagina = 10; // Cantidad de registros por página
-$pagina_actual = isset($_GET['pagina']) ? intval($_GET['pagina']) : 1;
-$offset = ($pagina_actual - 1) * $registros_por_pagina;
-
-// Función para obtener entregas por almacén con paginación
-function obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros = [], $limite = null, $offset = null) {
-    $query = '
-        SELECT 
-            eu.id,
-            eu.nombre_destinatario,
-            eu.dni_destinatario,
-            eu.fecha_entrega,
-            p.nombre as producto_nombre,
-            eu.cantidad,
-            a.nombre as almacen_nombre
-        FROM 
-            entrega_uniformes eu
-        JOIN 
-            productos p ON eu.producto_id = p.id
-        JOIN 
-            almacenes a ON eu.almacen_id = a.id
-        WHERE 
-            eu.almacen_id = ?
-    ';
-
-    $params = [$almacen_id];
-
-    // Agregar filtros
-    if (!empty($filtros['dni'])) {
-        $query .= ' AND eu.dni_destinatario LIKE ?';
-        $params[] = '%' . $filtros['dni'] . '%';
-    }
-
-    // Filtros de fecha
-    if (!empty($filtros['fecha_inicio'])) {
-        $query .= ' AND eu.fecha_entrega >= ?';
-        $params[] = $filtros['fecha_inicio'];
-    }
-    if (!empty($filtros['fecha_fin'])) {
-        $query .= ' AND eu.fecha_entrega <= ?';
-        $params[] = $filtros['fecha_fin'];
-    }
-
-    $query .= ' ORDER BY eu.fecha_entrega DESC';
-
-    // Agregar límite y offset para paginación
-    if ($limite !== null && $offset !== null) {
-        $query_with_limit = $query . ' LIMIT ? OFFSET ?';
-        $params_with_limit = $params;
-        $params_with_limit[] = $limite;
-        $params_with_limit[] = $offset;
-        
-        $stmt = $conn->prepare($query_with_limit);
-        $types = str_repeat('s', count($params)) . 'ii'; // Agregar dos enteros para LIMIT y OFFSET
-        $stmt->bind_param($types, ...$params_with_limit);
+    $stats['entregas'] = $result->fetch_assoc()['total'];
+    
+    // Total de productos entregados
+    $sql_productos = "SELECT SUM(cantidad) as total FROM entrega_uniformes";
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $sql_productos .= " WHERE almacen_id = ?";
+        $stmt = $conn->prepare($sql_productos);
+        $stmt->bind_param("i", $usuario_almacen_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
     } else {
-        $stmt = $conn->prepare($query);
-        $types = str_repeat('s', count($params));
-        $stmt->bind_param($types, ...$params);
+        $result = $conn->query($sql_productos);
+    }
+    $stats['productos'] = $result->fetch_assoc()['total'] ?? 0;
+    
+    // Almacenes involucrados
+    if ($usuario_rol == 'admin') {
+        $sql_almacenes = "SELECT COUNT(DISTINCT almacen_id) as total FROM entrega_uniformes";
+        $result = $conn->query($sql_almacenes);
+        $stats['almacenes'] = $result->fetch_assoc()['total'];
+    } else {
+        $stats['almacenes'] = 1;
     }
     
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $entregasAgrupadas = [];
-    $ids_procesados = []; // Para evitar duplicados en la paginación
-    
-    while ($row = $result->fetch_assoc()) {
-        $key = $row['fecha_entrega'] . '|' . $row['nombre_destinatario'] . '|' . $row['dni_destinatario'] . '|' . $row['almacen_nombre'];
-        
-        if (!isset($entregasAgrupadas[$key])) {
-            $entregasAgrupadas[$key] = [
-                'id' => $row['id'],
-                'fecha_entrega' => $row['fecha_entrega'],
-                'nombre_destinatario' => $row['nombre_destinatario'],
-                'dni_destinatario' => $row['dni_destinatario'],
-                'almacen_nombre' => $row['almacen_nombre'],
-                'productos' => []
-            ];
-        }
-        
-        $productoExistente = false;
-        foreach ($entregasAgrupadas[$key]['productos'] as &$producto) {
-            if ($producto['nombre'] === $row['producto_nombre']) {
-                $producto['cantidad'] += $row['cantidad'];
-                $productoExistente = true;
-                break;
-            }
-        }
-        
-        if (!$productoExistente) {
-            $entregasAgrupadas[$key]['productos'][] = [
-                'nombre' => $row['producto_nombre'],
-                'cantidad' => $row['cantidad']
-            ];
-        }
+    // Entregas este mes
+    $sql_mes = "SELECT COUNT(*) as total FROM entrega_uniformes WHERE MONTH(fecha_entrega) = MONTH(CURDATE()) AND YEAR(fecha_entrega) = YEAR(CURDATE())";
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $sql_mes .= " AND almacen_id = ?";
+        $stmt = $conn->prepare($sql_mes);
+        $stmt->bind_param("i", $usuario_almacen_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        $result = $conn->query($sql_mes);
     }
-
-    return array_values($entregasAgrupadas);
+    $stats['mes'] = $result->fetch_assoc()['total'];
+    
+    return $stats;
 }
 
-// Función para contar el total de entregas (para la paginación)
-function contarEntregasPorAlmacen($conn, $almacen_id, $filtros = []) {
-    // Primero obtenemos todas las entregas para poder agruparlas correctamente
-    $entregas = obtenerEntregasPorAlmacen($conn, $almacen_id, $filtros);
-    return count($entregas);
+// Obtener entregas recientes para la tabla
+function obtenerEntregasRecientes($conn, $usuario_rol, $usuario_almacen_id, $limite = 10) {
+    $sql = "SELECT eu.*, p.nombre as producto_nombre, a.nombre as almacen_nombre 
+            FROM entrega_uniformes eu 
+            JOIN productos p ON eu.producto_id = p.id 
+            JOIN almacenes a ON eu.almacen_id = a.id";
+    
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $sql .= " WHERE eu.almacen_id = ?";
+    }
+    
+    $sql .= " ORDER BY eu.fecha_entrega DESC LIMIT " . $limite;
+    
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $usuario_almacen_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        $result = $conn->query($sql);
+    }
+    
+    return $result->fetch_all(MYSQLI_ASSOC);
 }
 
-// Preparar filtros
+// Obtener estadísticas
+$estadisticas = obtenerEstadisticas($conn, $usuario_rol, $usuario_almacen_id);
+$entregas_recientes = obtenerEntregasRecientes($conn, $usuario_rol, $usuario_almacen_id);
+
+// Procesar filtros si existen
 $filtros = [];
-if (isset($_GET['dni']) || isset($_GET['fecha_inicio']) || isset($_GET['fecha_fin']) || isset($_GET['almacen_id'])) {
+if (isset($_GET['fecha_inicio']) || isset($_GET['fecha_fin']) || isset($_GET['almacen_id'])) {
     $filtros = [
-        'dni' => $_GET['dni'] ?? '',
         'fecha_inicio' => $_GET['fecha_inicio'] ?? '',
-        'fecha_fin' => $_GET['fecha_fin'] ?? ''
+        'fecha_fin' => $_GET['fecha_fin'] ?? '',
+        'almacen_id' => $_GET['almacen_id'] ?? ''
     ];
-    
-    // Si es admin y se seleccionó un almacén específico
-    $almacen_id_seleccionado = isset($_GET['almacen_id']) ? intval($_GET['almacen_id']) : null;
-    if ($usuario_rol == 'admin' && $almacen_id_seleccionado) {
-        $total_entregas = contarEntregasPorAlmacen($conn, $almacen_id_seleccionado, $filtros);
-        $entregas = obtenerEntregasPorAlmacen($conn, $almacen_id_seleccionado, $filtros, $registros_por_pagina, $offset);
-    } elseif ($usuario_rol != 'admin' && $usuario_almacen_id) {
-        $total_entregas = contarEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros);
-        $entregas = obtenerEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros, $registros_por_pagina, $offset);
-    }
-} elseif ($usuario_rol != 'admin' && $usuario_almacen_id) {
-    // Si no es admin, obtener entregas del almacén asignado con paginación
-    $total_entregas = contarEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros);
-    $entregas = obtenerEntregasPorAlmacen($conn, $usuario_almacen_id, $filtros, $registros_por_pagina, $offset);
 }
 
-// Calcular total de páginas
-$total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_pagina) : 0;
+// Obtener almacenes para el filtro
+if ($usuario_rol == 'admin') {
+    $sql_almacenes = "SELECT id, nombre FROM almacenes ORDER BY nombre";
+    $result_almacenes = $conn->query($sql_almacenes);
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Entregas de Uniformes - GRUPO SEAL</title>
+    <title>Reportes de Uniformes - GRUPO SEAL</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Historial de entregas de uniformes - Sistema de gestión GRUPO SEAL">
+    <meta name="description" content="Reportes y estadísticas de uniformes - Sistema de gestión GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -198,7 +141,7 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
     <!-- CSS consistente con el dashboard -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/dashboard-consistent.css">
-    <link rel="stylesheet" href="../assets/css/uniformes-historial.css">
+    <link rel="stylesheet" href="../assets/css/uniformes-reportes.css">
     
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
@@ -338,80 +281,177 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
 
 <!-- Main Content -->
 <main class="content" id="main-content" role="main">
-    <h2>Historial de Entregas de Uniformes</h2>
-
-    <?php if ($usuario_rol == 'admin'): ?>
-        <div class="almacenes-container">
-            <?php if ($result_almacenes && $result_almacenes->num_rows > 0): ?>
-                <?php while ($almacen = $result_almacenes->fetch_assoc()): ?>
-                    <div class="almacen-card">
-                        <h3><?php echo htmlspecialchars($almacen["nombre"]); ?></h3>
-                        <p><strong>Ubicación:</strong> <?php echo htmlspecialchars($almacen["ubicacion"]); ?></p>
-                        <a href="#" class="btn-ver mostrar-entregas" data-almacen-id="<?php echo $almacen['id']; ?>">
-                            <i class="fas fa-eye"></i> Ver Entregas
-                        </a>
-                    </div>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <p>No hay almacenes registrados.</p>
-            <?php endif; ?>
+    <!-- Reports Header -->
+    <div class="reports-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1>Reportes de Uniformes</h1>
+                <p>Panel de estadísticas y análisis de entregas de uniformes</p>
+            </div>
+            <div class="header-actions">
+                <a href="#" class="btn-export" onclick="exportarReporte()">
+                    <i class="fas fa-download"></i>
+                    Exportar PDF
+                </a>
+                <a href="#" class="btn-export" onclick="exportarExcel()">
+                    <i class="fas fa-file-excel"></i>
+                    Exportar Excel
+                </a>
+            </div>
         </div>
-    <?php endif; ?>
+    </div>
 
-    <div id="contenedor-historial-entregas" style="<?php echo $usuario_rol != 'admin' ? 'display:block;' : 'display:none;'; ?>">
-        <form method="GET" class="uniform-filter-form" id="formulario-filtros">
-            <div class="row">
-                <div class="col-md-4">
-                    <label for="filtro-dni" class="form-label">Filtrar por DNI</label>
-                    <input type="text" class="form-control" id="filtro-dni" name="dni" 
-                           placeholder="Número de DNI" 
-                           value="<?php echo htmlspecialchars($_GET['dni'] ?? ''); ?>">
-                </div>
-                <div class="col-md-4">
-                    <label for="filtro-fecha-inicio" class="form-label">Fecha de Inicio</label>
-                    <input type="date" class="form-control" id="filtro-fecha-inicio" 
-                           name="fecha_inicio"
-                           value="<?php echo htmlspecialchars($_GET['fecha_inicio'] ?? ''); ?>">
-                </div>
-                <div class="col-md-4">
-                    <label for="filtro-fecha-fin" class="form-label">Fecha de Fin</label>
-                    <input type="date" class="form-control" id="filtro-fecha-fin" 
-                           name="fecha_fin"
-                           value="<?php echo htmlspecialchars($_GET['fecha_fin'] ?? ''); ?>">
-                </div>
+    <!-- Statistics Grid -->
+    <div class="stats-grid">
+        <div class="stat-card entregas">
+            <div class="stat-icon"></div>
+            <div class="stat-value"><?php echo number_format($estadisticas['entregas']); ?></div>
+            <div class="stat-label">Total Entregas</div>
+        </div>
+        
+        <div class="stat-card productos">
+            <div class="stat-icon"></div>
+            <div class="stat-value"><?php echo number_format($estadisticas['productos']); ?></div>
+            <div class="stat-label">Productos Entregados</div>
+        </div>
+        
+        <div class="stat-card almacenes">
+            <div class="stat-icon"></div>
+            <div class="stat-value"><?php echo number_format($estadisticas['almacenes']); ?></div>
+            <div class="stat-label">Almacenes Activos</div>
+        </div>
+        
+        <div class="stat-card mes">
+            <div class="stat-icon"></div>
+            <div class="stat-value"><?php echo number_format($estadisticas['mes']); ?></div>
+            <div class="stat-label">Entregas Este Mes</div>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="executive-summary">
+        <div class="summary-header">
+            <h3>Resumen Ejecutivo</h3>
+        </div>
+        <div class="summary-content">
+            <div class="summary-item">
+                <div class="summary-value"><?php echo number_format($estadisticas['entregas'] > 0 ? $estadisticas['productos'] / $estadisticas['entregas'] : 0, 1); ?></div>
+                <div class="summary-label">Promedio por Entrega</div>
             </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary">Buscar</button>
-                <a href="?" class="btn btn-secondary">Limpiar Filtros</a>
+            <div class="summary-item">
+                <div class="summary-value"><?php echo $estadisticas['mes']; ?></div>
+                <div class="summary-label">Entregas Mensuales</div>
             </div>
-            <!-- Conservar el almacén seleccionado durante la paginación -->
-            <?php if (isset($_GET['almacen_id'])): ?>
-                <input type="hidden" name="almacen_id" value="<?php echo htmlspecialchars($_GET['almacen_id']); ?>">
+            <div class="summary-item">
+                <div class="summary-value"><?php echo date('d/m/Y'); ?></div>
+                <div class="summary-label">Último Reporte</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="filters-section">
+        <div class="filters-header">
+            <h3>Filtros de Búsqueda</h3>
+        </div>
+        <form class="filters-form" method="GET">
+            <div class="filter-group">
+                <label class="filter-label">Fecha de Inicio</label>
+                <input type="date" class="filter-control" name="fecha_inicio" 
+                       value="<?php echo htmlspecialchars($filtros['fecha_inicio'] ?? ''); ?>">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Fecha de Fin</label>
+                <input type="date" class="filter-control" name="fecha_fin"
+                       value="<?php echo htmlspecialchars($filtros['fecha_fin'] ?? ''); ?>">
+            </div>
+            <?php if ($usuario_rol == 'admin'): ?>
+            <div class="filter-group">
+                <label class="filter-label">Almacén</label>
+                <select class="filter-control" name="almacen_id">
+                    <option value="">Todos los almacenes</option>
+                    <?php while ($almacen = $result_almacenes->fetch_assoc()): ?>
+                        <option value="<?php echo $almacen['id']; ?>" 
+                                <?php echo ($filtros['almacen_id'] == $almacen['id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($almacen['nombre']); ?>
+                        </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
             <?php endif; ?>
+            <div class="filter-group">
+                <button type="submit" class="btn-filter">
+                    <i class="fas fa-search"></i>
+                    Filtrar
+                </button>
+            </div>
         </form>
+    </div>
 
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h4>Entregas por Mes</h4>
+                <div class="chart-options">
+                    <span class="chart-option active">6M</span>
+                    <span class="chart-option">1A</span>
+                    <span class="chart-option">TODO</span>
+                </div>
+            </div>
+            <div class="chart-body">
+                <div class="chart-placeholder">
+                    Gráfico de entregas por mes<br>
+                    <small>Implementar con Chart.js o biblioteca similar</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-header">
+                <h4>Productos Más Entregados</h4>
+                <div class="chart-options">
+                    <span class="chart-option active">Top 10</span>
+                    <span class="chart-option">Top 20</span>
+                </div>
+            </div>
+            <div class="chart-body">
+                <div class="chart-placeholder">
+                    Gráfico de productos más entregados<br>
+                    <small>Implementar con Chart.js o biblioteca similar</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="reports-table-section">
+        <div class="table-header">
+            <h3>Entregas Recientes</h3>
+        </div>
         <div class="table-responsive">
-            <table class="table uniform-delivery-table" id="tabla-historial-entregas">
+            <table class="reports-table">
                 <thead>
                     <tr>
-                        <th>Almacén</th>
                         <th>Fecha</th>
                         <th>Destinatario</th>
                         <th>DNI</th>
-                        <th>Productos Entregados</th>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Almacén</th>
+                        <th>Estado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (empty($entregas)): ?>
+                    <?php if (empty($entregas_recientes)): ?>
                         <tr>
-                            <td colspan="5" class="no-results-message">
+                            <td colspan="7" style="text-align: center; padding: 40px;">
                                 No hay entregas para mostrar
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($entregas as $entrega): ?>
+                        <?php foreach ($entregas_recientes as $entrega): ?>
                             <tr>
-                                <td><?php echo htmlspecialchars($entrega['almacen_nombre']); ?></td>
                                 <td>
                                     <?php 
                                     $fecha = new DateTime($entrega['fecha_entrega']);
@@ -420,19 +460,13 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
                                 </td>
                                 <td><?php echo htmlspecialchars($entrega['nombre_destinatario']); ?></td>
                                 <td><?php echo htmlspecialchars($entrega['dni_destinatario']); ?></td>
+                                <td><?php echo htmlspecialchars($entrega['producto_nombre']); ?></td>
+                                <td><?php echo number_format($entrega['cantidad']); ?></td>
+                                <td><?php echo htmlspecialchars($entrega['almacen_nombre']); ?></td>
                                 <td>
-                                    <ul class="productos-lista">
-                                        <?php foreach ($entrega['productos'] as $producto): ?>
-                                            <li>
-                                                <?php 
-                                                echo htmlspecialchars($producto['nombre']) . 
-                                                     ' (Cantidad: ' . 
-                                                     htmlspecialchars($producto['cantidad']) . 
-                                                     ')'; 
-                                                ?>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
+                                    <span class="status-badge status-entregado">
+                                        Entregado
+                                    </span>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -440,70 +474,6 @@ $total_paginas = isset($total_entregas) ? ceil($total_entregas / $registros_por_
                 </tbody>
             </table>
         </div>
-
-        <!-- Paginación -->
-        <?php if ($total_paginas > 0): ?>
-        <div class="pagination">
-            <?php
-            // Parámetros actuales de URL para mantener en los enlaces de paginación
-            $params = [];
-            foreach ($_GET as $key => $value) {
-                if ($key != 'pagina') {
-                    $params[] = $key . '=' . urlencode($value);
-                }
-            }
-            $url_params = !empty($params) ? '?' . implode('&', $params) . '&' : '?';
-            
-            // Mostrar enlace "Anterior" si no estamos en la primera página
-            if ($pagina_actual > 1): ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual - 1; ?>">
-                    <i class="fas fa-chevron-left"></i> Anterior
-                </a>
-            <?php else: ?>
-                <span class="disabled"><i class="fas fa-chevron-left"></i> Anterior</span>
-            <?php endif; ?>
-            
-            <?php
-            // Definir cuántas páginas mostrar a cada lado de la página actual
-            $paginas_mostrar = 2;
-            $inicio_paginas = max(1, $pagina_actual - $paginas_mostrar);
-            $fin_paginas = min($total_paginas, $pagina_actual + $paginas_mostrar);
-            
-            // Mostrar página 1 si estamos muy lejos
-            if ($inicio_paginas > 1): ?>
-                <a href="<?php echo $url_params; ?>pagina=1">1</a>
-                <?php if ($inicio_paginas > 2): ?>
-                    <span>...</span>
-                <?php endif; ?>
-            <?php endif; ?>
-            
-            <!-- Mostrar enlaces numerados -->
-            <?php for ($i = $inicio_paginas; $i <= $fin_paginas; $i++): ?>
-                <?php if ($i == $pagina_actual): ?>
-                    <span class="active"><?php echo $i; ?></span>
-                <?php else: ?>
-                    <a href="<?php echo $url_params; ?>pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
-                <?php endif; ?>
-            <?php endfor; ?>
-            
-            <!-- Mostrar última página si estamos muy lejos -->
-            <?php if ($fin_paginas < $total_paginas): ?>
-                <?php if ($fin_paginas < $total_paginas - 1): ?>
-                    <span>...</span>
-                <?php endif; ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $total_paginas; ?>"><?php echo $total_paginas; ?></a>
-            <?php endif; ?>
-            
-            <!-- Mostrar enlace "Siguiente" si no estamos en la última página -->
-            <?php if ($pagina_actual < $total_paginas): ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual + 1; ?>">
-                    Siguiente <i class="fas fa-chevron-right"></i>
-                </a>
-            <?php else: ?>
-                <span class="disabled">Siguiente <i class="fas fa-chevron-right"></i></span>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
     </div>
 </main>
 
@@ -584,49 +554,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Manejar clic en "Ver Entregas" para admin (específico de este archivo)
-    const botonesVerEntregas = document.querySelectorAll('.mostrar-entregas');
-    const contenedorHistorial = document.getElementById('contenedor-historial-entregas');
-    const almacenesContainer = document.querySelector('.almacenes-container');
-
-    botonesVerEntregas.forEach(boton => {
-        boton.addEventListener('click', function(e) {
-            e.preventDefault();
-            const almacenId = this.dataset.almacenId;
-
-            // Ocultar los cuadros de almacén
-            almacenesContainer.style.display = 'none';
-
-            // Redirigir con el almacen_id seleccionado
-            window.location.href = `?almacen_id=${almacenId}`;
-        });
-    });
-
-    // Agregar botón para volver a la lista de almacenes (para admin)
-    <?php if ($usuario_rol == 'admin' && isset($_GET['almacen_id'])): ?>
-    const mainContentElement = document.getElementById('main-content');
-    const volverBtn = document.createElement('button');
-    volverBtn.className = 'btn btn-volver';
-    volverBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Volver a la lista de almacenes';
-    volverBtn.style.marginBottom = '20px';
-    volverBtn.addEventListener('click', function() {
-        window.location.href = 'historial_entregas_uniformes.php';
-    });
-    mainContentElement.insertBefore(volverBtn, contenedorHistorial);
-    <?php endif; ?>
-
-    // Validación de fechas
-    const form = document.querySelector('.uniform-filter-form');
-    form.addEventListener('submit', function(e) {
-        const fechaInicio = document.getElementById('filtro-fecha-inicio').value;
-        const fechaFin = document.getElementById('filtro-fecha-fin').value;
-
-        if (fechaInicio && fechaFin && new Date(fechaInicio) > new Date(fechaFin)) {
-            e.preventDefault();
-            alert('La fecha de inicio no puede ser mayor que la fecha de fin');
-        }
-    });
-
     // Cerrar menú móvil al hacer clic fuera (igual que el dashboard)
     document.addEventListener('click', function(e) {
         if (window.innerWidth <= 768) {
@@ -664,7 +591,62 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('mousedown', function() {
         document.body.classList.remove('keyboard-navigation');
     });
+
+    // Event listeners para las opciones de gráficos (específico de reportes)
+    document.querySelectorAll('.chart-option').forEach(option => {
+        option.addEventListener('click', function() {
+            // Remover clase active de hermanos
+            this.parentNode.querySelectorAll('.chart-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+            
+            // Agregar clase active al elemento clickeado
+            this.classList.add('active');
+            
+            // Aquí iría la lógica para actualizar el gráfico
+            console.log('Actualizar gráfico con opción:', this.textContent);
+        });
+    });
+
+    // Validación de fechas en filtros
+    document.querySelector('.filters-form').addEventListener('submit', function(e) {
+        const fechaInicio = document.querySelector('input[name="fecha_inicio"]').value;
+        const fechaFin = document.querySelector('input[name="fecha_fin"]').value;
+
+        if (fechaInicio && fechaFin && new Date(fechaInicio) > new Date(fechaFin)) {
+            e.preventDefault();
+            mostrarNotificacion('La fecha de inicio no puede ser mayor que la fecha de fin', 'error');
+        }
+    });
 });
+
+// Funciones para exportar reportes
+function exportarReporte() {
+    // Implementar exportación a PDF
+    mostrarNotificacion('Función de exportación a PDF en desarrollo', 'info');
+}
+
+function exportarExcel() {
+    // Implementar exportación a Excel
+    mostrarNotificacion('Función de exportación a Excel en desarrollo', 'info');
+}
+
+// Función para mostrar notificación
+function mostrarNotificacion(mensaje, tipo = 'info') {
+    const container = document.getElementById('notificaciones-container');
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    notificacion.innerHTML = `
+        <i class="fas fa-${tipo === 'exito' ? 'check-circle' : tipo === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        ${mensaje}
+    `;
+    
+    container.appendChild(notificacion);
+    
+    setTimeout(() => {
+        notificacion.remove();
+    }, 5000);
+}
 
 // Función para cerrar sesión con confirmación (igual que el dashboard)
 async function manejarCerrarSesion(event) {
