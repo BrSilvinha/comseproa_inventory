@@ -13,7 +13,7 @@ $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 $usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
 
 // Obtener parámetros
-$formato = $_GET['formato'] ?? 'pdf'; // pdf o excel
+$formato = $_GET['formato'] ?? 'pdf'; // pdf, excel o csv
 $filtro_almacen_id = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : null;
 $filtro_categoria_id = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : null;
 
@@ -59,6 +59,7 @@ function obtenerEntregasReporte($conn, $almacen_id, $categoria_id = null, $filtr
             a.nombre as almacen_nombre,
             a.ubicacion as almacen_ubicacion,
             u.nombre as usuario_responsable,
+            u.apellidos as usuario_apellidos,
             c.nombre as categoria_nombre
         FROM 
             entrega_uniformes eu
@@ -133,6 +134,10 @@ $stmt->execute();
 $almacen_info = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
+if (!$almacen_info) {
+    die("Almacén no encontrado");
+}
+
 // Obtener información de la categoría si existe
 $categoria_info = null;
 if ($filtro_categoria_id) {
@@ -154,112 +159,16 @@ if (empty($entregas)) {
 // Generar reporte según el formato
 if ($formato === 'excel') {
     generarReporteExcel($entregas, $almacen_info, $categoria_info, $filtros);
+} elseif ($formato === 'csv') {
+    generarReporteCSV($entregas, $almacen_info, $categoria_info, $filtros);
 } else {
     generarReportePDF($entregas, $almacen_info, $categoria_info, $filtros);
 }
 
-// Función para generar reporte en Excel
-function generarReporteExcel($entregas, $almacen_info, $categoria_info, $filtros) {
-    // Verificar si PhpSpreadsheet está disponible
-    if (!class_exists('PhpOffice\PhpSpreadsheet\Spreadsheet')) {
-        // Fallback: generar CSV si no hay PhpSpreadsheet
-        generarReporteCSV($entregas, $almacen_info, $categoria_info, $filtros);
-        return;
-    }
-    
-    require_once '../vendor/autoload.php'; // Ajustar ruta según tu instalación
-    
-    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
-    
-    // Configurar título
-    $titulo = "Reporte de Entregas - " . $almacen_info['nombre'];
-    if ($categoria_info) {
-        $titulo .= " - " . $categoria_info['nombre'];
-    }
-    
-    $sheet->setCellValue('A1', $titulo);
-    $sheet->mergeCells('A1:L1');
-    
-    // Información del reporte
-    $fila = 3;
-    $sheet->setCellValue('A' . $fila, 'Almacén:');
-    $sheet->setCellValue('B' . $fila, $almacen_info['nombre']);
-    $fila++;
-    
-    $sheet->setCellValue('A' . $fila, 'Ubicación:');
-    $sheet->setCellValue('B' . $fila, $almacen_info['ubicacion']);
-    $fila++;
-    
-    if ($categoria_info) {
-        $sheet->setCellValue('A' . $fila, 'Categoría:');
-        $sheet->setCellValue('B' . $fila, $categoria_info['nombre']);
-        $fila++;
-    }
-    
-    $sheet->setCellValue('A' . $fila, 'Fecha del reporte:');
-    $sheet->setCellValue('B' . $fila, date('d/m/Y H:i'));
-    $fila++;
-    
-    $sheet->setCellValue('A' . $fila, 'Total de entregas:');
-    $sheet->setCellValue('B' . $fila, count($entregas));
-    $fila += 2;
-    
-    // Encabezados
-    $encabezados = [
-        'Fecha Entrega', 'Destinatario', 'DNI', 'Categoría', 'Producto', 
-        'Modelo', 'Color', 'Talla', 'Cantidad', 'Unidad', 'Responsable'
-    ];
-    
-    $columna = 'A';
-    foreach ($encabezados as $encabezado) {
-        $sheet->setCellValue($columna . $fila, $encabezado);
-        $columna++;
-    }
-    $fila++;
-    
-    // Datos
-    foreach ($entregas as $entrega) {
-        $sheet->setCellValue('A' . $fila, date('d/m/Y H:i', strtotime($entrega['fecha_entrega'])));
-        $sheet->setCellValue('B' . $fila, $entrega['nombre_destinatario']);
-        $sheet->setCellValue('C' . $fila, $entrega['dni_destinatario']);
-        $sheet->setCellValue('D' . $fila, $entrega['categoria_nombre']);
-        $sheet->setCellValue('E' . $fila, $entrega['producto_nombre']);
-        $sheet->setCellValue('F' . $fila, $entrega['modelo'] ?: '-');
-        $sheet->setCellValue('G' . $fila, $entrega['color'] ?: '-');
-        $sheet->setCellValue('H' . $fila, $entrega['talla_dimensiones'] ?: '-');
-        $sheet->setCellValue('I' . $fila, $entrega['cantidad']);
-        $sheet->setCellValue('J' . $fila, $entrega['unidad_medida']);
-        $sheet->setCellValue('K' . $fila, $entrega['usuario_responsable'] ?: 'No registrado');
-        $fila++;
-    }
-    
-    // Configurar estilo
-    $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-    $sheet->getStyle('A' . ($fila - count($entregas) - 1) . ':K' . ($fila - count($entregas) - 1))->getFont()->setBold(true);
-    
-    // Autoajustar columnas
-    foreach (range('A', 'K') as $col) {
-        $sheet->getColumnDimension($col)->setAutoSize(true);
-    }
-    
-    // Generar archivo
-    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-    
-    $filename = 'reporte_entregas_' . $almacen_info['nombre'] . '_' . date('Y-m-d_H-i-s') . '.xlsx';
-    $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
-    
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment;filename="' . $filename . '"');
-    header('Cache-Control: max-age=0');
-    
-    $writer->save('php://output');
-    exit();
-}
-
-// Función para generar reporte en CSV (fallback)
+// Función para generar reporte en CSV
 function generarReporteCSV($entregas, $almacen_info, $categoria_info, $filtros) {
-    $filename = 'reporte_entregas_' . $almacen_info['nombre'] . '_' . date('Y-m-d_H-i-s') . '.csv';
+    $categoria_texto = $categoria_info ? '_' . str_replace(' ', '_', $categoria_info['nombre']) : '';
+    $filename = 'reporte_entregas_' . str_replace(' ', '_', $almacen_info['nombre']) . $categoria_texto . '_' . date('Y-m-d_H-i-s') . '.csv';
     $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
     
     header('Content-Type: text/csv; charset=utf-8');
@@ -272,7 +181,7 @@ function generarReporteCSV($entregas, $almacen_info, $categoria_info, $filtros) 
     fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
     
     // Información del reporte
-    fputcsv($output, ['REPORTE DE ENTREGAS - ' . $almacen_info['nombre']]);
+    fputcsv($output, ['REPORTE DE ENTREGAS - GRUPO SEAL']);
     fputcsv($output, []);
     fputcsv($output, ['Almacén:', $almacen_info['nombre']]);
     fputcsv($output, ['Ubicación:', $almacen_info['ubicacion']]);
@@ -281,16 +190,38 @@ function generarReporteCSV($entregas, $almacen_info, $categoria_info, $filtros) 
     }
     fputcsv($output, ['Fecha del reporte:', date('d/m/Y H:i')]);
     fputcsv($output, ['Total de entregas:', count($entregas)]);
+    
+    // Mostrar filtros aplicados
+    $filtros_aplicados = [];
+    if (!empty($filtros['nombre'])) $filtros_aplicados[] = 'Nombre: ' . $filtros['nombre'];
+    if (!empty($filtros['dni'])) $filtros_aplicados[] = 'DNI: ' . $filtros['dni'];
+    if (!empty($filtros['fecha_inicio'])) $filtros_aplicados[] = 'Desde: ' . $filtros['fecha_inicio'];
+    if (!empty($filtros['fecha_fin'])) $filtros_aplicados[] = 'Hasta: ' . $filtros['fecha_fin'];
+    
+    if (!empty($filtros_aplicados)) {
+        fputcsv($output, ['Filtros aplicados:', implode(' | ', $filtros_aplicados)]);
+    }
+    
     fputcsv($output, []);
     
     // Encabezados
     fputcsv($output, [
         'Fecha Entrega', 'Destinatario', 'DNI', 'Categoría', 'Producto',
-        'Modelo', 'Color', 'Talla', 'Cantidad', 'Unidad', 'Responsable'
+        'Modelo', 'Color', 'Talla/Dimensiones', 'Cantidad', 'Unidad', 'Responsable'
     ]);
     
     // Datos
     foreach ($entregas as $entrega) {
+        $responsable = '';
+        if (!empty($entrega['usuario_responsable'])) {
+            $responsable = $entrega['usuario_responsable'];
+            if (!empty($entrega['usuario_apellidos'])) {
+                $responsable .= ' ' . $entrega['usuario_apellidos'];
+            }
+        } else {
+            $responsable = 'No registrado';
+        }
+        
         fputcsv($output, [
             date('d/m/Y H:i', strtotime($entrega['fecha_entrega'])),
             $entrega['nombre_destinatario'],
@@ -302,7 +233,7 @@ function generarReporteCSV($entregas, $almacen_info, $categoria_info, $filtros) 
             $entrega['talla_dimensiones'] ?: '-',
             $entrega['cantidad'],
             $entrega['unidad_medida'],
-            $entrega['usuario_responsable'] ?: 'No registrado'
+            $responsable
         ]);
     }
     
@@ -310,111 +241,98 @@ function generarReporteCSV($entregas, $almacen_info, $categoria_info, $filtros) 
     exit();
 }
 
-// Función para generar reporte en PDF
-function generarReportePDF($entregas, $almacen_info, $categoria_info, $filtros) {
-    // Si TCPDF no está disponible, usar HTML simple
-    if (!class_exists('TCPDF')) {
-        generarReporteHTML($entregas, $almacen_info, $categoria_info, $filtros);
-        return;
-    }
-    
-    require_once '../vendor/tcpdf/tcpdf.php'; // Ajustar ruta según tu instalación
-    
-    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-    
-    // Configuración del documento
-    $pdf->SetCreator('Sistema GRUPO SEAL');
-    $pdf->SetAuthor('GRUPO SEAL');
-    $pdf->SetTitle('Reporte de Entregas');
-    $pdf->SetSubject('Historial de Entregas');
-    
-    // Configurar página
-    $pdf->SetHeaderData('', 0, 'GRUPO SEAL', 'Reporte de Entregas');
-    $pdf->setHeaderFont(['helvetica', '', 12]);
-    $pdf->setFooterFont(['helvetica', '', 8]);
-    $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
-    $pdf->SetMargins(15, 27, 15);
-    $pdf->SetHeaderMargin(5);
-    $pdf->SetFooterMargin(10);
-    $pdf->SetAutoPageBreak(TRUE, 25);
-    $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
-    
-    $pdf->AddPage();
-    
-    // Título
-    $pdf->SetFont('helvetica', 'B', 16);
-    $titulo = 'Reporte de Entregas - ' . $almacen_info['nombre'];
-    if ($categoria_info) {
-        $titulo .= "\n" . $categoria_info['nombre'];
-    }
-    $pdf->Cell(0, 10, $titulo, 0, 1, 'C');
-    $pdf->Ln(5);
-    
-    // Información del reporte
-    $pdf->SetFont('helvetica', '', 10);
-    $pdf->Cell(30, 6, 'Almacén:', 0, 0, 'L');
-    $pdf->Cell(0, 6, $almacen_info['nombre'], 0, 1, 'L');
-    $pdf->Cell(30, 6, 'Ubicación:', 0, 0, 'L');
-    $pdf->Cell(0, 6, $almacen_info['ubicacion'], 0, 1, 'L');
-    
-    if ($categoria_info) {
-        $pdf->Cell(30, 6, 'Categoría:', 0, 0, 'L');
-        $pdf->Cell(0, 6, $categoria_info['nombre'], 0, 1, 'L');
-    }
-    
-    $pdf->Cell(30, 6, 'Fecha:', 0, 0, 'L');
-    $pdf->Cell(0, 6, date('d/m/Y H:i'), 0, 1, 'L');
-    $pdf->Cell(30, 6, 'Total entregas:', 0, 0, 'L');
-    $pdf->Cell(0, 6, count($entregas), 0, 1, 'L');
-    $pdf->Ln(5);
-    
-    // Tabla de entregas
-    $pdf->SetFont('helvetica', 'B', 8);
-    $pdf->Cell(20, 8, 'Fecha', 1, 0, 'C');
-    $pdf->Cell(35, 8, 'Destinatario', 1, 0, 'C');
-    $pdf->Cell(20, 8, 'DNI', 1, 0, 'C');
-    $pdf->Cell(30, 8, 'Categoría', 1, 0, 'C');
-    $pdf->Cell(40, 8, 'Producto', 1, 0, 'C');
-    $pdf->Cell(15, 8, 'Cant.', 1, 0, 'C');
-    $pdf->Cell(20, 8, 'Responsable', 1, 1, 'C');
-    
-    $pdf->SetFont('helvetica', '', 7);
-    foreach ($entregas as $entrega) {
-        // Verificar si necesita nueva página
-        if ($pdf->GetY() > 250) {
-            $pdf->AddPage();
-            // Repetir encabezados
-            $pdf->SetFont('helvetica', 'B', 8);
-            $pdf->Cell(20, 8, 'Fecha', 1, 0, 'C');
-            $pdf->Cell(35, 8, 'Destinatario', 1, 0, 'C');
-            $pdf->Cell(20, 8, 'DNI', 1, 0, 'C');
-            $pdf->Cell(30, 8, 'Categoría', 1, 0, 'C');
-            $pdf->Cell(40, 8, 'Producto', 1, 0, 'C');
-            $pdf->Cell(15, 8, 'Cant.', 1, 0, 'C');
-            $pdf->Cell(20, 8, 'Responsable', 1, 1, 'C');
-            $pdf->SetFont('helvetica', '', 7);
-        }
-        
-        $pdf->Cell(20, 6, date('d/m/Y', strtotime($entrega['fecha_entrega'])), 1, 0, 'C');
-        $pdf->Cell(35, 6, substr($entrega['nombre_destinatario'], 0, 25), 1, 0, 'L');
-        $pdf->Cell(20, 6, $entrega['dni_destinatario'], 1, 0, 'C');
-        $pdf->Cell(30, 6, substr($entrega['categoria_nombre'], 0, 20), 1, 0, 'L');
-        $pdf->Cell(40, 6, substr($entrega['producto_nombre'], 0, 30), 1, 0, 'L');
-        $pdf->Cell(15, 6, $entrega['cantidad'], 1, 0, 'C');
-        $pdf->Cell(20, 6, substr($entrega['usuario_responsable'] ?: 'N/R', 0, 15), 1, 1, 'L');
-    }
-    
-    // Generar archivo
-    $filename = 'reporte_entregas_' . $almacen_info['nombre'] . '_' . date('Y-m-d_H-i-s') . '.pdf';
+// Función para generar reporte en Excel (usando CSV como fallback)
+function generarReporteExcel($entregas, $almacen_info, $categoria_info, $filtros) {
+    // Generar CSV con extensión .xls para compatibilidad con Excel
+    $categoria_texto = $categoria_info ? '_' . str_replace(' ', '_', $categoria_info['nombre']) : '';
+    $filename = 'reporte_entregas_' . str_replace(' ', '_', $almacen_info['nombre']) . $categoria_texto . '_' . date('Y-m-d_H-i-s') . '.xls';
     $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
     
-    $pdf->Output($filename, 'D');
+    header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+    header('Content-Disposition: attachment;filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+    
+    echo "\xEF\xBB\xBF"; // BOM para UTF-8
+    
+    // Generar tabla HTML que Excel puede interpretar
+    echo '<table border="1">';
+    
+    // Información del reporte
+    echo '<tr><th colspan="11" style="background-color: #0a253c; color: white; font-weight: bold; text-align: center;">REPORTE DE ENTREGAS - GRUPO SEAL</th></tr>';
+    echo '<tr><td></td></tr>';
+    echo '<tr><td><strong>Almacén:</strong></td><td colspan="10">' . htmlspecialchars($almacen_info['nombre']) . '</td></tr>';
+    echo '<tr><td><strong>Ubicación:</strong></td><td colspan="10">' . htmlspecialchars($almacen_info['ubicacion']) . '</td></tr>';
+    
+    if ($categoria_info) {
+        echo '<tr><td><strong>Categoría:</strong></td><td colspan="10">' . htmlspecialchars($categoria_info['nombre']) . '</td></tr>';
+    }
+    
+    echo '<tr><td><strong>Fecha del reporte:</strong></td><td colspan="10">' . date('d/m/Y H:i') . '</td></tr>';
+    echo '<tr><td><strong>Total de entregas:</strong></td><td colspan="10">' . count($entregas) . '</td></tr>';
+    
+    // Mostrar filtros aplicados
+    $filtros_aplicados = [];
+    if (!empty($filtros['nombre'])) $filtros_aplicados[] = 'Nombre: ' . $filtros['nombre'];
+    if (!empty($filtros['dni'])) $filtros_aplicados[] = 'DNI: ' . $filtros['dni'];
+    if (!empty($filtros['fecha_inicio'])) $filtros_aplicados[] = 'Desde: ' . $filtros['fecha_inicio'];
+    if (!empty($filtros['fecha_fin'])) $filtros_aplicados[] = 'Hasta: ' . $filtros['fecha_fin'];
+    
+    if (!empty($filtros_aplicados)) {
+        echo '<tr><td><strong>Filtros aplicados:</strong></td><td colspan="10">' . htmlspecialchars(implode(' | ', $filtros_aplicados)) . '</td></tr>';
+    }
+    
+    echo '<tr><td></td></tr>';
+    
+    // Encabezados
+    echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
+    echo '<th>Fecha Entrega</th>';
+    echo '<th>Destinatario</th>';
+    echo '<th>DNI</th>';
+    echo '<th>Categoría</th>';
+    echo '<th>Producto</th>';
+    echo '<th>Modelo</th>';
+    echo '<th>Color</th>';
+    echo '<th>Talla/Dimensiones</th>';
+    echo '<th>Cantidad</th>';
+    echo '<th>Unidad</th>';
+    echo '<th>Responsable</th>';
+    echo '</tr>';
+    
+    // Datos
+    foreach ($entregas as $entrega) {
+        $responsable = '';
+        if (!empty($entrega['usuario_responsable'])) {
+            $responsable = $entrega['usuario_responsable'];
+            if (!empty($entrega['usuario_apellidos'])) {
+                $responsable .= ' ' . $entrega['usuario_apellidos'];
+            }
+        } else {
+            $responsable = 'No registrado';
+        }
+        
+        echo '<tr>';
+        echo '<td>' . date('d/m/Y H:i', strtotime($entrega['fecha_entrega'])) . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['nombre_destinatario']) . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['dni_destinatario']) . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['categoria_nombre']) . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['producto_nombre']) . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['modelo'] ?: '-') . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['color'] ?: '-') . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['talla_dimensiones'] ?: '-') . '</td>';
+        echo '<td style="text-align: center;">' . $entrega['cantidad'] . '</td>';
+        echo '<td>' . htmlspecialchars($entrega['unidad_medida']) . '</td>';
+        echo '<td>' . htmlspecialchars($responsable) . '</td>';
+        echo '</tr>';
+    }
+    
+    echo '</table>';
     exit();
 }
 
-// Función para generar reporte HTML (fallback)
-function generarReporteHTML($entregas, $almacen_info, $categoria_info, $filtros) {
-    $filename = 'reporte_entregas_' . $almacen_info['nombre'] . '_' . date('Y-m-d_H-i-s') . '.html';
+// Función para generar reporte en PDF (HTML como fallback)
+function generarReportePDF($entregas, $almacen_info, $categoria_info, $filtros) {
+    $categoria_texto = $categoria_info ? '_' . str_replace(' ', '_', $categoria_info['nombre']) : '';
+    $filename = 'reporte_entregas_' . str_replace(' ', '_', $almacen_info['nombre']) . $categoria_texto . '_' . date('Y-m-d_H-i-s') . '.html';
     $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
     
     header('Content-Type: text/html; charset=utf-8');
@@ -424,41 +342,155 @@ function generarReporteHTML($entregas, $almacen_info, $categoria_info, $filtros)
     <html>
     <head>
         <meta charset="utf-8">
-        <title>Reporte de Entregas</title>
+        <title>Reporte de Entregas - GRUPO SEAL</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .info { margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; font-weight: bold; }
+            body { 
+                font-family: Arial, sans-serif; 
+                margin: 20px; 
+                line-height: 1.4;
+            }
+            .header { 
+                text-align: center; 
+                margin-bottom: 30px; 
+                border-bottom: 3px solid #0a253c;
+                padding-bottom: 20px;
+            }
+            .header h1 {
+                color: #0a253c;
+                margin: 0;
+                font-size: 24px;
+            }
+            .header h2 {
+                color: #666;
+                margin: 5px 0;
+                font-size: 18px;
+                font-weight: normal;
+            }
+            .info { 
+                margin-bottom: 25px; 
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 8px;
+                border-left: 4px solid #0a253c;
+            }
+            .info-row {
+                display: flex;
+                margin-bottom: 8px;
+            }
+            .info-label {
+                font-weight: bold;
+                min-width: 120px;
+                color: #0a253c;
+            }
+            .filtros {
+                background: #e3f2fd;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                border-left: 4px solid #2196f3;
+            }
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-top: 20px; 
+                font-size: 12px;
+            }
+            th, td { 
+                border: 1px solid #ddd; 
+                padding: 8px; 
+                text-align: left; 
+                vertical-align: top;
+            }
+            th { 
+                background-color: #0a253c; 
+                color: white;
+                font-weight: bold; 
+                text-align: center;
+            }
+            tbody tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+            tbody tr:hover {
+                background-color: #f5f5f5;
+            }
             .center { text-align: center; }
-            @media print { body { margin: 0; } }
+            .numero { text-align: right; }
+            .fecha { font-family: monospace; }
+            .dni { 
+                font-family: monospace; 
+                background: #f0f0f0;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+            .footer {
+                margin-top: 30px;
+                text-align: center;
+                color: #666;
+                font-size: 11px;
+                border-top: 1px solid #ddd;
+                padding-top: 15px;
+            }
+            @media print { 
+                body { margin: 0; font-size: 10px; }
+                .header h1 { font-size: 18px; }
+                .header h2 { font-size: 14px; }
+                th, td { padding: 4px; }
+            }
         </style>
     </head>
     <body>
         <div class="header">
-            <h1>Reporte de Entregas</h1>
-            <h2>' . htmlspecialchars($almacen_info['nombre']) . '</h2>';
+            <h1>REPORTE DE ENTREGAS</h1>
+            <h2>GRUPO SEAL - Sistema de Gestión</h2>';
     
     if ($categoria_info) {
-        echo '<h3>' . htmlspecialchars($categoria_info['nombre']) . '</h3>';
+        echo '<h3 style="color: #0a253c; margin: 10px 0;">Categoría: ' . htmlspecialchars($categoria_info['nombre']) . '</h3>';
     }
     
     echo '</div>
+        
         <div class="info">
-            <p><strong>Almacén:</strong> ' . htmlspecialchars($almacen_info['nombre']) . '</p>
-            <p><strong>Ubicación:</strong> ' . htmlspecialchars($almacen_info['ubicacion']) . '</p>';
+            <div class="info-row">
+                <span class="info-label">Almacén:</span>
+                <span>' . htmlspecialchars($almacen_info['nombre']) . '</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Ubicación:</span>
+                <span>' . htmlspecialchars($almacen_info['ubicacion']) . '</span>
+            </div>';
     
     if ($categoria_info) {
-        echo '<p><strong>Categoría:</strong> ' . htmlspecialchars($categoria_info['nombre']) . '</p>';
+        echo '<div class="info-row">
+                <span class="info-label">Categoría:</span>
+                <span>' . htmlspecialchars($categoria_info['nombre']) . '</span>
+              </div>';
     }
     
-    echo '<p><strong>Fecha del reporte:</strong> ' . date('d/m/Y H:i') . '</p>
-            <p><strong>Total de entregas:</strong> ' . count($entregas) . '</p>
-        </div>
-        
-        <table>
+    echo '<div class="info-row">
+            <span class="info-label">Fecha del reporte:</span>
+            <span>' . date('d/m/Y H:i') . '</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Total de entregas:</span>
+            <span><strong>' . count($entregas) . '</strong></span>
+          </div>
+        </div>';
+    
+    // Mostrar filtros aplicados
+    $filtros_aplicados = [];
+    if (!empty($filtros['nombre'])) $filtros_aplicados[] = '<strong>Nombre:</strong> ' . htmlspecialchars($filtros['nombre']);
+    if (!empty($filtros['dni'])) $filtros_aplicados[] = '<strong>DNI:</strong> ' . htmlspecialchars($filtros['dni']);
+    if (!empty($filtros['fecha_inicio'])) $filtros_aplicados[] = '<strong>Desde:</strong> ' . htmlspecialchars($filtros['fecha_inicio']);
+    if (!empty($filtros['fecha_fin'])) $filtros_aplicados[] = '<strong>Hasta:</strong> ' . htmlspecialchars($filtros['fecha_fin']);
+    
+    if (!empty($filtros_aplicados)) {
+        echo '<div class="filtros">
+                <strong>Filtros aplicados:</strong><br>
+                ' . implode(' | ', $filtros_aplicados) . '
+              </div>';
+    }
+    
+    echo '<table>
             <thead>
                 <tr>
                     <th>Fecha</th>
@@ -466,26 +498,49 @@ function generarReporteHTML($entregas, $almacen_info, $categoria_info, $filtros)
                     <th>DNI</th>
                     <th>Categoría</th>
                     <th>Producto</th>
-                    <th>Cantidad</th>
+                    <th>Modelo</th>
+                    <th>Color</th>
+                    <th>Talla</th>
+                    <th>Cant.</th>
+                    <th>Unidad</th>
                     <th>Responsable</th>
                 </tr>
             </thead>
             <tbody>';
     
     foreach ($entregas as $entrega) {
+        $responsable = '';
+        if (!empty($entrega['usuario_responsable'])) {
+            $responsable = $entrega['usuario_responsable'];
+            if (!empty($entrega['usuario_apellidos'])) {
+                $responsable .= ' ' . $entrega['usuario_apellidos'];
+            }
+        } else {
+            $responsable = 'No registrado';
+        }
+        
         echo '<tr>
-                <td class="center">' . date('d/m/Y H:i', strtotime($entrega['fecha_entrega'])) . '</td>
+                <td class="fecha center">' . date('d/m/Y H:i', strtotime($entrega['fecha_entrega'])) . '</td>
                 <td>' . htmlspecialchars($entrega['nombre_destinatario']) . '</td>
-                <td class="center">' . htmlspecialchars($entrega['dni_destinatario']) . '</td>
+                <td class="center"><span class="dni">' . htmlspecialchars($entrega['dni_destinatario']) . '</span></td>
                 <td>' . htmlspecialchars($entrega['categoria_nombre']) . '</td>
-                <td>' . htmlspecialchars($entrega['producto_nombre']) . '</td>
-                <td class="center">' . $entrega['cantidad'] . ' ' . htmlspecialchars($entrega['unidad_medida']) . '</td>
-                <td>' . htmlspecialchars($entrega['usuario_responsable'] ?: 'No registrado') . '</td>
+                <td><strong>' . htmlspecialchars($entrega['producto_nombre']) . '</strong></td>
+                <td>' . htmlspecialchars($entrega['modelo'] ?: '-') . '</td>
+                <td>' . htmlspecialchars($entrega['color'] ?: '-') . '</td>
+                <td>' . htmlspecialchars($entrega['talla_dimensiones'] ?: '-') . '</td>
+                <td class="center numero"><strong>' . $entrega['cantidad'] . '</strong></td>
+                <td class="center">' . htmlspecialchars($entrega['unidad_medida']) . '</td>
+                <td>' . htmlspecialchars($responsable) . '</td>
               </tr>';
     }
     
     echo '</tbody>
         </table>
+        
+        <div class="footer">
+            <p>Reporte generado el ' . date('d/m/Y \a \l\a\s H:i') . ' por el Sistema de Gestión GRUPO SEAL</p>
+            <p><strong>Nota:</strong> Este documento puede imprimirse o guardarse como PDF usando las opciones del navegador (Ctrl+P)</p>
+        </div>
     </body>
     </html>';
     

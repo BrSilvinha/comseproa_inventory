@@ -238,6 +238,26 @@ $total_pendientes = 0;
 if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     $total_pendientes = $row_pendientes['total'];
 }
+
+// Función para generar URL de descarga con filtros actuales
+function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtros = []) {
+    $params = [
+        'formato' => $formato,
+        'almacen_id' => $almacen_id
+    ];
+    
+    if ($categoria_id) {
+        $params['categoria_id'] = $categoria_id;
+    }
+    
+    foreach ($filtros as $key => $value) {
+        if (!empty($value)) {
+            $params[$key] = $value;
+        }
+    }
+    
+    return 'generar_reporte.php?' . http_build_query($params);
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -264,7 +284,233 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="../assets/css/historial-entregas.css">
     
     <style>
-        /* Estilos específicos para categorías */
+        /* Estilos para los botones de descarga */
+        .download-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .download-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #0a253c;
+        }
+
+        .download-header i {
+            background: linear-gradient(135deg, #0a253c, #1e4a72);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 20px;
+        }
+
+        .download-header h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .download-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-size: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .download-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .download-btn:hover::before {
+            left: 100%;
+        }
+
+        .download-btn-pdf {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            border: 2px solid #dc3545;
+        }
+
+        .download-btn-pdf:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+            color: white;
+        }
+
+        .download-btn-excel {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: 2px solid #28a745;
+        }
+
+        .download-btn-excel:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+            color: white;
+        }
+
+        .download-btn-csv {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+            border: 2px solid #17a2b8;
+        }
+
+        .download-btn-csv:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(23, 162, 184, 0.3);
+            color: white;
+        }
+
+        .download-info {
+            background: rgba(10, 37, 60, 0.05);
+            border-left: 4px solid #0a253c;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .download-info p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .download-info strong {
+            color: #0a253c;
+        }
+
+        /* Modal de confirmación */
+        .download-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .download-modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        .download-modal h4 {
+            color: #0a253c;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        .download-modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .modal-btn-confirm {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .modal-btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .modal-btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Indicador de descarga */
+        .download-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #0a253c, #1e4a72);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            display: none;
+            animation: slideInRight 0.3s ease;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        /* Estilos específicos para categorías (mantenidos del código original) */
         .categorias-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -459,6 +705,16 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             .categoria-stats {
                 grid-template-columns: 1fr;
             }
+
+            .download-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .download-modal-content {
+                margin: 20% auto;
+                width: 95%;
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -621,6 +877,39 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <?php echo htmlspecialchars($categoria_info['nombre']); ?>
             </h4>
             <p>Entregas realizadas en <?php echo htmlspecialchars($almacen_info['nombre']); ?></p>
+        </div>
+
+        <!-- Sección de Descarga de Reportes -->
+        <div class="download-section">
+            <div class="download-header">
+                <i class="fas fa-download"></i>
+                <div>
+                    <h3>Descargar Reporte</h3>
+                    <p style="margin: 0; color: #666; font-size: 14px;">
+                        Generar reporte de entregas para la categoría "<?php echo htmlspecialchars($categoria_info['nombre']); ?>"
+                    </p>
+                </div>
+            </div>
+
+            <div class="download-buttons">
+                <button class="download-btn download-btn-pdf" onclick="confirmarDescarga('pdf')">
+                    <i class="fas fa-file-pdf"></i>
+                    Descargar PDF
+                </button>
+                <button class="download-btn download-btn-excel" onclick="confirmarDescarga('excel')">
+                    <i class="fas fa-file-excel"></i>
+                    Descargar Excel
+                </button>
+                <button class="download-btn download-btn-csv" onclick="confirmarDescarga('csv')">
+                    <i class="fas fa-file-csv"></i>
+                    Descargar CSV
+                </button>
+            </div>
+
+            <div class="download-info">
+                <p><strong>Información:</strong> El reporte incluirá todas las entregas de esta categoría según los filtros aplicados. 
+                Los filtros de fecha, nombre y DNI se conservarán en el reporte.</p>
+            </div>
         </div>
 
         <!-- Filtros para la categoría específica -->
@@ -798,6 +1087,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                     'equipo' => 'fas fa-tools',
                                     'vehiculo' => 'fas fa-car',
                                     'comunicacion' => 'fas fa-radio',
+                                    'ropa' => 'fas fa-tshirt',
+                                    'accesorio' => 'fas fa-shield-alt',
+                                    'kebra' => 'fas fa-vest',
+                                    'walkie' => 'fas fa-radio',
                                     'default' => 'fas fa-box'
                                 ];
                                 
@@ -879,6 +1172,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                     'equipo' => 'fas fa-tools',
                                     'vehiculo' => 'fas fa-car',
                                     'comunicacion' => 'fas fa-radio',
+                                    'ropa' => 'fas fa-tshirt',
+                                    'accesorio' => 'fas fa-shield-alt',
+                                    'kebra' => 'fas fa-vest',
+                                    'walkie' => 'fas fa-radio',
                                     'default' => 'fas fa-box'
                                 ];
                                 
@@ -929,10 +1226,32 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <?php endif; ?>
 </main>
 
+<!-- Modal de Confirmación de Descarga -->
+<div id="downloadModal" class="download-modal">
+    <div class="download-modal-content">
+        <h4><i class="fas fa-download"></i> Confirmar Descarga</h4>
+        <p id="modalMessage">¿Desea descargar el reporte en formato <span id="formatoSeleccionado">PDF</span>?</p>
+        <div class="download-modal-buttons">
+            <button class="modal-btn modal-btn-confirm" onclick="procederDescarga()">
+                <i class="fas fa-check"></i> Confirmar
+            </button>
+            <button class="modal-btn modal-btn-cancel" onclick="cerrarModal()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Indicador de Descarga -->
+<div id="downloadIndicator" class="download-indicator">
+    <i class="fas fa-download"></i>
+    <span>Preparando descarga...</span>
+</div>
+
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript del Dashboard -->
+<!-- JavaScript del Dashboard con funcionalidad de descarga -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos principales (igual que el dashboard)
@@ -1015,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (fechaInicio && fechaFin && fechaInicio.value && fechaFin.value) {
                 if (new Date(fechaInicio.value) > new Date(fechaFin.value)) {
                     e.preventDefault();
-                    alert('La fecha de inicio no puede ser mayor que la fecha de fin');
+                    mostrarNotificacion('La fecha de inicio no puede ser mayor que la fecha de fin', 'error');
                 }
             }
         });
@@ -1081,6 +1400,11 @@ document.addEventListener('DOMContentLoaded', function() {
             menuToggle.focus();
         }
         
+        // Cerrar modal con Escape
+        if (e.key === 'Escape') {
+            cerrarModal();
+        }
+        
         // Indicador visual para navegación por teclado
         if (e.key === 'Tab') {
             document.body.classList.add('keyboard-navigation');
@@ -1103,6 +1427,108 @@ document.addEventListener('DOMContentLoaded', function() {
             tabla.style.transform = 'translateY(0)';
         }, 200);
     }
+
+    // Animación de entrada para la sección de descarga
+    const downloadSection = document.querySelector('.download-section');
+    if (downloadSection) {
+        downloadSection.style.opacity = '0';
+        downloadSection.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            downloadSection.style.transition = 'all 0.8s ease';
+            downloadSection.style.opacity = '1';
+            downloadSection.style.transform = 'translateY(0)';
+        }, 400);
+    }
+});
+
+// Variables globales para el sistema de descarga
+let formatoSeleccionado = '';
+let urlDescarga = '';
+
+// Función para confirmar descarga
+function confirmarDescarga(formato) {
+    formatoSeleccionado = formato;
+    
+    // Construir URL de descarga con filtros actuales
+    const params = new URLSearchParams(window.location.search);
+    const almacenId = params.get('almacen_id');
+    const categoriaId = params.get('categoria_id');
+    
+    if (!almacenId || !categoriaId) {
+        mostrarNotificacion('Error: No se puede generar el reporte sin seleccionar una categoría', 'error');
+        return;
+    }
+    
+    // Construir parámetros para el reporte
+    const reportParams = new URLSearchParams({
+        formato: formato,
+        almacen_id: almacenId,
+        categoria_id: categoriaId
+    });
+    
+    // Agregar filtros actuales si existen
+    const filtros = ['dni', 'nombre', 'fecha_inicio', 'fecha_fin'];
+    filtros.forEach(filtro => {
+        const valor = params.get(filtro);
+        if (valor) {
+            reportParams.append(filtro, valor);
+        }
+    });
+    
+    urlDescarga = 'generar_reporte.php?' + reportParams.toString();
+    
+    // Mostrar modal de confirmación
+    document.getElementById('formatoSeleccionado').textContent = formato.toUpperCase();
+    document.getElementById('downloadModal').style.display = 'block';
+    
+    // Animar entrada del modal
+    setTimeout(() => {
+        document.querySelector('.download-modal-content').style.transform = 'scale(1)';
+    }, 10);
+}
+
+// Función para proceder con la descarga
+function procederDescarga() {
+    cerrarModal();
+    
+    // Mostrar indicador de descarga
+    const indicator = document.getElementById('downloadIndicator');
+    indicator.style.display = 'block';
+    
+    // Crear enlace temporal para descarga
+    const link = document.createElement('a');
+    link.href = urlDescarga;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Simular tiempo de preparación y ocultar indicador
+    setTimeout(() => {
+        indicator.style.display = 'none';
+        mostrarNotificacion('¡Descarga iniciada correctamente!', 'success');
+    }, 2000);
+}
+
+// Función para cerrar modal
+function cerrarModal() {
+    const modal = document.getElementById('downloadModal');
+    const modalContent = document.querySelector('.download-modal-content');
+    
+    modalContent.style.transform = 'scale(0.95)';
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+        modalContent.style.transform = 'scale(1)';
+    }, 200);
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('downloadModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        cerrarModal();
+    }
 });
 
 // Función para cerrar sesión con confirmación
@@ -1114,29 +1540,57 @@ async function manejarCerrarSesion(event) {
     }
 }
 
-// Función para mostrar notificaciones (si se necesita)
-function mostrarNotificacion(mensaje, tipo = 'info', duracion = 3000) {
+// Función para mostrar notificaciones
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
     const container = document.getElementById('notificaciones-container');
     if (!container) return;
     
     const notificacion = document.createElement('div');
     notificacion.className = `historial-notificacion historial-${tipo}`;
-    notificacion.textContent = mensaje;
     
-    // Estilos básicos para la notificación
+    // Configurar colores según el tipo
+    let color = '#0a253c';
+    let icono = 'fas fa-info-circle';
+    
+    switch(tipo) {
+        case 'success':
+            color = '#28a745';
+            icono = 'fas fa-check-circle';
+            break;
+        case 'error':
+            color = '#dc3545';
+            icono = 'fas fa-exclamation-circle';
+            break;
+        case 'warning':
+            color = '#ffc107';
+            icono = 'fas fa-exclamation-triangle';
+            break;
+    }
+    
+    notificacion.innerHTML = `
+        <i class="${icono}"></i>
+        <span>${mensaje}</span>
+    `;
+    
+    // Estilos para la notificación
     notificacion.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
         padding: 15px 20px;
-        background: var(--historial-primary);
+        background: ${color};
         color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 9999;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        z-index: 10001;
         opacity: 0;
         transform: translateX(100%);
         transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 500;
+        max-width: 400px;
     `;
     
     container.appendChild(notificacion);
@@ -1157,6 +1611,29 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 3000) {
             }
         }, 300);
     }, duracion);
+}
+
+// Manejo de errores globales
+window.addEventListener('error', function(e) {
+    console.error('Error detectado:', e.error);
+    mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
+});
+
+// Optimización de rendimiento
+if ('IntersectionObserver' in window) {
+    const downloadObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    
+    const downloadElements = document.querySelectorAll('.download-btn');
+    downloadElements.forEach(btn => {
+        downloadObserver.observe(btn);
+    });
 }
 </script>
 </body>
