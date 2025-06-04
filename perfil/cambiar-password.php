@@ -223,7 +223,7 @@ if ($result_pendientes) {
     <!-- Meta tags adicionales -->
     <meta name="description" content="Cambiar contraseña - Sistema de gestión GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
-    <meta name="theme-color" content="#e74c3c">
+    <meta name="theme-color" content="#0a253c">
     
     <!-- Preconnect para optimizar carga de fuentes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -233,8 +233,8 @@ if ($result_pendientes) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS específico para cambiar contraseña -->
-    <link rel="stylesheet" href="../assets/css/sidebar-styles.css">
+    <!-- CSS consistente con el dashboard -->
+    <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/perfil-cambiar-password.css">
     
     <!-- Favicons -->
@@ -250,25 +250,20 @@ if ($result_pendientes) {
 
 <!-- Sidebar Navigation -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
-    <div class="sidebar-header">
-        <h2>GRUPO SEAL</h2>
-        <p class="sidebar-subtitle">Sistema de Gestión</p>
-    </div>
-    
-    <ul class="sidebar-menu">
-        <li class="menu-item">
+    <h2>GRUPO SEAL</h2>
+    <ul>
+        <li>
             <a href="../dashboard.php" aria-label="Ir a inicio">
-                <i class="fas fa-home"></i>
-                <span>Inicio</span>
+                <span><i class="fas fa-home"></i> Inicio</span>
             </a>
         </li>
 
         <!-- Users Section - Only visible to administrators -->
         <?php if ($usuario_rol == 'admin'): ?>
-        <li class="menu-item submenu-container">
+        <li class="submenu-container">
             <a href="#" aria-label="Menú Usuarios" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-users"></i> Usuarios</span>
-                <i class="fas fa-chevron-down submenu-arrow"></i>
+                <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
                 <li><a href="../usuarios/registrar.php" role="menuitem"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
@@ -278,10 +273,10 @@ if ($result_pendientes) {
         <?php endif; ?>
 
         <!-- Warehouses Section -->
-        <li class="menu-item submenu-container">
+        <li class="submenu-container">
             <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-warehouse"></i> Almacenes</span>
-                <i class="fas fa-chevron-down submenu-arrow"></i>
+                <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
                 <?php if ($usuario_rol == 'admin'): ?>
@@ -292,10 +287,10 @@ if ($result_pendientes) {
         </li>
         
         <!-- Historial Section -->
-        <li class="menu-item submenu-container">
+        <li class="submenu-container">
             <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-history"></i> Historial</span>
-                <i class="fas fa-chevron-down submenu-arrow"></i>
+                <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
                 <li><a href="../entregas/historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
@@ -304,10 +299,10 @@ if ($result_pendientes) {
         </li>
         
         <!-- Notifications Section -->
-        <li class="menu-item submenu-container">
+        <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-bell"></i> Notificaciones</span>
-                <i class="fas fa-chevron-down submenu-arrow"></i>
+                <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
                 <li>
@@ -323,10 +318,10 @@ if ($result_pendientes) {
 
         <!-- Reports Section (Admin only) -->
         <?php if ($usuario_rol == 'admin'): ?>
-        <li class="menu-item submenu-container">
+        <li class="submenu-container">
             <a href="#" aria-label="Menú Reportes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-chart-bar"></i> Reportes</span>
-                <i class="fas fa-chevron-down submenu-arrow"></i>
+                <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
                 <li><a href="../reportes/inventario.php" role="menuitem"><i class="fas fa-warehouse"></i> Inventario General</a></li>
@@ -337,36 +332,28 @@ if ($result_pendientes) {
         <?php endif; ?>
 
         <!-- User Profile -->
-        <li class="menu-item submenu-container active">
+        <li class="submenu-container activo">
             <a href="#" aria-label="Menú Perfil" aria-expanded="true" role="button" tabindex="0">
                 <span><i class="fas fa-user-circle"></i> Mi Perfil</span>
-                <i class="fas fa-chevron-down submenu-arrow"></i>
+                <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu activo" role="menu">
                 <li><a href="configuracion.php" role="menuitem"><i class="fas fa-cog"></i> Configuración</a></li>
-                <li class="active"><a href="cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
+                <li class="activo"><a href="cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
+
+        <!-- Logout -->
+        <li>
+            <a href="#" onclick="manejarCerrarSesion(event)" aria-label="Cerrar sesión">
+                <span><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</span>
+            </a>
+        </li>
     </ul>
-    
-    <!-- Sidebar Footer -->
-    <div class="sidebar-footer">
-        <div class="user-info">
-            <i class="fas fa-user-circle"></i>
-            <div class="user-details">
-                <span class="user-name"><?php echo htmlspecialchars($user_name); ?></span>
-                <span class="user-role"><?php echo $usuario_rol == 'admin' ? 'Administrador' : 'Usuario'; ?></span>
-            </div>
-        </div>
-        <a href="#" onclick="manejarCerrarSesion(event)" class="logout-btn">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Cerrar Sesión</span>
-        </a>
-    </div>
 </nav>
 
 <!-- Main Content -->
-<main class="password-page" role="main">
+<main class="content" role="main">
     
     <!-- Header de Seguridad -->
     <header class="password-header">
@@ -374,8 +361,10 @@ if ($result_pendientes) {
             <div class="password-header-icon">
                 <i class="fas fa-shield-alt"></i>
             </div>
-            <h1><i class="fas fa-key"></i> Cambiar Contraseña</h1>
-            <p>Mantén tu cuenta segura actualizando regularmente tu contraseña. Asegúrate de usar una contraseña fuerte y única.</p>
+            <div class="password-header-info">
+                <h1><i class="fas fa-key"></i> Cambiar Contraseña</h1>
+                <p>Mantén tu cuenta segura actualizando regularmente tu contraseña. Asegúrate de usar una contraseña fuerte y única.</p>
+            </div>
         </div>
     </header>
 
@@ -602,19 +591,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordConfirmar = document.getElementById('passwordConfirmar');
     const submitBtn = document.getElementById('submitBtn');
     const toggleButtons = document.querySelectorAll('.password-toggle-btn');
+    const mainContent = document.querySelector('.content');
     
     // ===== FUNCIONALIDAD DEL MENÚ MÓVIL =====
     if (menuToggle) {
         menuToggle.addEventListener('click', function() {
             sidebar.classList.toggle('active');
+            if (mainContent) {
+                mainContent.classList.toggle('with-sidebar');
+            }
             
             const icon = this.querySelector('i');
             if (sidebar.classList.contains('active')) {
                 icon.classList.remove('fa-bars');
                 icon.classList.add('fa-times');
+                this.setAttribute('aria-label', 'Cerrar menú de navegación');
             } else {
                 icon.classList.remove('fa-times');
                 icon.classList.add('fa-bars');
+                this.setAttribute('aria-label', 'Abrir menú de navegación');
             }
         });
     }
@@ -623,21 +618,40 @@ document.addEventListener('DOMContentLoaded', function() {
     submenuContainers.forEach(container => {
         const link = container.querySelector('a');
         const submenu = container.querySelector('.submenu');
+        const chevron = link.querySelector('.fa-chevron-down');
         
         if (link && submenu) {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 
+                // Cerrar otros submenús
                 submenuContainers.forEach(otherContainer => {
                     if (otherContainer !== container) {
                         const otherSubmenu = otherContainer.querySelector('.submenu');
-                        if (otherSubmenu) {
+                        const otherChevron = otherContainer.querySelector('.fa-chevron-down');
+                        const otherLink = otherContainer.querySelector('a');
+                        
+                        if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
                             otherSubmenu.classList.remove('activo');
+                            if (otherChevron) {
+                                otherChevron.style.transform = 'rotate(0deg)';
+                            }
+                            if (otherLink) {
+                                otherLink.setAttribute('aria-expanded', 'false');
+                            }
                         }
                     }
                 });
                 
+                // Toggle del submenú actual
                 submenu.classList.toggle('activo');
+                const isExpanded = submenu.classList.contains('activo');
+                
+                if (chevron) {
+                    chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+                
+                link.setAttribute('aria-expanded', isExpanded.toString());
             });
         }
     });
@@ -819,6 +833,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 modal.style.display = 'none';
             } else if (sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
+                if (mainContent) {
+                    mainContent.classList.remove('with-sidebar');
+                }
                 menuToggle.focus();
             }
         }
@@ -837,6 +854,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.innerWidth <= 768) {
             if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
                 sidebar.classList.remove('active');
+                if (mainContent) {
+                    mainContent.classList.remove('with-sidebar');
+                }
                 const icon = menuToggle.querySelector('i');
                 icon.classList.remove('fa-times');
                 icon.classList.add('fa-bars');
@@ -899,7 +919,7 @@ function mostrarNotificacion(mensaje, tipo, duracion = 5000) {
     if (!container) return;
     
     const notificacion = document.createElement('div');
-    notificacion.className = `password-alert ${tipo}`;
+    notificacion.className = `alert ${tipo}`;
     notificacion.innerHTML = `
         <i class="fas fa-${tipo === 'success' ? 'check-circle' : 
                           tipo === 'error' ? 'exclamation-triangle' : 
