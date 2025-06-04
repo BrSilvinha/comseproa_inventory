@@ -15,7 +15,7 @@ $user_name = $_SESSION["user_name"] ?? "Usuario";
 $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 $usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
 
-// Configuración de paginación
+// Configuración de paginación optimizada
 $productos_por_pagina = 15;
 $pagina_actual = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
 $offset = ($pagina_actual - 1) * $productos_por_pagina;
@@ -119,7 +119,7 @@ if (!empty($params)) {
 
 // Calcular paginación
 $total_paginas = ceil($total_productos / $productos_por_pagina);
-$pagina_actual = min($pagina_actual, $total_paginas); // Asegurar que no exceda el máximo
+$pagina_actual = min($pagina_actual, max(1, $total_paginas)); // Asegurar que no exceda el máximo
 
 // Construir consulta final con paginación
 $sql_productos = $sql_base . $where_clause . " ORDER BY p.nombre LIMIT ? OFFSET ?";
@@ -170,6 +170,11 @@ function buildUrl($params = []) {
     
     return 'listar.php' . (!empty($url_params) ? '?' . http_build_query($url_params) : '');
 }
+
+// Calcular estadísticas para el header
+$productos_mostrados = $result_productos ? $result_productos->num_rows : 0;
+$inicio_rango = $total_productos > 0 ? (($pagina_actual - 1) * $productos_por_pagina) + 1 : 0;
+$fin_rango = min($pagina_actual * $productos_por_pagina, $total_productos);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -188,9 +193,13 @@ function buildUrl($params = []) {
     </title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Lista de productos del sistema COMSEPROA">
+    <meta name="description" content="Lista de productos del sistema COMSEPROA - Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?>">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
+    
+    <!-- Preload de recursos críticos -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" as="style">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -200,12 +209,29 @@ function buildUrl($params = []) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS específico -->
+    <!-- CSS específico optimizado -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/productos-listar.css">
     <link rel="stylesheet" href="../assets/css/productos-tabla.css">
+    
+    <!-- Prefetch de páginas siguientes/anteriores -->
+    <?php if ($pagina_actual < $total_paginas): ?>
+    <link rel="prefetch" href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>">
+    <?php endif; ?>
+    <?php if ($pagina_actual > 1): ?>
+    <link rel="prefetch" href="<?php echo buildUrl(['pagina' => $pagina_actual - 1]); ?>">
+    <?php endif; ?>
 </head>
-<body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>">
+<body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" 
+      data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
+      data-page="<?php echo $pagina_actual; ?>"
+      data-total-pages="<?php echo $total_paginas; ?>">
+
+<!-- Indicador de carga -->
+<div id="loading-indicator" class="loading-indicator" style="display: none;">
+    <div class="loading-spinner"></div>
+    <span>Cargando productos...</span>
+</div>
 
 <!-- Botón de hamburguesa para dispositivos móviles -->
 <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
@@ -257,7 +283,7 @@ function buildUrl($params = []) {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                <li><a href="../entregas/historial.php"role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
+                <li><a href="../entregas/historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
             </ul>
         </li>
@@ -321,14 +347,14 @@ function buildUrl($params = []) {
 <main class="content" id="main-content" role="main">
     <!-- Mensajes de éxito o error -->
     <?php if (isset($_SESSION['success'])): ?>
-        <div class="alert success">
+        <div class="alert success" role="alert">
             <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success']; ?>
             <?php unset($_SESSION['success']); ?>
         </div>
     <?php endif; ?>
 
     <?php if (isset($_SESSION['error'])): ?>
-        <div class="alert error">
+        <div class="alert error" role="alert">
             <i class="fas fa-exclamation-circle"></i> <?php echo $_SESSION['error']; ?>
             <?php unset($_SESSION['error']); ?>
         </div>
@@ -351,16 +377,21 @@ function buildUrl($params = []) {
                     <?php endif; ?>
                 </h1>
                 <p class="page-description">
-                    Mostrando <?php echo number_format($result_productos->num_rows); ?> de <?php echo number_format($total_productos); ?> productos
-                    <?php if ($total_paginas > 1): ?>
-                        - Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?>
+                    <?php if ($total_productos > 0): ?>
+                        Mostrando <?php echo number_format($inicio_rango); ?> - <?php echo number_format($fin_rango); ?> 
+                        de <?php echo number_format($total_productos); ?> productos
+                        <?php if ($total_paginas > 1): ?>
+                            - Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        No hay productos que mostrar
                     <?php endif; ?>
                 </p>
             </div>
             
             <div class="header-actions">
                 <!-- Botón de Entrega a Personal -->
-                <button id="btnEntregarPersonal" class="btn-entregar-personal">
+                <button id="btnEntregarPersonal" class="btn-entregar-personal" title="Activar modo de selección múltiple">
                     <i class="fas fa-hand-holding"></i>
                     <span>Entregar a Personal</span>
                 </button>
@@ -413,10 +444,10 @@ function buildUrl($params = []) {
         <?php endif; ?>
     </nav>
 
-    <!-- Filtros y búsqueda -->
+    <!-- Filtros y búsqueda optimizada -->
     <section class="filters-section">
         <div class="search-container">
-            <form method="GET" class="search-form">
+            <form method="GET" class="search-form" action="<?php echo $_SERVER['PHP_SELF']; ?>">
                 <!-- Mantener filtros existentes -->
                 <?php if ($filtro_almacen_id): ?>
                     <input type="hidden" name="almacen_id" value="<?php echo $filtro_almacen_id; ?>">
@@ -435,11 +466,18 @@ function buildUrl($params = []) {
                         placeholder="Buscar productos por nombre, modelo o color..." 
                         value="<?php echo htmlspecialchars($busqueda); ?>"
                         class="search-input"
+                        autocomplete="off"
+                        spellcheck="false"
                     >
                     <button type="submit" class="search-btn">
                         <i class="fas fa-search"></i>
-                        Buscar
+                        <span>Buscar</span>
                     </button>
+                    <?php if (!empty($busqueda)): ?>
+                    <button type="button" class="clear-search-btn" onclick="clearSearch()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <?php endif; ?>
                 </div>
             </form>
         </div>
@@ -460,7 +498,7 @@ function buildUrl($params = []) {
                     <span class="filter-tag almacen">
                         <i class="fas fa-warehouse"></i>
                         <?php echo htmlspecialchars($almacen_info['nombre']); ?>
-                        <a href="<?php echo buildUrl(['almacen_id' => null]); ?>" class="remove-filter">×</a>
+                        <a href="<?php echo buildUrl(['almacen_id' => null]); ?>" class="remove-filter" aria-label="Quitar filtro de almacén">×</a>
                     </span>
                 <?php endif; ?>
                 
@@ -468,7 +506,7 @@ function buildUrl($params = []) {
                     <span class="filter-tag categoria">
                         <i class="fas fa-tag"></i>
                         <?php echo htmlspecialchars($categoria_info['nombre']); ?>
-                        <a href="<?php echo buildUrl(['categoria_id' => null]); ?>" class="remove-filter">×</a>
+                        <a href="<?php echo buildUrl(['categoria_id' => null]); ?>" class="remove-filter" aria-label="Quitar filtro de categoría">×</a>
                     </span>
                 <?php endif; ?>
                 
@@ -476,7 +514,7 @@ function buildUrl($params = []) {
                     <span class="filter-tag busqueda">
                         <i class="fas fa-search"></i>
                         "<?php echo htmlspecialchars($busqueda); ?>"
-                        <a href="<?php echo buildUrl(['busqueda' => null]); ?>" class="remove-filter">×</a>
+                        <a href="<?php echo buildUrl(['busqueda' => null]); ?>" class="remove-filter" aria-label="Quitar búsqueda">×</a>
                     </span>
                 <?php endif; ?>
             </div>
@@ -484,49 +522,58 @@ function buildUrl($params = []) {
         <?php endif; ?>
     </section>
 
-    <!-- Lista de productos en formato tabla -->
+    <!-- Lista de productos en formato tabla optimizada -->
     <section class="products-section" id="productsSection">
         <?php if ($result_productos && $result_productos->num_rows > 0): ?>
             <div class="table-container">
-                <table class="products-table" id="productosTabla">
+                <table class="products-table" id="productosTabla" role="table" aria-label="Tabla de productos">
                     <thead>
                         <tr>
-                            <th class="selection-column" style="display: none;">
+                            <th class="selection-column" style="display: none;" scope="col">
                                 <div class="selection-header">
                                     <i class="fas fa-hand-holding"></i>
                                 </div>
                             </th>
-                            <th class="product-name-column">
+                            <th class="product-name-column" scope="col">
                                 <i class="fas fa-box"></i> Producto
                             </th>
-                            <th class="category-column">
+                            <th class="category-column" scope="col">
                                 <i class="fas fa-tag"></i> Categoría
                             </th>
                             <?php if (!$filtro_almacen_id): ?>
-                            <th class="warehouse-column">
+                            <th class="warehouse-column" scope="col">
                                 <i class="fas fa-warehouse"></i> Almacén
                             </th>
                             <?php endif; ?>
-                            <th class="details-column">
+                            <th class="details-column" scope="col">
                                 <i class="fas fa-info-circle"></i> Detalles
                             </th>
-                            <th class="stock-column">
+                            <th class="stock-column" scope="col">
                                 <i class="fas fa-cubes"></i> Stock
                             </th>
-                            <th class="status-column">
+                            <th class="status-column" scope="col">
                                 <i class="fas fa-flag"></i> Estado
                             </th>
-                            <th class="actions-column">
+                            <th class="actions-column" scope="col">
                                 <i class="fas fa-cogs"></i> Acciones
                             </th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php while ($producto = $result_productos->fetch_assoc()): ?>
-                            <tr class="product-row" data-producto-id="<?php echo $producto['id']; ?>">
+                            <tr class="product-row" 
+                                data-producto-id="<?php echo $producto['id']; ?>"
+                                data-nombre="<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES); ?>"
+                                data-categoria="<?php echo htmlspecialchars($producto['categoria_nombre'], ENT_QUOTES); ?>"
+                                data-almacen="<?php echo htmlspecialchars($producto['almacen_nombre'], ENT_QUOTES); ?>">
+                                
                                 <!-- Columna de selección para entrega múltiple -->
                                 <td class="selection-cell" style="display: none;">
-                                    <div class="selection-checkbox" data-id="<?php echo $producto['id']; ?>">
+                                    <div class="selection-checkbox" 
+                                         data-id="<?php echo $producto['id']; ?>"
+                                         role="checkbox"
+                                         aria-checked="false"
+                                         tabindex="0">
                                         <i class="fas fa-check"></i>
                                     </div>
                                 </td>
@@ -585,7 +632,8 @@ function buildUrl($params = []) {
                                                     data-id="<?php echo $producto['id']; ?>" 
                                                     data-accion="restar" 
                                                     <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?> 
-                                                    title="Reducir stock">
+                                                    title="Reducir stock"
+                                                    aria-label="Reducir stock en 1 unidad">
                                                 <i class="fas fa-minus"></i>
                                             </button>
                                             <?php endif; ?>
@@ -602,7 +650,8 @@ function buildUrl($params = []) {
                                             <button class="stock-btn increase" 
                                                     data-id="<?php echo $producto['id']; ?>" 
                                                     data-accion="sumar" 
-                                                    title="Aumentar stock">
+                                                    title="Aumentar stock"
+                                                    aria-label="Aumentar stock en 1 unidad">
                                                 <i class="fas fa-plus"></i>
                                             </button>
                                             <?php endif; ?>
@@ -630,7 +679,8 @@ function buildUrl($params = []) {
                                         <!-- Botón Ver -->
                                         <button class="btn-action btn-view" 
                                                 onclick="verProducto(<?php echo $producto['id']; ?>)"
-                                                title="Ver detalles">
+                                                title="Ver detalles del producto"
+                                                aria-label="Ver detalles de <?php echo htmlspecialchars($producto['nombre']); ?>">
                                             <i class="fas fa-eye"></i>
                                         </button>
 
@@ -642,13 +692,15 @@ function buildUrl($params = []) {
                                                 data-almacen="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
                                                 data-cantidad="<?php echo $producto['cantidad']; ?>"
                                                 onclick="abrirModalEnvio(this)"
-                                                title="Transferir producto">
+                                                title="Transferir producto a otro almacén"
+                                                aria-label="Transferir <?php echo htmlspecialchars($producto['nombre']); ?>">
                                             <i class="fas fa-paper-plane"></i>
                                         </button>
                                         <?php else: ?>
                                         <button class="btn-action btn-transfer disabled" 
                                                 disabled 
-                                                title="Sin stock disponible">
+                                                title="Sin stock disponible para transferir"
+                                                aria-label="Sin stock disponible">
                                             <i class="fas fa-times"></i>
                                         </button>
                                         <?php endif; ?>
@@ -657,14 +709,16 @@ function buildUrl($params = []) {
                                         <!-- Botón Editar -->
                                         <button class="btn-action btn-edit" 
                                                 onclick="editarProducto(<?php echo $producto['id']; ?>)"
-                                                title="Editar producto">
+                                                title="Editar información del producto"
+                                                aria-label="Editar <?php echo htmlspecialchars($producto['nombre']); ?>">
                                             <i class="fas fa-edit"></i>
                                         </button>
 
                                         <!-- Botón Eliminar -->
                                         <button class="btn-action btn-delete" 
                                                 onclick="eliminarProducto(<?php echo $producto['id']; ?>, '<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>')"
-                                                title="Eliminar producto">
+                                                title="Eliminar producto del sistema"
+                                                aria-label="Eliminar <?php echo htmlspecialchars($producto['nombre']); ?>">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         <?php endif; ?>
@@ -690,22 +744,27 @@ function buildUrl($params = []) {
                 </table>
             </div>
 
-            <!-- Paginación -->
+            <!-- Paginación mejorada -->
             <?php if ($total_paginas > 1): ?>
             <div class="pagination-container">
                 <div class="pagination-info">
-                    Mostrando <?php echo (($pagina_actual - 1) * $productos_por_pagina) + 1; ?> - 
-                    <?php echo min($pagina_actual * $productos_por_pagina, $total_productos); ?> 
+                    Mostrando <?php echo number_format($inicio_rango); ?> - <?php echo number_format($fin_rango); ?> 
                     de <?php echo number_format($total_productos); ?> productos
                 </div>
                 
-                <nav class="pagination" aria-label="Navegación de páginas">
+                <nav class="pagination" aria-label="Navegación de páginas" role="navigation">
                     <!-- Primera página -->
                     <?php if ($pagina_actual > 1): ?>
-                        <a href="<?php echo buildUrl(['pagina' => 1]); ?>" class="pagination-btn first" title="Primera página">
+                        <a href="<?php echo buildUrl(['pagina' => 1]); ?>" 
+                           class="pagination-btn first" 
+                           title="Primera página"
+                           aria-label="Ir a la primera página">
                             <i class="fas fa-angle-double-left"></i>
                         </a>
-                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual - 1]); ?>" class="pagination-btn prev" title="Página anterior">
+                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual - 1]); ?>" 
+                           class="pagination-btn prev" 
+                           title="Página anterior"
+                           aria-label="Ir a la página anterior">
                             <i class="fas fa-angle-left"></i>
                         </a>
                     <?php endif; ?>
@@ -722,9 +781,11 @@ function buildUrl($params = []) {
                     for ($i = $inicio; $i <= $fin; $i++):
                     ?>
                         <?php if ($i == $pagina_actual): ?>
-                            <span class="pagination-btn current"><?php echo $i; ?></span>
+                            <span class="pagination-btn current" aria-current="page"><?php echo $i; ?></span>
                         <?php else: ?>
-                            <a href="<?php echo buildUrl(['pagina' => $i]); ?>" class="pagination-btn"><?php echo $i; ?></a>
+                            <a href="<?php echo buildUrl(['pagina' => $i]); ?>" 
+                               class="pagination-btn"
+                               aria-label="Ir a la página <?php echo $i; ?>"><?php echo $i; ?></a>
                         <?php endif; ?>
                     <?php endfor; ?>
                     
@@ -734,10 +795,16 @@ function buildUrl($params = []) {
 
                     <!-- Última página -->
                     <?php if ($pagina_actual < $total_paginas): ?>
-                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>" class="pagination-btn next" title="Página siguiente">
+                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>" 
+                           class="pagination-btn next" 
+                           title="Página siguiente"
+                           aria-label="Ir a la página siguiente">
                             <i class="fas fa-angle-right"></i>
                         </a>
-                        <a href="<?php echo buildUrl(['pagina' => $total_paginas]); ?>" class="pagination-btn last" title="Última página">
+                        <a href="<?php echo buildUrl(['pagina' => $total_paginas]); ?>" 
+                           class="pagination-btn last" 
+                           title="Última página"
+                           aria-label="Ir a la última página">
                             <i class="fas fa-angle-double-right"></i>
                         </a>
                     <?php endif; ?>
@@ -746,7 +813,7 @@ function buildUrl($params = []) {
                 <!-- Selector de páginas -->
                 <div class="page-selector">
                     <label for="pageSelect">Ir a página:</label>
-                    <select id="pageSelect" onchange="window.location.href = this.value">
+                    <select id="pageSelect" onchange="navigateToPage(this.value)" aria-label="Seleccionar página">
                         <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
                             <option value="<?php echo buildUrl(['pagina' => $i]); ?>" <?php echo $i == $pagina_actual ? 'selected' : ''; ?>>
                                 <?php echo $i; ?>
@@ -772,30 +839,39 @@ function buildUrl($params = []) {
                         Esta categoría aún no tiene productos registrados.
                     <?php elseif (!empty($busqueda)): ?>
                         No se encontraron productos que coincidan con "<?php echo htmlspecialchars($busqueda); ?>".
+                        <br><small>Intenta con otros términos de búsqueda o revisa los filtros activos.</small>
                     <?php else: ?>
                         Aún no se han registrado productos en el sistema.
                     <?php endif; ?>
                 </p>
                 
-                <?php if ($usuario_rol == 'admin'): ?>
-                <a href="registrar.php<?php 
-                    $params = [];
-                    if ($filtro_almacen_id) $params[] = 'almacen_id=' . $filtro_almacen_id;
-                    if ($filtro_categoria_id) $params[] = 'categoria_id=' . $filtro_categoria_id;
-                    echo !empty($params) ? '?' . implode('&', $params) : '';
-                ?>" class="btn-primary">
-                    <i class="fas fa-plus"></i> Registrar Primer Producto
-                </a>
-                <?php endif; ?>
+                <div class="empty-actions">
+                    <?php if (!empty($busqueda) || $filtro_categoria_id || $filtro_almacen_id): ?>
+                    <a href="listar.php" class="btn-secondary">
+                        <i class="fas fa-times-circle"></i> Limpiar filtros
+                    </a>
+                    <?php endif; ?>
+                    
+                    <?php if ($usuario_rol == 'admin'): ?>
+                    <a href="registrar.php<?php 
+                        $params = [];
+                        if ($filtro_almacen_id) $params[] = 'almacen_id=' . $filtro_almacen_id;
+                        if ($filtro_categoria_id) $params[] = 'categoria_id=' . $filtro_categoria_id;
+                        echo !empty($params) ? '?' . implode('&', $params) : '';
+                    ?>" class="btn-primary">
+                        <i class="fas fa-plus"></i> Registrar Primer Producto
+                    </a>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
     </section>
 </main>
 
 <!-- Panel flotante del carrito de entrega -->
-<div id="carritoEntrega" class="carrito-entrega">
+<div id="carritoEntrega" class="carrito-entrega" role="dialog" aria-labelledby="carritoTitle" aria-hidden="true">
     <div class="carrito-header">
-        <div class="carrito-title">
+        <div class="carrito-title" id="carritoTitle">
             <i class="fas fa-hand-holding"></i>
             Productos para Entrega
             <span class="carrito-contador">0</span>
@@ -830,10 +906,10 @@ function buildUrl($params = []) {
 </div>
 
 <!-- Modal para datos del destinatario -->
-<div id="modalEntrega" class="modal-entrega">
+<div id="modalEntrega" class="modal-entrega" role="dialog" aria-labelledby="modalEntregaTitle" aria-hidden="true">
     <div class="modal-entrega-content">
         <div class="modal-entrega-header">
-            <h2>
+            <h2 id="modalEntregaTitle">
                 <i class="fas fa-user"></i>
                 Datos del Destinatario
             </h2>
@@ -870,6 +946,8 @@ function buildUrl($params = []) {
                         class="form-control"
                         placeholder="Ingrese el nombre completo"
                         autocomplete="name"
+                        minlength="3"
+                        maxlength="100"
                     >
                 </div>
                 
@@ -888,6 +966,7 @@ function buildUrl($params = []) {
                         pattern="[0-9]{8}"
                         maxlength="8"
                         title="Ingrese exactamente 8 dígitos"
+                        autocomplete="off"
                     >
                 </div>
             </form>
@@ -898,7 +977,7 @@ function buildUrl($params = []) {
                 <i class="fas fa-times"></i>
                 Cancelar
             </button>
-            <button type="button" class="btn-modal btn-confirm" onclick="confirmarEntrega()">
+            <button type="button" class="btn-modal btn-confirm" onclick="confirmarEntrega()" disabled>
                 <i class="fas fa-hand-holding"></i>
                 Confirmar Entrega
             </button>
@@ -973,7 +1052,7 @@ function buildUrl($params = []) {
                         }
                         
                         while ($almacen_destino = $result_almacenes->fetch_assoc()) {
-                            echo "<option value='{$almacen_destino['id']}'>{$almacen_destino['nombre']}</option>";
+                            echo "<option value='{$almacen_destino['id']}'>" . htmlspecialchars($almacen_destino['nombre']) . "</option>";
                         }
                         ?>
                     </select>
@@ -997,7 +1076,101 @@ function buildUrl($params = []) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript -->
+<!-- JavaScript optimizado -->
+<script>
+// Funciones globales para mejorar la navegación
+function navigateToPage(url) {
+    showLoadingIndicator();
+    window.location.href = url;
+}
+
+function clearSearch() {
+    const searchInput = document.querySelector('input[name="busqueda"]');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.form.submit();
+    }
+}
+
+function showLoadingIndicator() {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'flex';
+    }
+}
+
+// Optimización de rendimiento
+function preloadNextPage() {
+    const currentPage = <?php echo $pagina_actual; ?>;
+    const totalPages = <?php echo $total_paginas; ?>;
+    
+    if (currentPage < totalPages) {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = '<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>';
+        document.head.appendChild(link);
+    }
+}
+
+// Mejorar accesibilidad con navegación por teclado
+document.addEventListener('keydown', function(e) {
+    // Solo actuar si no estamos en un input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+        return;
+    }
+    
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                const prevBtn = document.querySelector('.pagination-btn.prev');
+                if (prevBtn) {
+                    showLoadingIndicator();
+                    window.location.href = prevBtn.href;
+                }
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                const nextBtn = document.querySelector('.pagination-btn.next');
+                if (nextBtn) {
+                    showLoadingIndicator();
+                    window.location.href = nextBtn.href;
+                }
+                break;
+            case 'f':
+            case 'F':
+                e.preventDefault();
+                const searchInput = document.querySelector('input[name="busqueda"]');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                break;
+        }
+    }
+});
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    preloadNextPage();
+    
+    // Mejorar experiencia de formulario de búsqueda
+    const searchForm = document.querySelector('.search-form');
+    if (searchForm) {
+        searchForm.addEventListener('submit', function() {
+            showLoadingIndicator();
+        });
+    }
+    
+    // Añadir indicadores de carga a enlaces de paginación
+    document.querySelectorAll('.pagination-btn:not(.current)').forEach(btn => {
+        btn.addEventListener('click', function() {
+            showLoadingIndicator();
+        });
+    });
+});
+</script>
+
 <script src="../assets/js/universal-confirmation-system.js"></script>
 <script src="../assets/js/productos-listar-tabla.js"></script>
 
