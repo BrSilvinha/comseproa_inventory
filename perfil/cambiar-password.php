@@ -336,7 +336,6 @@ if ($result_pendientes) {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu activo" role="menu">
-                <li><a href="configuracion.php" role="menuitem"><i class="fas fa-cog"></i> Configuración</a></li>
                 <li class="activo"><a href="cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
