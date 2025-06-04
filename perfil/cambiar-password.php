@@ -130,26 +130,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     
     // Si no hay errores de validación, proceder con la verificación y actualización
     if (empty($errores)) {
-        // Obtener la contraseña actual de la base de datos
-        $sql_get_password = "SELECT password FROM usuarios WHERE id = ?";
+        // *** CORREGIDO: Usar 'contrasena' en lugar de 'password' ***
+        $sql_get_password = "SELECT contrasena FROM usuarios WHERE id = ?";
         $stmt_get = $conn->prepare($sql_get_password);
         $stmt_get->bind_param("i", $user_id);
         $stmt_get->execute();
         $result_get = $stmt_get->get_result();
         
         if ($result_get && $row = $result_get->fetch_assoc()) {
-            $password_actual_hash = $row['password'];
+            // *** CORREGIDO: Usar 'contrasena' en lugar de 'password' ***
+            $password_actual_hash = $row['contrasena'];
             
             // Verificar la contraseña actual
             if (password_verify($password_actual, $password_actual_hash)) {
                 // Hashear la nueva contraseña
                 $password_nueva_hash = password_hash($password_nueva, PASSWORD_DEFAULT);
                 
-                // Actualizar la contraseña en la base de datos
-                $sql_update = "UPDATE usuarios SET 
-                              password = ?, 
-                              fecha_actualizacion = CURRENT_TIMESTAMP 
-                              WHERE id = ?";
+                // *** CORREGIDO: Usar 'contrasena' en lugar de 'password' y removido fecha_actualizacion ***
+                $sql_update = "UPDATE usuarios SET contrasena = ? WHERE id = ?";
                 
                 $stmt_update = $conn->prepare($sql_update);
                 $stmt_update->bind_param("si", $password_nueva_hash, $user_id);
@@ -158,9 +156,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                     $mensaje = "Contraseña actualizada correctamente.";
                     $tipo_mensaje = "success";
                     
-                    // Opcional: Registrar el cambio en un log de seguridad
-                    $sql_log = "INSERT INTO log_seguridad (usuario_id, accion, descripcion, fecha) 
-                               VALUES (?, 'cambio_password', 'Usuario cambió su contraseña', CURRENT_TIMESTAMP)";
+                    // Opcional: Registrar el cambio en un log de seguridad (si existe la tabla)
+                    $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
+                               VALUES (?, 'CAMBIO_PASSWORD', 'Usuario cambió su contraseña', CURRENT_TIMESTAMP)";
                     $stmt_log = $conn->prepare($sql_log);
                     if ($stmt_log) {
                         $stmt_log->bind_param("i", $user_id);
