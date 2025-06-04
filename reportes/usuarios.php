@@ -394,11 +394,8 @@ $result_reciente = $stmt_reciente->get_result();
                 <p>Análisis detallado del rendimiento y actividad de los usuarios del sistema</p>
             </div>
             <div class="header-actions">
-                <button class="btn-export" onclick="exportarReporte()">
-                    <i class="fas fa-download"></i> Exportar PDF
-                </button>
-                <button class="btn-export" onclick="exportarExcel()">
-                    <i class="fas fa-file-excel"></i> Exportar Excel
+                <button class="btn-export" onclick="exportarUsuariosPDF()">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
                 </button>
             </div>
         </div>
@@ -681,15 +678,76 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Función para exportar reporte
-function exportarReporte() {
+// Función para exportar usuarios a PDF
+function exportarUsuariosPDF() {
     mostrarNotificacion('Generando reporte PDF de actividad de usuarios...', 'info');
-    // Aquí iría la lógica para generar PDF
+    
+    // Obtener filtros actuales de la página
+    const fechaInicio = document.querySelector('input[name="fecha_inicio"]')?.value || '';
+    const fechaFin = document.querySelector('input[name="fecha_fin"]')?.value || '';
+    const usuario = document.querySelector('select[name="usuario"]')?.value || '';
+    
+    let url = '../reportes/exportar_pdf.php?tipo=usuarios';
+    if (fechaInicio) url += '&fecha_inicio=' + fechaInicio;
+    if (fechaFin) url += '&fecha_fin=' + fechaFin;
+    if (usuario) url += '&usuario=' + usuario;
+    url += '&auto_print=1';
+    
+    window.open(url, '_blank');
 }
 
-function exportarExcel() {
-    mostrarNotificacion('Generando archivo Excel de actividad de usuarios...', 'info');
-    // Aquí iría la lógica para generar Excel
+// Función para mostrar notificaciones
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 3000) {
+    // Crear contenedor si no existe
+    let container = document.getElementById('notificaciones-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificaciones-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        `;
+        document.body.appendChild(container);
+    }
+    
+    // Crear notificación
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion notificacion-${tipo}`;
+    notificacion.style.cssText = `
+        background: ${tipo === 'success' ? '#d4edda' : tipo === 'error' ? '#f8d7da' : '#d1ecf1'};
+        color: ${tipo === 'success' ? '#155724' : tipo === 'error' ? '#721c24' : '#0c5460'};
+        border: 1px solid ${tipo === 'success' ? '#c3e6cb' : tipo === 'error' ? '#f5c6cb' : '#bee5eb'};
+        border-radius: 5px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    `;
+    notificacion.textContent = mensaje;
+    
+    container.appendChild(notificacion);
+    
+    // Animar entrada
+    setTimeout(() => {
+        notificacion.style.opacity = '1';
+        notificacion.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remover después del tiempo especificado
+    setTimeout(() => {
+        notificacion.style.opacity = '0';
+        notificacion.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (container.contains(notificacion)) {
+                container.removeChild(notificacion);
+            }
+        }, 300);
+    }, duracion);
 }
 
 // Función para cerrar sesión
@@ -704,7 +762,7 @@ async function manejarCerrarSesion(event) {
             window.location.href = '../logout.php';
         }, 1000);
     }
-}
+};
 </script>
 </body>
 </html>
