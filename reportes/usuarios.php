@@ -34,41 +34,112 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 $filtro_fecha_inicio = isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : date('Y-m-01');
 $filtro_fecha_fin = isset($_GET['fecha_fin']) ? $_GET['fecha_fin'] : date('Y-m-t');
 $filtro_usuario = isset($_GET['usuario']) ? $_GET['usuario'] : '';
-$filtro_accion = isset($_GET['accion']) ? $_GET['accion'] : '';
 
-// Query para actividad de usuarios
+// Parámetros de fecha
+$param_fecha_inicio = $filtro_fecha_inicio . ' 00:00:00';
+$param_fecha_fin = $filtro_fecha_fin . ' 23:59:59';
+
+// Query para actividad de usuarios - USANDO LA COLUMNA CORRECTA 'correo'
 $sql_actividad = "
     SELECT 
         u.id as usuario_id,
         u.nombre as usuario_nombre,
-        u.email,
+        u.correo as usuario_email,
         u.rol,
-        COUNT(s.id) as total_solicitudes,
-        SUM(CASE WHEN s.estado = 'completado' THEN 1 ELSE 0 END) as completadas,
-        SUM(CASE WHEN s.estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-        SUM(CASE WHEN s.estado = 'rechazado' THEN 1 ELSE 0 END) as rechazadas,
-        MAX(s.fecha_solicitud) as ultima_actividad,
+        (
+            SELECT COUNT(*) 
+            FROM movimientos m 
+            WHERE m.usuario_id = u.id 
+            AND m.fecha BETWEEN ? AND ?
+        ) +
+        (
+            SELECT COUNT(*) 
+            FROM solicitudes_transferencia s 
+            WHERE s.usuario_id = u.id 
+            AND s.fecha_solicitud BETWEEN ? AND ?
+        ) as total_actividades,
+        (
+            SELECT COUNT(*) 
+            FROM movimientos m 
+            WHERE m.usuario_id = u.id 
+            AND m.estado = 'completado'
+            AND m.fecha BETWEEN ? AND ?
+        ) +
+        (
+            SELECT COUNT(*) 
+            FROM solicitudes_transferencia s 
+            WHERE s.usuario_id = u.id 
+            AND s.estado = 'aprobada'
+            AND s.fecha_solicitud BETWEEN ? AND ?
+        ) as completadas,
+        (
+            SELECT COUNT(*) 
+            FROM movimientos m 
+            WHERE m.usuario_id = u.id 
+            AND m.estado = 'pendiente'
+            AND m.fecha BETWEEN ? AND ?
+        ) +
+        (
+            SELECT COUNT(*) 
+            FROM solicitudes_transferencia s 
+            WHERE s.usuario_id = u.id 
+            AND s.estado = 'pendiente'
+            AND s.fecha_solicitud BETWEEN ? AND ?
+        ) as pendientes,
+        (
+            SELECT COUNT(*) 
+            FROM movimientos m 
+            WHERE m.usuario_id = u.id 
+            AND m.estado = 'rechazado'
+            AND m.fecha BETWEEN ? AND ?
+        ) +
+        (
+            SELECT COUNT(*) 
+            FROM solicitudes_transferencia s 
+            WHERE s.usuario_id = u.id 
+            AND s.estado = 'rechazada'
+            AND s.fecha_solicitud BETWEEN ? AND ?
+        ) as rechazadas,
+        GREATEST(
+            COALESCE((SELECT MAX(m.fecha) FROM movimientos m WHERE m.usuario_id = u.id), '1970-01-01'),
+            COALESCE((SELECT MAX(s.fecha_solicitud) FROM solicitudes_transferencia s WHERE s.usuario_id = u.id), '1970-01-01')
+        ) as ultima_actividad,
         a.nombre as almacen_nombre
     FROM usuarios u
-    LEFT JOIN solicitudes_transferencia s ON u.id = s.usuario_id 
-        AND s.fecha_solicitud BETWEEN ? AND ?
     LEFT JOIN almacenes a ON u.almacen_id = a.id
-    WHERE u.activo = 1
+    WHERE u.estado = 'activo'
 ";
-
-$params = [$filtro_fecha_inicio, $filtro_fecha_fin];
-$types = "ss";
 
 if (!empty($filtro_usuario)) {
     $sql_actividad .= " AND u.id = ?";
-    $params[] = $filtro_usuario;
-    $types .= "i";
+    $sql_actividad .= " ORDER BY total_actividades DESC";
+    $stmt_actividad = $conn->prepare($sql_actividad);
+    $stmt_actividad->bind_param("sssssssssssssssi", 
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos count
+        $param_fecha_inicio, $param_fecha_fin,  // solicitudes count
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos completados
+        $param_fecha_inicio, $param_fecha_fin,  // solicitudes aprobadas
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos pendientes
+        $param_fecha_inicio, $param_fecha_fin,  // solicitudes pendientes
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos rechazados
+        $param_fecha_inicio, $param_fecha_fin,  // solicitudes rechazadas
+        $filtro_usuario
+    );
+} else {
+    $sql_actividad .= " ORDER BY total_actividades DESC";
+    $stmt_actividad = $conn->prepare($sql_actividad);
+    $stmt_actividad->bind_param("ssssssssssssssss", 
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos count
+        $param_fecha_inicio, $param_fecha_fin,  // solicitudes count
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos completados
+        $param_fecha_inicio, $param_fecha_fin,  // solicitudes aprobadas
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos pendientes
+        $param_fecha_inicio, $param_fecha_fin,  // solicitudes pendientes
+        $param_fecha_inicio, $param_fecha_fin,  // movimientos rechazados
+        $param_fecha_inicio, $param_fecha_fin   // solicitudes rechazadas
+    );
 }
 
-$sql_actividad .= " GROUP BY u.id ORDER BY total_solicitudes DESC";
-
-$stmt_actividad = $conn->prepare($sql_actividad);
-$stmt_actividad->bind_param($types, ...$params);
 $stmt_actividad->execute();
 $result_actividad = $stmt_actividad->get_result();
 
@@ -76,59 +147,109 @@ $result_actividad = $stmt_actividad->get_result();
 $sql_stats = "
     SELECT 
         COUNT(DISTINCT u.id) as usuarios_activos,
-        COUNT(s.id) as total_actividades,
-        AVG(actividad_por_usuario.total) as promedio_por_usuario,
-        MAX(actividad_por_usuario.total) as max_actividad
+        (
+            SELECT COUNT(*) FROM movimientos m 
+            WHERE m.fecha BETWEEN ? AND ?
+        ) + 
+        (
+            SELECT COUNT(*) FROM solicitudes_transferencia s 
+            WHERE s.fecha_solicitud BETWEEN ? AND ?
+        ) as total_actividades,
+        (
+            (
+                SELECT COUNT(*) FROM movimientos m 
+                WHERE m.fecha BETWEEN ? AND ?
+            ) + 
+            (
+                SELECT COUNT(*) FROM solicitudes_transferencia s 
+                WHERE s.fecha_solicitud BETWEEN ? AND ?
+            )
+        ) / COUNT(DISTINCT u.id) as promedio_por_usuario,
+        (
+            SELECT MAX(user_activity.total) FROM (
+                SELECT 
+                    (
+                        (SELECT COUNT(*) FROM movimientos m WHERE m.usuario_id = u2.id AND m.fecha BETWEEN ? AND ?) +
+                        (SELECT COUNT(*) FROM solicitudes_transferencia s WHERE s.usuario_id = u2.id AND s.fecha_solicitud BETWEEN ? AND ?)
+                    ) as total
+                FROM usuarios u2 
+                WHERE u2.estado = 'activo'
+            ) user_activity
+        ) as max_actividad
     FROM usuarios u
-    LEFT JOIN (
-        SELECT usuario_id, COUNT(*) as total 
-        FROM solicitudes_transferencia 
-        WHERE fecha_solicitud BETWEEN ? AND ?
-        GROUP BY usuario_id
-    ) actividad_por_usuario ON u.id = actividad_por_usuario.usuario_id
-    LEFT JOIN solicitudes_transferencia s ON u.id = s.usuario_id 
-        AND s.fecha_solicitud BETWEEN ? AND ?
-    WHERE u.activo = 1
+    WHERE u.estado = 'activo'
 ";
 
 $stmt_stats = $conn->prepare($sql_stats);
-$stmt_stats->bind_param("ssss", $filtro_fecha_inicio, $filtro_fecha_fin, $filtro_fecha_inicio, $filtro_fecha_fin);
+$stmt_stats->bind_param("ssssssssssss", 
+    $param_fecha_inicio, $param_fecha_fin,
+    $param_fecha_inicio, $param_fecha_fin,
+    $param_fecha_inicio, $param_fecha_fin,
+    $param_fecha_inicio, $param_fecha_fin,
+    $param_fecha_inicio, $param_fecha_fin,
+    $param_fecha_inicio, $param_fecha_fin
+);
 $stmt_stats->execute();
 $result_stats = $stmt_stats->get_result();
 $stats = $result_stats->fetch_assoc();
 
 // Obtener lista de usuarios para el filtro
-$sql_usuarios = "SELECT id, nombre FROM usuarios WHERE activo = 1 ORDER BY nombre";
+$sql_usuarios = "SELECT id, nombre FROM usuarios WHERE estado = 'activo' ORDER BY nombre";
 $result_usuarios = $conn->query($sql_usuarios);
 $usuarios = [];
-while ($row = $result_usuarios->fetch_assoc()) {
-    $usuarios[] = $row;
+if ($result_usuarios) {
+    while ($row = $result_usuarios->fetch_assoc()) {
+        $usuarios[] = $row;
+    }
 }
 
-// Actividad reciente detallada
+// Actividad reciente detallada - COMBINANDO AMBAS TABLAS
 $sql_reciente = "
-    SELECT 
-        s.id,
-        s.fecha_solicitud,
-        s.cantidad,
-        s.estado,
-        s.tipo_movimiento,
-        u.nombre as usuario_nombre,
-        p.nombre as producto_nombre,
-        ao.nombre as almacen_origen,
-        ad.nombre as almacen_destino
-    FROM solicitudes_transferencia s
-    JOIN usuarios u ON s.usuario_id = u.id
-    LEFT JOIN productos p ON s.producto_id = p.id
-    LEFT JOIN almacenes ao ON s.almacen_origen = ao.id
-    LEFT JOIN almacenes ad ON s.almacen_destino = ad.id
-    WHERE s.fecha_solicitud BETWEEN ? AND ?
-    ORDER BY s.fecha_solicitud DESC
+    (
+        SELECT 
+            m.id,
+            m.fecha as fecha_actividad,
+            m.cantidad,
+            m.estado,
+            m.tipo as tipo_actividad,
+            u.nombre as usuario_nombre,
+            p.nombre as producto_nombre,
+            ao.nombre as almacen_origen,
+            ad.nombre as almacen_destino,
+            'movimiento' as tipo_registro
+        FROM movimientos m
+        JOIN usuarios u ON m.usuario_id = u.id
+        LEFT JOIN productos p ON m.producto_id = p.id
+        LEFT JOIN almacenes ao ON m.almacen_origen = ao.id
+        LEFT JOIN almacenes ad ON m.almacen_destino = ad.id
+        WHERE m.fecha BETWEEN ? AND ?
+    )
+    UNION ALL
+    (
+        SELECT 
+            s.id,
+            s.fecha_solicitud as fecha_actividad,
+            s.cantidad,
+            s.estado,
+            'transferencia' as tipo_actividad,
+            u.nombre as usuario_nombre,
+            p.nombre as producto_nombre,
+            ao.nombre as almacen_origen,
+            ad.nombre as almacen_destino,
+            'solicitud' as tipo_registro
+        FROM solicitudes_transferencia s
+        JOIN usuarios u ON s.usuario_id = u.id
+        LEFT JOIN productos p ON s.producto_id = p.id
+        LEFT JOIN almacenes ao ON s.almacen_origen = ao.id
+        LEFT JOIN almacenes ad ON s.almacen_destino = ad.id
+        WHERE s.fecha_solicitud BETWEEN ? AND ?
+    )
+    ORDER BY fecha_actividad DESC
     LIMIT 50
 ";
 
 $stmt_reciente = $conn->prepare($sql_reciente);
-$stmt_reciente->bind_param("ss", $filtro_fecha_inicio, $filtro_fecha_fin);
+$stmt_reciente->bind_param("ssss", $param_fecha_inicio, $param_fecha_fin, $param_fecha_inicio, $param_fecha_fin);
 $stmt_reciente->execute();
 $result_reciente = $stmt_reciente->get_result();
 ?>
@@ -378,20 +499,20 @@ $result_reciente = $stmt_reciente->get_result();
                                     </div>
                                     <strong><?php echo htmlspecialchars($usuario['usuario_nombre']); ?></strong>
                                 </td>
-                                <td class="user-email"><?php echo htmlspecialchars($usuario['email']); ?></td>
+                                <td class="user-email"><?php echo htmlspecialchars($usuario['usuario_email']); ?></td>
                                 <td class="user-role">
                                     <span class="role-badge <?php echo $usuario['rol']; ?>">
                                         <?php echo ucfirst($usuario['rol']); ?>
                                     </span>
                                 </td>
                                 <td class="user-almacen"><?php echo htmlspecialchars($usuario['almacen_nombre'] ?? 'N/A'); ?></td>
-                                <td class="activity-total"><?php echo number_format($usuario['total_solicitudes']); ?></td>
+                                <td class="activity-total"><?php echo number_format($usuario['total_actividades']); ?></td>
                                 <td class="activity-completed"><?php echo number_format($usuario['completadas']); ?></td>
                                 <td class="activity-pending"><?php echo number_format($usuario['pendientes']); ?></td>
                                 <td class="activity-rejected"><?php echo number_format($usuario['rechazadas']); ?></td>
                                 <td class="last-activity">
                                     <?php 
-                                    echo $usuario['ultima_actividad'] 
+                                    echo ($usuario['ultima_actividad'] && $usuario['ultima_actividad'] != '1970-01-01 00:00:00') 
                                         ? date('d/m/Y H:i', strtotime($usuario['ultima_actividad'])) 
                                         : 'Sin actividad'; 
                                     ?>
@@ -424,7 +545,13 @@ $result_reciente = $stmt_reciente->get_result();
                         <div class="activity-icon">
                             <?php
                             $icon_class = '';
-                            switch($actividad['estado']) {
+                            $estado_normalizado = $actividad['estado'];
+                            
+                            // Normalizar estados diferentes entre tablas
+                            if ($estado_normalizado == 'aprobada') $estado_normalizado = 'completado';
+                            if ($estado_normalizado == 'rechazada') $estado_normalizado = 'rechazado';
+                            
+                            switch($estado_normalizado) {
                                 case 'completado':
                                     $icon_class = 'fas fa-check-circle text-success';
                                     break;
@@ -442,21 +569,22 @@ $result_reciente = $stmt_reciente->get_result();
                         <div class="activity-content">
                             <div class="activity-header">
                                 <strong><?php echo htmlspecialchars($actividad['usuario_nombre']); ?></strong>
-                                <span class="activity-time"><?php echo date('d/m/Y H:i', strtotime($actividad['fecha_solicitud'])); ?></span>
+                                <span class="activity-time"><?php echo date('d/m/Y H:i', strtotime($actividad['fecha_actividad'])); ?></span>
                             </div>
                             
                             <div class="activity-description">
-                                <?php echo ucfirst($actividad['tipo_movimiento']); ?> de 
+                                <?php echo ucfirst($actividad['tipo_actividad']); ?> de 
                                 <strong><?php echo number_format($actividad['cantidad']); ?></strong> unidades de 
                                 <em><?php echo htmlspecialchars($actividad['producto_nombre']); ?></em>
                                 <?php if ($actividad['almacen_origen'] && $actividad['almacen_destino']): ?>
                                 desde <strong><?php echo htmlspecialchars($actividad['almacen_origen']); ?></strong> 
                                 hacia <strong><?php echo htmlspecialchars($actividad['almacen_destino']); ?></strong>
                                 <?php endif; ?>
+                                <small>(<?php echo ucfirst($actividad['tipo_registro']); ?>)</small>
                             </div>
                             
                             <div class="activity-status">
-                                <span class="status-badge <?php echo $actividad['estado']; ?>">
+                                <span class="status-badge <?php echo $estado_normalizado; ?>">
                                     <?php echo ucfirst($actividad['estado']); ?>
                                 </span>
                             </div>

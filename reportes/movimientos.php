@@ -40,76 +40,91 @@ $filtro_fecha_fin = isset($_GET['fecha_fin']) ? $_GET['fecha_fin'] : date('Y-m-t
 $filtro_almacen = isset($_GET['almacen']) ? $_GET['almacen'] : '';
 $filtro_tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
 
-// Query para movimientos
+// Query para movimientos - USANDO LA TABLA CORRECTA 'movimientos'
 $sql_movimientos = "
     SELECT 
-        s.id,
-        s.fecha_solicitud,
-        s.cantidad,
-        s.estado,
-        s.tipo_movimiento,
+        m.id,
+        m.fecha,
+        m.cantidad,
+        m.estado,
+        m.tipo as tipo_movimiento,
         p.nombre as producto_nombre,
-        p.codigo as producto_codigo,
+        CONCAT('PROD-', LPAD(p.id, 4, '0')) as producto_codigo,
         ao.nombre as almacen_origen,
         ad.nombre as almacen_destino,
         u.nombre as usuario_nombre
-    FROM solicitudes_transferencia s
-    LEFT JOIN productos p ON s.producto_id = p.id
-    LEFT JOIN almacenes ao ON s.almacen_origen = ao.id
-    LEFT JOIN almacenes ad ON s.almacen_destino = ad.id
-    LEFT JOIN usuarios u ON s.usuario_id = u.id
-    WHERE s.fecha_solicitud BETWEEN ? AND ?
+    FROM movimientos m
+    LEFT JOIN productos p ON m.producto_id = p.id
+    LEFT JOIN almacenes ao ON m.almacen_origen = ao.id
+    LEFT JOIN almacenes ad ON m.almacen_destino = ad.id
+    LEFT JOIN usuarios u ON m.usuario_id = u.id
+    WHERE m.fecha BETWEEN ? AND ?
 ";
 
-$params = [$filtro_fecha_inicio, $filtro_fecha_fin];
-$types = "ss";
+// Construir parámetros dinámicamente
+$param_fecha_inicio = $filtro_fecha_inicio . ' 00:00:00';
+$param_fecha_fin = $filtro_fecha_fin . ' 23:59:59';
 
 if (!empty($filtro_almacen) && $usuario_rol == 'admin') {
-    $sql_movimientos .= " AND (s.almacen_origen = ? OR s.almacen_destino = ?)";
-    $params[] = $filtro_almacen;
-    $params[] = $filtro_almacen;
-    $types .= "ii";
+    $sql_movimientos .= " AND (m.almacen_origen = ? OR m.almacen_destino = ?)";
+    if (!empty($filtro_tipo)) {
+        $sql_movimientos .= " AND m.tipo = ?";
+        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
+        $stmt_movimientos = $conn->prepare($sql_movimientos);
+        $stmt_movimientos->bind_param("ssiss", $param_fecha_inicio, $param_fecha_fin, $filtro_almacen, $filtro_almacen, $filtro_tipo);
+    } else {
+        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
+        $stmt_movimientos = $conn->prepare($sql_movimientos);
+        $stmt_movimientos->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $filtro_almacen, $filtro_almacen);
+    }
 } elseif ($usuario_rol != 'admin') {
-    $sql_movimientos .= " AND (s.almacen_origen = ? OR s.almacen_destino = ?)";
-    $params[] = $usuario_almacen_id;
-    $params[] = $usuario_almacen_id;
-    $types .= "ii";
+    $sql_movimientos .= " AND (m.almacen_origen = ? OR m.almacen_destino = ?)";
+    if (!empty($filtro_tipo)) {
+        $sql_movimientos .= " AND m.tipo = ?";
+        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
+        $stmt_movimientos = $conn->prepare($sql_movimientos);
+        $stmt_movimientos->bind_param("ssiss", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id, $filtro_tipo);
+    } else {
+        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
+        $stmt_movimientos = $conn->prepare($sql_movimientos);
+        $stmt_movimientos->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id);
+    }
+} else {
+    if (!empty($filtro_tipo)) {
+        $sql_movimientos .= " AND m.tipo = ?";
+        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
+        $stmt_movimientos = $conn->prepare($sql_movimientos);
+        $stmt_movimientos->bind_param("sss", $param_fecha_inicio, $param_fecha_fin, $filtro_tipo);
+    } else {
+        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
+        $stmt_movimientos = $conn->prepare($sql_movimientos);
+        $stmt_movimientos->bind_param("ss", $param_fecha_inicio, $param_fecha_fin);
+    }
 }
 
-if (!empty($filtro_tipo)) {
-    $sql_movimientos .= " AND s.tipo_movimiento = ?";
-    $params[] = $filtro_tipo;
-    $types .= "s";
-}
-
-$sql_movimientos .= " ORDER BY s.fecha_solicitud DESC LIMIT 100";
-
-$stmt_movimientos = $conn->prepare($sql_movimientos);
-$stmt_movimientos->bind_param($types, ...$params);
 $stmt_movimientos->execute();
 $result_movimientos = $stmt_movimientos->get_result();
 
-// Estadísticas
+// Estadísticas - USANDO LA TABLA CORRECTA
 $sql_stats = "
     SELECT 
         COUNT(*) as total_movimientos,
         SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END) as completados,
         SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
         SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END) as rechazados
-    FROM solicitudes_transferencia 
-    WHERE fecha_solicitud BETWEEN ? AND ?
+    FROM movimientos 
+    WHERE fecha BETWEEN ? AND ?
 ";
 
 if ($usuario_rol != 'admin') {
     $sql_stats .= " AND (almacen_origen = ? OR almacen_destino = ?)";
+    $stmt_stats = $conn->prepare($sql_stats);
+    $stmt_stats->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id);
+} else {
+    $stmt_stats = $conn->prepare($sql_stats);
+    $stmt_stats->bind_param("ss", $param_fecha_inicio, $param_fecha_fin);
 }
 
-$stmt_stats = $conn->prepare($sql_stats);
-if ($usuario_rol != 'admin') {
-    $stmt_stats->bind_param("ssii", $filtro_fecha_inicio, $filtro_fecha_fin, $usuario_almacen_id, $usuario_almacen_id);
-} else {
-    $stmt_stats->bind_param("ss", $filtro_fecha_inicio, $filtro_fecha_fin);
-}
 $stmt_stats->execute();
 $result_stats = $stmt_stats->get_result();
 $stats = $result_stats->fetch_assoc();
@@ -119,8 +134,10 @@ $almacenes = [];
 if ($usuario_rol == 'admin') {
     $sql_almacenes = "SELECT id, nombre FROM almacenes ORDER BY nombre";
     $result_almacenes = $conn->query($sql_almacenes);
-    while ($row = $result_almacenes->fetch_assoc()) {
-        $almacenes[] = $row;
+    if ($result_almacenes) {
+        while ($row = $result_almacenes->fetch_assoc()) {
+            $almacenes[] = $row;
+        }
     }
 }
 ?>
@@ -343,9 +360,9 @@ if ($usuario_rol == 'admin') {
                 <label class="filter-label">Tipo</label>
                 <select name="tipo" class="filter-control">
                     <option value="">Todos los tipos</option>
-                    <option value="transferencia" <?php echo ($filtro_tipo == 'transferencia') ? 'selected' : ''; ?>>Transferencia</option>
-                    <option value="ajuste" <?php echo ($filtro_tipo == 'ajuste') ? 'selected' : ''; ?>>Ajuste</option>
+                    <option value="entrada" <?php echo ($filtro_tipo == 'entrada') ? 'selected' : ''; ?>>Entrada</option>
                     <option value="salida" <?php echo ($filtro_tipo == 'salida') ? 'selected' : ''; ?>>Salida</option>
+                    <option value="transferencia" <?php echo ($filtro_tipo == 'transferencia') ? 'selected' : ''; ?>>Transferencia</option>
                 </select>
             </div>
             
@@ -381,7 +398,7 @@ if ($usuario_rol == 'admin') {
                         <?php while ($movimiento = $result_movimientos->fetch_assoc()): ?>
                         <tr>
                             <td class="mov-id">#<?php echo str_pad($movimiento['id'], 4, '0', STR_PAD_LEFT); ?></td>
-                            <td class="mov-fecha"><?php echo date('d/m/Y H:i', strtotime($movimiento['fecha_solicitud'])); ?></td>
+                            <td class="mov-fecha"><?php echo date('d/m/Y H:i', strtotime($movimiento['fecha'])); ?></td>
                             <td class="mov-producto">
                                 <div class="producto-info">
                                     <strong><?php echo htmlspecialchars($movimiento['producto_nombre']); ?></strong>
@@ -389,8 +406,8 @@ if ($usuario_rol == 'admin') {
                                 </div>
                             </td>
                             <td class="mov-cantidad"><?php echo number_format($movimiento['cantidad']); ?></td>
-                            <td class="mov-almacen"><?php echo htmlspecialchars($movimiento['almacen_origen'] ?? 'N/A'); ?></td>
-                            <td class="mov-almacen"><?php echo htmlspecialchars($movimiento['almacen_destino'] ?? 'N/A'); ?></td>
+                            <td class="mov-almacen"><?php echo htmlspecialchars($movimiento['almacen_origen'] ?? 'Sistema'); ?></td>
+                            <td class="mov-almacen"><?php echo htmlspecialchars($movimiento['almacen_destino'] ?? 'Sistema'); ?></td>
                             <td class="mov-usuario"><?php echo htmlspecialchars($movimiento['usuario_nombre']); ?></td>
                             <td class="mov-estado">
                                 <?php
