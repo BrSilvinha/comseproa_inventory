@@ -76,9 +76,12 @@ function validarFortalezaPassword($password) {
 // ===== PROCESAR CAMBIO DE CONTRASEÑA =====
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'cambiar_password') {
     
-    $password_actual = $_POST['password_actual'] ?? '';
-    $password_nueva = $_POST['password_nueva'] ?? '';
-    $password_confirmar = $_POST['password_confirmar'] ?? '';
+    // Log para depuración
+    error_log("Procesando cambio de contraseña para usuario ID: " . $user_id);
+    
+    $password_actual = trim($_POST['password_actual'] ?? '');
+    $password_nueva = trim($_POST['password_nueva'] ?? '');
+    $password_confirmar = trim($_POST['password_confirmar'] ?? '');
     
     $errores = [];
     
@@ -95,120 +98,147 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         $errores[] = "Debes confirmar la nueva contraseña.";
     }
     
-    if ($password_nueva !== $password_confirmar) {
+    if (!empty($password_nueva) && !empty($password_confirmar) && $password_nueva !== $password_confirmar) {
         $errores[] = "Las contraseñas nuevas no coinciden.";
     }
     
-    if ($password_actual === $password_nueva) {
+    if (!empty($password_actual) && !empty($password_nueva) && $password_actual === $password_nueva) {
         $errores[] = "La nueva contraseña debe ser diferente a la actual.";
     }
     
-    // Validar fortaleza de la nueva contraseña
+    // Validar fortaleza de la nueva contraseña solo si no está vacía
     if (!empty($password_nueva)) {
-        $fortaleza = validarFortalezaPassword($password_nueva);
-        
         if (strlen($password_nueva) < 8) {
             $errores[] = "La contraseña debe tener al menos 8 caracteres.";
         }
         
-        if (!$fortaleza['requisitos']['mayuscula']) {
+        if (!preg_match('/[A-Z]/', $password_nueva)) {
             $errores[] = "La contraseña debe contener al menos una letra mayúscula.";
         }
         
-        if (!$fortaleza['requisitos']['minuscula']) {
+        if (!preg_match('/[a-z]/', $password_nueva)) {
             $errores[] = "La contraseña debe contener al menos una letra minúscula.";
         }
         
-        if (!$fortaleza['requisitos']['numero']) {
+        if (!preg_match('/[0-9]/', $password_nueva)) {
             $errores[] = "La contraseña debe contener al menos un número.";
         }
         
-        if (!$fortaleza['requisitos']['especial']) {
+        if (!preg_match('/[^A-Za-z0-9]/', $password_nueva)) {
             $errores[] = "La contraseña debe contener al menos un caracter especial (!@#$%^&*).";
         }
     }
     
     // Si no hay errores de validación, proceder con la verificación y actualización
     if (empty($errores)) {
-        // *** CORREGIDO: Usar 'contrasena' en lugar de 'password' ***
-        $sql_get_password = "SELECT contrasena FROM usuarios WHERE id = ?";
-        $stmt_get = $conn->prepare($sql_get_password);
-        $stmt_get->bind_param("i", $user_id);
-        $stmt_get->execute();
-        $result_get = $stmt_get->get_result();
-        
-        if ($result_get && $row = $result_get->fetch_assoc()) {
-            // *** CORREGIDO: Usar 'contrasena' en lugar de 'password' ***
-            $password_actual_hash = $row['contrasena'];
+        try {
+            // Usar 'contrasena' en lugar de 'password'
+            $sql_get_password = "SELECT contrasena FROM usuarios WHERE id = ?";
+            $stmt_get = $conn->prepare($sql_get_password);
             
-            // Verificar la contraseña actual
-            if (password_verify($password_actual, $password_actual_hash)) {
-                // Hashear la nueva contraseña
-                $password_nueva_hash = password_hash($password_nueva, PASSWORD_DEFAULT);
+            if (!$stmt_get) {
+                throw new Exception("Error en la preparación de la consulta: " . $conn->error);
+            }
+            
+            $stmt_get->bind_param("i", $user_id);
+            $stmt_get->execute();
+            $result_get = $stmt_get->get_result();
+            
+            if ($result_get && $row = $result_get->fetch_assoc()) {
+                $password_actual_hash = $row['contrasena'];
                 
-                // *** CORREGIDO: Usar 'contrasena' en lugar de 'password' y removido fecha_actualizacion ***
-                $sql_update = "UPDATE usuarios SET contrasena = ? WHERE id = ?";
-                
-                $stmt_update = $conn->prepare($sql_update);
-                $stmt_update->bind_param("si", $password_nueva_hash, $user_id);
-                
-                if ($stmt_update->execute()) {
-                    $mensaje = "Contraseña actualizada correctamente.";
-                    $tipo_mensaje = "success";
+                // Verificar la contraseña actual
+                if (password_verify($password_actual, $password_actual_hash)) {
+                    // Hashear la nueva contraseña
+                    $password_nueva_hash = password_hash($password_nueva, PASSWORD_DEFAULT);
                     
-                    // Opcional: Registrar el cambio en un log de seguridad (si existe la tabla)
-                    $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
-                               VALUES (?, 'CAMBIO_PASSWORD', 'Usuario cambió su contraseña', CURRENT_TIMESTAMP)";
-                    $stmt_log = $conn->prepare($sql_log);
-                    if ($stmt_log) {
-                        $stmt_log->bind_param("i", $user_id);
-                        $stmt_log->execute();
-                        $stmt_log->close();
+                    // Actualizar contraseña
+                    $sql_update = "UPDATE usuarios SET contrasena = ? WHERE id = ?";
+                    $stmt_update = $conn->prepare($sql_update);
+                    
+                    if (!$stmt_update) {
+                        throw new Exception("Error en la preparación de la actualización: " . $conn->error);
                     }
                     
+                    $stmt_update->bind_param("si", $password_nueva_hash, $user_id);
+                    
+                    if ($stmt_update->execute()) {
+                        $mensaje = "Contraseña actualizada correctamente.";
+                        $tipo_mensaje = "success";
+                        
+                        error_log("Contraseña actualizada exitosamente para usuario ID: " . $user_id);
+                        
+                        // Registrar el cambio en log de seguridad (opcional)
+                        try {
+                            $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
+                                       VALUES (?, 'CAMBIO_PASSWORD', 'Usuario cambió su contraseña', CURRENT_TIMESTAMP)";
+                            $stmt_log = $conn->prepare($sql_log);
+                            if ($stmt_log) {
+                                $stmt_log->bind_param("i", $user_id);
+                                $stmt_log->execute();
+                                $stmt_log->close();
+                            }
+                        } catch (Exception $log_error) {
+                            // Error en log no es crítico, continuar
+                            error_log("Error al registrar log de actividad: " . $log_error->getMessage());
+                        }
+                        
+                    } else {
+                        throw new Exception("Error al ejecutar la actualización: " . $stmt_update->error);
+                    }
+                    $stmt_update->close();
+                    
                 } else {
-                    $mensaje = "Error al actualizar la contraseña.";
+                    $mensaje = "La contraseña actual es incorrecta.";
                     $tipo_mensaje = "error";
+                    error_log("Contraseña actual incorrecta para usuario ID: " . $user_id);
                 }
-                $stmt_update->close();
-                
             } else {
-                $mensaje = "La contraseña actual es incorrecta.";
-                $tipo_mensaje = "error";
+                throw new Exception("No se pudo obtener la contraseña actual del usuario");
             }
-        } else {
-            $mensaje = "Error al verificar la contraseña actual.";
+            $stmt_get->close();
+            
+        } catch (Exception $e) {
+            $mensaje = "Error del sistema: " . $e->getMessage();
             $tipo_mensaje = "error";
+            error_log("Error en cambio de contraseña: " . $e->getMessage());
         }
-        $stmt_get->close();
         
     } else {
         $mensaje = implode("<br>", $errores);
         $tipo_mensaje = "error";
+        error_log("Errores de validación: " . implode(", ", $errores));
     }
 }
 
 // ===== CONTAR SOLICITUDES PENDIENTES PARA EL BADGE =====
 $total_pendientes = 0;
-$sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
-
-if ($usuario_rol != 'admin') {
-    $sql_pendientes .= " AND almacen_destino = ?";
-    $stmt_pendientes = $conn->prepare($sql_pendientes);
-    $stmt_pendientes->bind_param("i", $usuario_almacen_id);
-    $stmt_pendientes->execute();
-    $result_pendientes = $stmt_pendientes->get_result();
-    $stmt_pendientes->close();
-} else {
-    $result_pendientes = $conn->query($sql_pendientes);
-}
-
-if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
-    $total_pendientes = $row_pendientes['total'];
-}
-
-if ($result_pendientes) {
-    $result_pendientes->free();
+try {
+    $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+    
+    if ($usuario_rol != 'admin') {
+        $sql_pendientes .= " AND almacen_destino = ?";
+        $stmt_pendientes = $conn->prepare($sql_pendientes);
+        if ($stmt_pendientes) {
+            $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+            $stmt_pendientes->execute();
+            $result_pendientes = $stmt_pendientes->get_result();
+            $stmt_pendientes->close();
+        }
+    } else {
+        $result_pendientes = $conn->query($sql_pendientes);
+    }
+    
+    if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+        $total_pendientes = $row_pendientes['total'];
+    }
+    
+    if ($result_pendientes) {
+        $result_pendientes->free();
+    }
+} catch (Exception $e) {
+    error_log("Error al contar solicitudes pendientes: " . $e->getMessage());
+    $total_pendientes = 0;
 }
 ?>
 <!DOCTYPE html>
@@ -231,7 +261,7 @@ if ($result_pendientes) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS consistente con el dashboard -->
+    <!-- CSS -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/perfil-cambiar-password.css">
     
@@ -375,6 +405,8 @@ if ($result_pendientes) {
 
     <!-- Contenedor Principal -->
     <div class="password-container">
+        
+        <!-- Formulario Principal -->
         <div class="password-form-wrapper">
             
             <!-- Header del Formulario -->
@@ -426,54 +458,6 @@ if ($result_pendientes) {
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
-                    
-                    <!-- Indicador de Fortaleza -->
-                    <div class="password-strength" id="passwordStrength" style="display: none;">
-                        <div class="password-strength-label">
-                            <span class="password-strength-text">Fortaleza de la contraseña:</span>
-                            <span class="password-strength-score" id="strengthScore">Débil</span>
-                        </div>
-                        <div class="password-strength-bar">
-                            <div class="password-strength-fill" id="strengthFill"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Requisitos de Contraseña -->
-                    <div class="password-requirements">
-                        <h4><i class="fas fa-list-check"></i> Requisitos de la contraseña:</h4>
-                        <div class="password-requirements-list">
-                            <div class="password-requirement" id="req-length">
-                                <div class="password-requirement-icon">
-                                    <i class="fas fa-times"></i>
-                                </div>
-                                <span>Al menos 8 caracteres</span>
-                            </div>
-                            <div class="password-requirement" id="req-upper">
-                                <div class="password-requirement-icon">
-                                    <i class="fas fa-times"></i>
-                                </div>
-                                <span>Al menos una letra mayúscula (A-Z)</span>
-                            </div>
-                            <div class="password-requirement" id="req-lower">
-                                <div class="password-requirement-icon">
-                                    <i class="fas fa-times"></i>
-                                </div>
-                                <span>Al menos una letra minúscula (a-z)</span>
-                            </div>
-                            <div class="password-requirement" id="req-number">
-                                <div class="password-requirement-icon">
-                                    <i class="fas fa-times"></i>
-                                </div>
-                                <span>Al menos un número (0-9)</span>
-                            </div>
-                            <div class="password-requirement" id="req-special">
-                                <div class="password-requirement-icon">
-                                    <i class="fas fa-times"></i>
-                                </div>
-                                <span>Al menos un caracter especial (!@#$%^&*)</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 
                 <!-- Confirmar Nueva Contraseña -->
@@ -493,7 +477,7 @@ if ($result_pendientes) {
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
-                    <div class="password-validation-message" id="matchMessage" style="display: none;"></div>
+                    <div class="password-validation-message" id="matchMessage"></div>
                 </div>
                 
                 <!-- Botones de Acción -->
@@ -502,7 +486,7 @@ if ($result_pendientes) {
                         <i class="fas fa-save"></i>
                         Cambiar Contraseña
                     </button>
-                    <a href="configuracion.php" class="password-btn password-btn-secondary">
+                    <a href="../dashboard.php" class="password-btn password-btn-secondary">
                         <i class="fas fa-arrow-left"></i>
                         Volver
                     </a>
@@ -510,70 +494,104 @@ if ($result_pendientes) {
             </form>
         </div>
         
-        <!-- Información de Seguridad -->
-        <div class="password-security-info">
-            <h3><i class="fas fa-shield-alt"></i> Consejos de Seguridad</h3>
-            <div class="password-security-tips">
-                <div class="password-security-tip">
-                    <div class="password-security-tip-icon">
-                        <i class="fas fa-lightbulb"></i>
-                    </div>
-                    <div class="password-security-tip-text">
-                        Usa una combinación de letras mayúsculas, minúsculas, números y símbolos especiales.
+        <!-- Panel Lateral -->
+        <div class="password-sidebar">
+            
+            <!-- Indicador de Fortaleza -->
+            <div class="password-strength" id="passwordStrength">
+                <h3><i class="fas fa-chart-line"></i> Fortaleza de la contraseña</h3>
+                <div class="password-strength-label">
+                    <span class="password-strength-text">Nivel de seguridad:</span>
+                    <span class="password-strength-score" id="strengthScore">Sin evaluar</span>
+                </div>
+                <div class="password-strength-bar">
+                    <div class="password-strength-fill" id="strengthFill"></div>
+                </div>
+                
+                <!-- Requisitos de Contraseña -->
+                <div class="password-requirements">
+                    <h4><i class="fas fa-list-check"></i> Requisitos:</h4>
+                    <div class="password-requirements-list">
+                        <div class="password-requirement" id="req-length">
+                            <div class="password-requirement-icon">
+                                <i class="fas fa-times"></i>
+                            </div>
+                            <span>Al menos 8 caracteres</span>
+                        </div>
+                        <div class="password-requirement" id="req-upper">
+                            <div class="password-requirement-icon">
+                                <i class="fas fa-times"></i>
+                            </div>
+                            <span>Al menos una letra mayúscula (A-Z)</span>
+                        </div>
+                        <div class="password-requirement" id="req-lower">
+                            <div class="password-requirement-icon">
+                                <i class="fas fa-times"></i>
+                            </div>
+                            <span>Al menos una letra minúscula (a-z)</span>
+                        </div>
+                        <div class="password-requirement" id="req-number">
+                            <div class="password-requirement-icon">
+                                <i class="fas fa-times"></i>
+                            </div>
+                            <span>Al menos un número (0-9)</span>
+                        </div>
+                        <div class="password-requirement" id="req-special">
+                            <div class="password-requirement-icon">
+                                <i class="fas fa-times"></i>
+                            </div>
+                            <span>Al menos un caracter especial (!@#$%^&*)</span>
+                        </div>
                     </div>
                 </div>
-                <div class="password-security-tip">
-                    <div class="password-security-tip-icon">
-                        <i class="fas fa-ban"></i>
+            </div>
+            
+            <!-- Información de Seguridad -->
+            <div class="password-security-info">
+                <h3><i class="fas fa-shield-alt"></i> Consejos de Seguridad</h3>
+                <div class="password-security-tips">
+                    <div class="password-security-tip">
+                        <div class="password-security-tip-icon">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <div class="password-security-tip-text">
+                            Usa una combinación de letras mayúsculas, minúsculas, números y símbolos especiales.
+                        </div>
                     </div>
-                    <div class="password-security-tip-text">
-                        Evita usar información personal como nombres, fechas de nacimiento o palabras comunes.
+                    <div class="password-security-tip">
+                        <div class="password-security-tip-icon">
+                            <i class="fas fa-ban"></i>
+                        </div>
+                        <div class="password-security-tip-text">
+                            Evita usar información personal como nombres, fechas de nacimiento o palabras comunes.
+                        </div>
                     </div>
-                </div>
-                <div class="password-security-tip">
-                    <div class="password-security-tip-icon">
-                        <i class="fas fa-sync-alt"></i>
+                    <div class="password-security-tip">
+                        <div class="password-security-tip-icon">
+                            <i class="fas fa-sync-alt"></i>
+                        </div>
+                        <div class="password-security-tip-text">
+                            Cambia tu contraseña regularmente y nunca la compartas con otras personas.
+                        </div>
                     </div>
-                    <div class="password-security-tip-text">
-                        Cambia tu contraseña regularmente y nunca la compartas con otras personas.
-                    </div>
-                </div>
-                <div class="password-security-tip">
-                    <div class="password-security-tip-icon">
-                        <i class="fas fa-key"></i>
-                    </div>
-                    <div class="password-security-tip-text">
-                        Usa contraseñas únicas para cada cuenta y considera usar un gestor de contraseñas.
+                    <div class="password-security-tip">
+                        <div class="password-security-tip-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="password-security-tip-text">
+                            Usa contraseñas únicas para cada cuenta y considera usar un gestor de contraseñas.
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+        
     </div>
     
 </main>
 
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
-
-<!-- Modal de Confirmación -->
-<div class="password-modal" id="confirmModal">
-    <div class="password-modal-content">
-        <div class="password-modal-header">
-            <h2><i class="fas fa-question-circle"></i> Confirmar Cambio</h2>
-        </div>
-        <div class="password-modal-body">
-            <p>¿Estás seguro de que deseas cambiar tu contraseña? Esta acción no se puede deshacer.</p>
-        </div>
-        <div class="password-modal-actions">
-            <button type="button" class="password-btn password-btn-secondary" onclick="cerrarModal()">
-                <i class="fas fa-times"></i> Cancelar
-            </button>
-            <button type="button" class="password-btn password-btn-primary" onclick="confirmarCambio()">
-                <i class="fas fa-check"></i> Confirmar
-            </button>
-        </div>
-    </div>
-</div>
 
 <!-- JavaScript -->
 <script src="../assets/js/universal-confirmation-system.js"></script>
@@ -586,6 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordForm = document.getElementById('passwordForm');
     const passwordNueva = document.getElementById('passwordNueva');
     const passwordConfirmar = document.getElementById('passwordConfirmar');
+    const passwordActual = document.getElementById('passwordActual');
     const submitBtn = document.getElementById('submitBtn');
     const toggleButtons = document.querySelectorAll('.password-toggle-btn');
     const mainContent = document.querySelector('.content');
@@ -677,6 +696,7 @@ document.addEventListener('DOMContentLoaded', function() {
         passwordNueva.addEventListener('input', function() {
             const password = this.value;
             validarFortalezaPassword(password);
+            validarConfirmacionPassword();
         });
     }
     
@@ -687,16 +707,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // ===== VALIDACIÓN DE CONTRASEÑA ACTUAL =====
+    if (passwordActual) {
+        passwordActual.addEventListener('input', function() {
+            updateSubmitButton();
+        });
+    }
+    
     // ===== FUNCIÓN PARA VALIDAR FORTALEZA =====
     function validarFortalezaPassword(password) {
         const strengthContainer = document.getElementById('passwordStrength');
         const strengthFill = document.getElementById('strengthFill');
         const strengthScore = document.getElementById('strengthScore');
         
-        if (password.length > 0) {
-            strengthContainer.style.display = 'block';
-        } else {
-            strengthContainer.style.display = 'none';
+        if (password.length === 0) {
+            strengthScore.textContent = 'Sin evaluar';
+            strengthScore.className = 'password-strength-score';
+            strengthFill.className = 'password-strength-fill';
+            strengthFill.style.width = '0%';
+            
+            // Resetear todos los requisitos
+            ['req-length', 'req-upper', 'req-lower', 'req-number', 'req-special'].forEach(reqId => {
+                updateRequirement(reqId, false);
+            });
+            
+            updateSubmitButton();
             return;
         }
         
@@ -738,7 +773,6 @@ document.addEventListener('DOMContentLoaded', function() {
         strengthScore.className = `password-strength-score ${nivel}`;
         strengthScore.textContent = texto;
         
-        // Actualizar estado del botón
         updateSubmitButton();
     }
     
@@ -764,34 +798,57 @@ document.addEventListener('DOMContentLoaded', function() {
         const passwordValue = passwordNueva.value;
         const confirmValue = passwordConfirmar.value;
         
-        if (confirmValue.length > 0) {
-            matchMessage.style.display = 'block';
-            
-            if (passwordValue === confirmValue) {
-                matchMessage.className = 'password-validation-message success';
-                matchMessage.innerHTML = '<i class="fas fa-check"></i> Las contraseñas coinciden';
-                passwordConfirmar.classList.remove('invalid');
-                passwordConfirmar.classList.add('valid');
-            } else {
-                matchMessage.className = 'password-validation-message error';
-                matchMessage.innerHTML = '<i class="fas fa-times"></i> Las contraseñas no coinciden';
-                passwordConfirmar.classList.remove('valid');
-                passwordConfirmar.classList.add('invalid');
-            }
-        } else {
+        if (confirmValue.length === 0) {
             matchMessage.style.display = 'none';
             passwordConfirmar.classList.remove('valid', 'invalid');
+            updateSubmitButton();
+            return;
+        }
+        
+        matchMessage.style.display = 'block';
+        
+        if (passwordValue === confirmValue) {
+            matchMessage.className = 'password-validation-message success';
+            matchMessage.innerHTML = '<i class="fas fa-check"></i> Las contraseñas coinciden';
+            passwordConfirmar.classList.remove('invalid');
+            passwordConfirmar.classList.add('valid');
+        } else {
+            matchMessage.className = 'password-validation-message error';
+            matchMessage.innerHTML = '<i class="fas fa-times"></i> Las contraseñas no coinciden';
+            passwordConfirmar.classList.remove('valid');
+            passwordConfirmar.classList.add('invalid');
         }
         
         updateSubmitButton();
     }
     
-    // ===== FUNCIÓN PARA ACTUALIZAR BOTÓN DE ENVÍO =====
+    // ===== FUNCIÓN PARA ACTUALIZAR BOTÓN DE ENVÍO - CORREGIDA =====
     function updateSubmitButton() {
-        const passwordValue = passwordNueva.value;
-        const confirmValue = passwordConfirmar.value;
+        const passwordActualValue = passwordActual.value.trim();
+        const passwordValue = passwordNueva.value.trim();
+        const confirmValue = passwordConfirmar.value.trim();
         
-        // Verificar que todos los requisitos se cumplan
+        // Verificar campos básicos
+        const hasCurrentPassword = passwordActualValue.length > 0;
+        const hasNewPassword = passwordValue.length > 0;
+        const hasConfirmPassword = confirmValue.length > 0;
+        
+        // Si no hay contraseñas, deshabilitar
+        if (!hasCurrentPassword || !hasNewPassword || !hasConfirmPassword) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('disabled');
+            return;
+        }
+        
+        // Verificar que las contraseñas coincidan
+        const passwordsMatch = passwordValue === confirmValue;
+        if (!passwordsMatch) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('disabled');
+            return;
+        }
+        
+        // Verificar requisitos de fortaleza
         const requirements = {
             length: passwordValue.length >= 8,
             upper: /[A-Z]/.test(passwordValue),
@@ -801,9 +858,9 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         const allRequirementsMet = Object.values(requirements).every(met => met);
-        const passwordsMatch = passwordValue === confirmValue && confirmValue.length > 0;
         
-        if (allRequirementsMet && passwordsMatch) {
+        // Habilitar botón solo si todo está correcto
+        if (allRequirementsMet) {
             submitBtn.disabled = false;
             submitBtn.classList.remove('disabled');
         } else {
@@ -812,23 +869,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // ===== ENVÍO DEL FORMULARIO CON CONFIRMACIÓN =====
+    // ===== ENVÍO DEL FORMULARIO =====
     if (passwordForm) {
         passwordForm.addEventListener('submit', function(e) {
-            e.preventDefault();
+            // No prevenir el envío - dejar que se procese normalmente
+            if (submitBtn.disabled) {
+                e.preventDefault();
+                mostrarNotificacion('Por favor, completa todos los campos correctamente', 'error', 3000);
+                return false;
+            }
             
-            const modal = document.getElementById('confirmModal');
-            modal.style.display = 'block';
+            // Mostrar estado de carga
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+            
+            // El formulario se enviará normalmente
+            return true;
         });
     }
     
     // ===== NAVEGACIÓN POR TECLADO =====
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            const modal = document.getElementById('confirmModal');
-            if (modal.style.display === 'block') {
-                modal.style.display = 'none';
-            } else if (sidebar.classList.contains('active')) {
+            if (sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
                 if (mainContent) {
                     mainContent.classList.remove('with-sidebar');
@@ -859,41 +922,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 icon.classList.add('fa-bars');
             }
         }
-        
-        // Cerrar modal al hacer clic fuera
-        const modal = document.getElementById('confirmModal');
-        if (e.target === modal) {
-            modal.style.display = 'none';
-        }
     });
+    
+    // Inicializar estado del botón
+    updateSubmitButton();
     
     // Mostrar mensaje de bienvenida
     setTimeout(() => {
         mostrarNotificacion('Formulario de cambio de contraseña cargado correctamente.', 'info', 3000);
     }, 1000);
 });
-
-// ===== FUNCIONES DE MODAL =====
-function cerrarModal() {
-    const modal = document.getElementById('confirmModal');
-    modal.style.display = 'none';
-}
-
-function confirmarCambio() {
-    const modal = document.getElementById('confirmModal');
-    const submitBtn = document.getElementById('submitBtn');
-    
-    modal.style.display = 'none';
-    
-    // Mostrar estado de carga
-    submitBtn.classList.add('loading');
-    submitBtn.disabled = true;
-    
-    // Enviar formulario
-    setTimeout(() => {
-        document.getElementById('passwordForm').submit();
-    }, 500);
-}
 
 // ===== FUNCIÓN PARA CERRAR SESIÓN =====
 async function manejarCerrarSesion(event) {
