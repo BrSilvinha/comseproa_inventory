@@ -15,7 +15,12 @@ $user_name = $_SESSION["user_name"] ?? "Usuario";
 $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 $usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
 
-// NUEVO: Obtener filtros de la URL
+// Configuración de paginación
+$productos_por_pagina = 15;
+$pagina_actual = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
+$offset = ($pagina_actual - 1) * $productos_por_pagina;
+
+// Obtener filtros de la URL
 $filtro_almacen_id = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : null;
 $filtro_categoria_id = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : null;
 $busqueda = isset($_GET['busqueda']) ? trim($_GET['busqueda']) : '';
@@ -49,7 +54,13 @@ if ($filtro_categoria_id) {
     $stmt->close();
 }
 
-// Construir consulta con filtros
+// Construir consulta base para contar total
+$sql_count_base = "SELECT COUNT(*) as total 
+                   FROM productos p 
+                   JOIN categorias c ON p.categoria_id = c.id 
+                   JOIN almacenes a ON p.almacen_id = a.id";
+
+// Construir consulta base para datos
 $sql_base = "SELECT p.*, c.nombre as categoria_nombre, a.nombre as almacen_nombre 
              FROM productos p 
              JOIN categorias c ON p.categoria_id = c.id 
@@ -86,21 +97,44 @@ if (!empty($busqueda)) {
     $param_types .= "sss";
 }
 
-// Construir consulta final
+// Construir WHERE clause
+$where_clause = "";
 if (!empty($where_conditions)) {
-    $sql_productos = $sql_base . " WHERE " . implode(" AND ", $where_conditions) . " ORDER BY p.nombre";
-} else {
-    $sql_productos = $sql_base . " ORDER BY p.nombre";
+    $where_clause = " WHERE " . implode(" AND ", $where_conditions);
 }
 
-// Ejecutar consulta
+// Contar total de productos
+$sql_count = $sql_count_base . $where_clause;
 if (!empty($params)) {
+    $stmt_count = $conn->prepare($sql_count);
+    $stmt_count->bind_param($param_types, ...$params);
+    $stmt_count->execute();
+    $result_count = $stmt_count->get_result();
+    $total_productos = $result_count->fetch_assoc()['total'];
+    $stmt_count->close();
+} else {
+    $result_count = $conn->query($sql_count);
+    $total_productos = $result_count->fetch_assoc()['total'];
+}
+
+// Calcular paginación
+$total_paginas = ceil($total_productos / $productos_por_pagina);
+$pagina_actual = min($pagina_actual, $total_paginas); // Asegurar que no exceda el máximo
+
+// Construir consulta final con paginación
+$sql_productos = $sql_base . $where_clause . " ORDER BY p.nombre LIMIT ? OFFSET ?";
+$params_final = array_merge($params, [$productos_por_pagina, $offset]);
+$param_types_final = $param_types . "ii";
+
+// Ejecutar consulta
+if (!empty($params_final)) {
     $stmt = $conn->prepare($sql_productos);
-    $stmt->bind_param($param_types, ...$params);
+    $stmt->bind_param($param_types_final, ...$params_final);
     $stmt->execute();
     $result_productos = $stmt->get_result();
     $stmt->close();
 } else {
+    $sql_productos = $sql_base . " ORDER BY p.nombre LIMIT $productos_por_pagina OFFSET $offset";
     $result_productos = $conn->query($sql_productos);
 }
 
@@ -119,6 +153,22 @@ if ($usuario_rol != 'admin') {
 $total_pendientes = 0;
 if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     $total_pendientes = $row_pendientes['total'];
+}
+
+// Función para generar URL con parámetros
+function buildUrl($params = []) {
+    global $filtro_almacen_id, $filtro_categoria_id, $busqueda;
+    
+    $url_params = [];
+    
+    if ($filtro_almacen_id) $url_params['almacen_id'] = $filtro_almacen_id;
+    if ($filtro_categoria_id) $url_params['categoria_id'] = $filtro_categoria_id;
+    if (!empty($busqueda)) $url_params['busqueda'] = $busqueda;
+    
+    // Sobrescribir con parámetros proporcionados
+    $url_params = array_merge($url_params, $params);
+    
+    return 'listar.php' . (!empty($url_params) ? '?' . http_build_query($url_params) : '');
 }
 ?>
 <!DOCTYPE html>
@@ -150,575 +200,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS específico para listar productos -->
+    <!-- CSS específico -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/productos-listar.css">
-    
-    <!-- Estilos adicionales para entrega múltiple -->
-    <style>
-        /* Estilos para controles de stock */
-        .stock-display {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 5px;
-        }
-        
-        .stock-btn {
-            width: 28px;
-            height: 28px;
-            border: none;
-            border-radius: 50%;
-            background: var(--primary-color);
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            font-size: 12px;
-            position: relative;
-        }
-        
-        .stock-btn:hover:not(:disabled) {
-            background: var(--accent-color);
-            transform: scale(1.1);
-            box-shadow: 0 2px 8px rgba(10, 37, 60, 0.3);
-        }
-        
-        .stock-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .stock-btn.loading {
-            pointer-events: none;
-        }
-        
-        .stock-btn.loading i {
-            animation: spin 1s linear infinite;
-        }
-        
-        .stock-value {
-            font-weight: 600;
-            font-size: 16px;
-            min-width: 40px;
-            text-align: center;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.8);
-            transition: all 0.3s ease;
-        }
-        
-        .stock-critical {
-            color: #dc3545;
-            background: rgba(220, 53, 69, 0.1);
-            border: 1px solid rgba(220, 53, 69, 0.3);
-        }
-        
-        .stock-warning {
-            color: #ffc107;
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-        }
-        
-        .stock-good {
-            color: #28a745;
-            background: rgba(40, 167, 69, 0.1);
-            border: 1px solid rgba(40, 167, 69, 0.3);
-        }
-        
-        .stock-hint {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            margin-top: 5px;
-            opacity: 0.7;
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        
-        .stock-hint i {
-            font-size: 10px;
-        }
-        
-        .admin-hint {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 8px 12px;
-            background: rgba(10, 37, 60, 0.1);
-            border-radius: 6px;
-            color: var(--primary-color);
-            border: 1px solid rgba(10, 37, 60, 0.2);
-            margin-left: 10px;
-        }
-        
-        .admin-hint i {
-            font-size: 12px;
-            opacity: 0.8;
-        }
-        
-        .admin-hint small {
-            font-size: 11px;
-            font-weight: 500;
-        }
-
-        /* ===== ESTILOS PARA ENTREGA MÚLTIPLE ===== */
-
-        /* Botón de entrega múltiple */
-        .btn-entregar-personal {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
-        }
-
-        .btn-entregar-personal:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-        }
-
-        .btn-entregar-personal.active {
-            background: linear-gradient(135deg, #dc3545, #c82333);
-        }
-
-        /* Modo selección */
-        .modo-seleccion .product-card {
-            border: 2px dashed #dee2e6;
-            transition: all 0.3s ease;
-        }
-
-        .modo-seleccion .product-card:hover {
-            border-color: #28a745;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
-        }
-
-        .modo-seleccion .product-card.selected {
-            border: 2px solid #28a745;
-            background: rgba(40, 167, 69, 0.05);
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-        }
-
-        /* Checkbox de selección */
-        .product-selection {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            z-index: 10;
-        }
-
-        .selection-checkbox {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #28a745;
-            border-radius: 6px;
-            background: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .selection-checkbox:hover {
-            transform: scale(1.1);
-            box-shadow: 0 3px 12px rgba(40, 167, 69, 0.3);
-        }
-
-        .selection-checkbox.checked {
-            background: #28a745;
-            color: white;
-        }
-
-        .selection-checkbox i {
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        .selection-checkbox.checked i {
-            opacity: 1;
-        }
-
-        /* Panel de productos seleccionados */
-        .carrito-entrega {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            min-width: 350px;
-            max-width: 400px;
-            max-height: 500px;
-            display: none;
-            flex-direction: column;
-            border: 2px solid #28a745;
-        }
-
-        .carrito-entrega.visible {
-            display: flex;
-            animation: slideInUp 0.4s ease;
-        }
-
-        .carrito-header {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-            padding: 20px;
-            border-radius: 15px 15px 0 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .carrito-title {
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .carrito-contador {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .carrito-lista {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            max-height: 300px;
-        }
-
-        .carrito-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            border-left: 4px solid #28a745;
-        }
-
-        .carrito-item-info {
-            flex: 1;
-        }
-
-        .carrito-item-nombre {
-            font-weight: 600;
-            font-size: 14px;
-            color: #0a253c;
-            margin-bottom: 4px;
-        }
-
-        .carrito-item-detalles {
-            font-size: 12px;
-            color: #666;
-        }
-
-        .carrito-item-cantidad {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-left: 15px;
-        }
-
-        .cantidad-control {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            background: white;
-            border-radius: 6px;
-            padding: 4px;
-        }
-
-        .cantidad-btn {
-            width: 24px;
-            height: 24px;
-            border: none;
-            background: #28a745;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            transition: background 0.2s ease;
-        }
-
-        .cantidad-btn:hover {
-            background: #1e7e34;
-        }
-
-        .cantidad-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .cantidad-input {
-            width: 40px;
-            text-align: center;
-            border: none;
-            font-weight: 600;
-            font-size: 12px;
-            background: transparent;
-        }
-
-        .btn-remover {
-            background: #dc3545;
-            color: white;
-            border: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            transition: background 0.2s ease;
-            margin-left: 10px;
-        }
-
-        .btn-remover:hover {
-            background: #c82333;
-        }
-
-        .carrito-footer {
-            padding: 20px;
-            border-top: 1px solid #eee;
-            background: #f8f9fa;
-            border-radius: 0 0 15px 15px;
-        }
-
-        .carrito-resumen {
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .carrito-total {
-            font-size: 16px;
-            font-weight: 600;
-            color: #0a253c;
-        }
-
-        .carrito-acciones {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-carrito {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn-limpiar {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-limpiar:hover {
-            background: #5a6268;
-        }
-
-        .btn-proceder {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-        }
-
-        .btn-proceder:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-        }
-
-        .carrito-vacio {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
-        }
-
-        .carrito-vacio i {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        /* Modal de datos del destinatario */
-        .modal-entrega {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-entrega.visible {
-            display: flex;
-        }
-
-        .modal-entrega-content {
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            animation: modalEnter 0.3s ease;
-        }
-
-        .modal-entrega-header {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-            padding: 25px;
-            text-align: center;
-        }
-
-        .modal-entrega-header h2 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .modal-entrega-body {
-            padding: 30px;
-        }
-
-        .resumen-entrega {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 25px;
-            border-left: 4px solid #28a745;
-        }
-
-        .resumen-titulo {
-            font-weight: 600;
-            color: #0a253c;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .productos-resumen {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .producto-resumen-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .producto-resumen-item:last-child {
-            border-bottom: none;
-        }
-
-        .total-unidades {
-            background: #28a745;
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-            margin-top: 15px;
-        }
-
-        /* Animaciones */
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(100%);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes modalEnter {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Animación de actualización de stock */
-        .stock-value.updating {
-            animation: pulse 0.5s ease-in-out;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); background: var(--accent-color); color: white; }
-            100% { transform: scale(1); }
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .carrito-entrega {
-                bottom: 20px;
-                right: 20px;
-                left: 20px;
-                min-width: auto;
-                max-width: none;
-            }
-
-            .modal-entrega-content {
-                width: 95%;
-                margin: 20px;
-            }
-
-            .carrito-acciones {
-                flex-direction: column;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="../assets/css/productos-tabla.css">
 </head>
 <body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>">
 
@@ -751,7 +236,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
         </li>
         <?php endif; ?>
 
-        <!-- Warehouses Section - Adjusted according to permissions -->
+        <!-- Warehouses Section -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-warehouse"></i> Almacenes</span>
@@ -765,7 +250,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </ul>
         </li>
         
-        <!-- Historial Section - Reemplaza la sección de Entregas -->
+        <!-- Historial Section -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-history"></i> Historial</span>
@@ -774,11 +259,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             <ul class="submenu" role="menu">
                 <li><a href="../entregas/historial.php"role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
-                
             </ul>
         </li>
         
-        <!-- Notifications Section - Con badge rojo de notificaciones -->
+        <!-- Notifications Section -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
                 <span>
@@ -820,7 +304,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                
                 <li><a href="../perfil/cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
@@ -868,18 +351,15 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <?php endif; ?>
                 </h1>
                 <p class="page-description">
-                    <?php if ($almacen_info): ?>
-                        Productos registrados en este almacén específico
-                    <?php elseif ($categoria_info): ?>
-                        Productos de la categoría seleccionada
-                    <?php else: ?>
-                        Gestiona todos los productos del sistema
+                    Mostrando <?php echo number_format($result_productos->num_rows); ?> de <?php echo number_format($total_productos); ?> productos
+                    <?php if ($total_paginas > 1): ?>
+                        - Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?>
                     <?php endif; ?>
                 </p>
             </div>
             
             <div class="header-actions">
-                <!-- NUEVO: Botón de Entrega a Personal -->
+                <!-- Botón de Entrega a Personal -->
                 <button id="btnEntregarPersonal" class="btn-entregar-personal">
                     <i class="fas fa-hand-holding"></i>
                     <span>Entregar a Personal</span>
@@ -964,7 +444,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </form>
         </div>
 
-        <!-- Filtros activos (si existen) -->
+        <!-- Filtros activos -->
         <?php if ($filtro_almacen_id || $filtro_categoria_id || !empty($busqueda)): ?>
         <div class="active-filters">
             <div class="filters-header">
@@ -980,7 +460,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <span class="filter-tag almacen">
                         <i class="fas fa-warehouse"></i>
                         <?php echo htmlspecialchars($almacen_info['nombre']); ?>
-                        <a href="listar.php<?php echo $filtro_categoria_id ? '?categoria_id=' . $filtro_categoria_id : ''; ?>" class="remove-filter">×</a>
+                        <a href="<?php echo buildUrl(['almacen_id' => null]); ?>" class="remove-filter">×</a>
                     </span>
                 <?php endif; ?>
                 
@@ -988,7 +468,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <span class="filter-tag categoria">
                         <i class="fas fa-tag"></i>
                         <?php echo htmlspecialchars($categoria_info['nombre']); ?>
-                        <a href="listar.php<?php echo $filtro_almacen_id ? '?almacen_id=' . $filtro_almacen_id : ''; ?>" class="remove-filter">×</a>
+                        <a href="<?php echo buildUrl(['categoria_id' => null]); ?>" class="remove-filter">×</a>
                     </span>
                 <?php endif; ?>
                 
@@ -996,12 +476,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <span class="filter-tag busqueda">
                         <i class="fas fa-search"></i>
                         "<?php echo htmlspecialchars($busqueda); ?>"
-                        <a href="<?php 
-                            $url_params = [];
-                            if ($filtro_almacen_id) $url_params[] = 'almacen_id=' . $filtro_almacen_id;
-                            if ($filtro_categoria_id) $url_params[] = 'categoria_id=' . $filtro_categoria_id;
-                            echo 'listar.php' . (!empty($url_params) ? '?' . implode('&', $url_params) : '');
-                        ?>" class="remove-filter">×</a>
+                        <a href="<?php echo buildUrl(['busqueda' => null]); ?>" class="remove-filter">×</a>
                     </span>
                 <?php endif; ?>
             </div>
@@ -1009,156 +484,279 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
         <?php endif; ?>
     </section>
 
-    <!-- Lista de productos -->
+    <!-- Lista de productos en formato tabla -->
     <section class="products-section" id="productsSection">
         <?php if ($result_productos && $result_productos->num_rows > 0): ?>
-            <div class="products-grid">
-                <?php while ($producto = $result_productos->fetch_assoc()): ?>
-                    <div class="product-card" data-producto-id="<?php echo $producto['id']; ?>">
-                        <!-- NUEVO: Checkbox de selección para entrega múltiple -->
-                        <div class="product-selection" style="display: none;">
-                            <div class="selection-checkbox" data-id="<?php echo $producto['id']; ?>">
-                                <i class="fas fa-check"></i>
-                            </div>
-                        </div>
+            <div class="table-container">
+                <table class="products-table" id="productosTabla">
+                    <thead>
+                        <tr>
+                            <th class="selection-column" style="display: none;">
+                                <div class="selection-header">
+                                    <i class="fas fa-hand-holding"></i>
+                                </div>
+                            </th>
+                            <th class="product-name-column">
+                                <i class="fas fa-box"></i> Producto
+                            </th>
+                            <th class="category-column">
+                                <i class="fas fa-tag"></i> Categoría
+                            </th>
+                            <?php if (!$filtro_almacen_id): ?>
+                            <th class="warehouse-column">
+                                <i class="fas fa-warehouse"></i> Almacén
+                            </th>
+                            <?php endif; ?>
+                            <th class="details-column">
+                                <i class="fas fa-info-circle"></i> Detalles
+                            </th>
+                            <th class="stock-column">
+                                <i class="fas fa-cubes"></i> Stock
+                            </th>
+                            <th class="status-column">
+                                <i class="fas fa-flag"></i> Estado
+                            </th>
+                            <th class="actions-column">
+                                <i class="fas fa-cogs"></i> Acciones
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while ($producto = $result_productos->fetch_assoc()): ?>
+                            <tr class="product-row" data-producto-id="<?php echo $producto['id']; ?>">
+                                <!-- Columna de selección para entrega múltiple -->
+                                <td class="selection-cell" style="display: none;">
+                                    <div class="selection-checkbox" data-id="<?php echo $producto['id']; ?>">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                </td>
 
-                        <div class="card-header">
-                            <div class="product-info">
-                                <h3 class="product-name"><?php echo htmlspecialchars($producto['nombre']); ?></h3>
-                                <div class="product-meta">
-                                    <span class="categoria">
-                                        <i class="fas fa-tag"></i>
+                                <!-- Nombre del producto -->
+                                <td class="product-name-cell">
+                                    <div class="product-info">
+                                        <h3 class="product-name"><?php echo htmlspecialchars($producto['nombre']); ?></h3>
+                                        <?php if (!empty($producto['modelo'])): ?>
+                                            <span class="product-model">Modelo: <?php echo htmlspecialchars($producto['modelo']); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+
+                                <!-- Categoría -->
+                                <td class="category-cell">
+                                    <span class="category-badge">
                                         <?php echo htmlspecialchars($producto['categoria_nombre']); ?>
                                     </span>
-                                    <?php if (!$filtro_almacen_id): ?>
-                                    <span class="almacen">
-                                        <i class="fas fa-warehouse"></i>
+                                </td>
+
+                                <!-- Almacén (solo si no hay filtro de almacén) -->
+                                <?php if (!$filtro_almacen_id): ?>
+                                <td class="warehouse-cell">
+                                    <span class="warehouse-badge">
                                         <?php echo htmlspecialchars($producto['almacen_nombre']); ?>
                                     </span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <?php if ($usuario_rol == 'admin'): ?>
-                            <div class="card-actions">
-                                <button class="btn-action btn-edit" onclick="editarProducto(<?php echo $producto['id']; ?>)" title="Editar producto">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-action btn-delete" onclick="eliminarProducto(<?php echo $producto['id']; ?>, '<?php echo htmlspecialchars($producto['nombre']); ?>')" title="Eliminar producto">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <div class="card-body">
-                            <div class="product-details">
-                                <?php if (!empty($producto['modelo'])): ?>
-                                <div class="detail-item">
-                                    <span class="detail-label">Modelo:</span>
-                                    <span class="detail-value"><?php echo htmlspecialchars($producto['modelo']); ?></span>
-                                </div>
+                                </td>
                                 <?php endif; ?>
-                                
-                                <?php if (!empty($producto['color'])): ?>
-                                <div class="detail-item">
-                                    <span class="detail-label">Color:</span>
-                                    <span class="detail-value"><?php echo htmlspecialchars($producto['color']); ?></span>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($producto['talla_dimensiones'])): ?>
-                                <div class="detail-item">
-                                    <span class="detail-label">Talla:</span>
-                                    <span class="detail-value"><?php echo htmlspecialchars($producto['talla_dimensiones']); ?></span>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <div class="detail-item">
-                                    <span class="detail-label">Estado:</span>
-                                    <span class="detail-value estado-<?php echo strtolower($producto['estado']); ?>">
+
+                                <!-- Detalles -->
+                                <td class="details-cell">
+                                    <div class="product-details">
+                                        <?php if (!empty($producto['color'])): ?>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Color:</span>
+                                                <span class="detail-value"><?php echo htmlspecialchars($producto['color']); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!empty($producto['talla_dimensiones'])): ?>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Talla:</span>
+                                                <span class="detail-value"><?php echo htmlspecialchars($producto['talla_dimensiones']); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+
+                                <!-- Stock -->
+                                <td class="stock-cell">
+                                    <div class="stock-container">
+                                        <div class="stock-display">
+                                            <?php if ($usuario_rol == 'admin'): ?>
+                                            <button class="stock-btn decrease" 
+                                                    data-id="<?php echo $producto['id']; ?>" 
+                                                    data-accion="restar" 
+                                                    <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?> 
+                                                    title="Reducir stock">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <?php endif; ?>
+                                            
+                                            <span class="stock-value <?php 
+                                                if ($producto['cantidad'] < 5) echo 'stock-critical';
+                                                elseif ($producto['cantidad'] < 10) echo 'stock-warning';
+                                                else echo 'stock-good';
+                                            ?>" id="cantidad-<?php echo $producto['id']; ?>">
+                                                <?php echo number_format($producto['cantidad']); ?>
+                                            </span>
+                                            
+                                            <?php if ($usuario_rol == 'admin'): ?>
+                                            <button class="stock-btn increase" 
+                                                    data-id="<?php echo $producto['id']; ?>" 
+                                                    data-accion="sumar" 
+                                                    title="Aumentar stock">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <?php endif; ?>
+                                        </div>
+                                        
+                                        <?php if ($usuario_rol == 'admin'): ?>
+                                        <div class="stock-hint">
+                                            <i class="fas fa-info-circle"></i>
+                                            <small>Clic en + o - para ajustar</small>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+
+                                <!-- Estado -->
+                                <td class="status-cell">
+                                    <span class="status-badge status-<?php echo strtolower($producto['estado']); ?>">
                                         <?php echo htmlspecialchars($producto['estado']); ?>
                                     </span>
-                                </div>
-                            </div>
-                            
-                            <div class="stock-section">
-                                <div class="stock-info">
-                                    <span class="stock-label">Stock disponible:</span>
-                                    <div class="stock-display">
-                                        <?php if ($usuario_rol == 'admin'): ?>
-                                        <button class="stock-btn decrease" data-id="<?php echo $producto['id']; ?>" data-accion="restar" <?php echo $producto['cantidad'] <= 0 ? 'disabled' : ''; ?> title="Reducir stock">
-                                            <i class="fas fa-minus"></i>
-                                        </button>
-                                        <?php endif; ?>
-                                        
-                                        <span class="stock-value <?php 
-                                            if ($producto['cantidad'] < 5) echo 'stock-critical';
-                                            elseif ($producto['cantidad'] < 10) echo 'stock-warning';
-                                            else echo 'stock-good';
-                                        ?>" id="cantidad-<?php echo $producto['id']; ?>">
-                                            <?php echo number_format($producto['cantidad']); ?>
-                                        </span>
-                                        
-                                        <?php if ($usuario_rol == 'admin'): ?>
-                                        <button class="stock-btn increase" data-id="<?php echo $producto['id']; ?>" data-accion="sumar" title="Aumentar stock">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                        <?php endif; ?>
-                                    </div>
-                                    
-                                    <?php if ($usuario_rol == 'admin'): ?>
-                                    <div class="stock-hint">
-                                        <i class="fas fa-info-circle"></i>
-                                        <small>Clic en + o - para ajustar</small>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="card-footer">
-                            <div class="card-actions-footer">
-                                <button class="btn-card btn-view" onclick="verProducto(<?php echo $producto['id']; ?>)">
-                                    <i class="fas fa-eye"></i>
-                                    Ver Detalle
-                                </button>
-                                
-                                <?php if ($producto['cantidad'] > 0): ?>
-                                <button class="btn-card btn-transfer" 
-                                    data-id="<?php echo $producto['id']; ?>"
-                                    data-nombre="<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>"
-                                    data-almacen="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
-                                    data-cantidad="<?php echo $producto['cantidad']; ?>"
-                                    onclick="abrirModalEnvio(this)">
-                                    <i class="fas fa-paper-plane"></i>
-                                    Transferir
-                                </button>
-                                <?php else: ?>
-                                <button class="btn-card btn-transfer disabled" disabled>
-                                    <i class="fas fa-times"></i>
-                                    Sin Stock
-                                </button>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                                </td>
 
-                        <!-- Datos para la entrega múltiple -->
-                        <script type="application/json" class="product-data">
-                        {
-                            "id": <?php echo $producto['id']; ?>,
-                            "nombre": "<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>",
-                            "almacen": <?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>,
-                            "almacen_nombre": "<?php echo htmlspecialchars($almacen_info ? $almacen_info['nombre'] : $producto['almacen_nombre'], ENT_QUOTES, 'UTF-8'); ?>",
-                            "cantidad": <?php echo $producto['cantidad']; ?>,
-                            "modelo": "<?php echo htmlspecialchars($producto['modelo'] ?? '', ENT_QUOTES, 'UTF-8'); ?>",
-                            "color": "<?php echo htmlspecialchars($producto['color'] ?? '', ENT_QUOTES, 'UTF-8'); ?>",
-                            "talla": "<?php echo htmlspecialchars($producto['talla_dimensiones'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                        }
-                        </script>
-                    </div>
-                <?php endwhile; ?>
+                                <!-- Acciones -->
+                                <td class="actions-cell">
+                                    <div class="action-buttons">
+                                        <!-- Botón Ver -->
+                                        <button class="btn-action btn-view" 
+                                                onclick="verProducto(<?php echo $producto['id']; ?>)"
+                                                title="Ver detalles">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+
+                                        <!-- Botón Transferir -->
+                                        <?php if ($producto['cantidad'] > 0): ?>
+                                        <button class="btn-action btn-transfer" 
+                                                data-id="<?php echo $producto['id']; ?>"
+                                                data-nombre="<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                data-almacen="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
+                                                data-cantidad="<?php echo $producto['cantidad']; ?>"
+                                                onclick="abrirModalEnvio(this)"
+                                                title="Transferir producto">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                        <?php else: ?>
+                                        <button class="btn-action btn-transfer disabled" 
+                                                disabled 
+                                                title="Sin stock disponible">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        <?php endif; ?>
+
+                                        <?php if ($usuario_rol == 'admin'): ?>
+                                        <!-- Botón Editar -->
+                                        <button class="btn-action btn-edit" 
+                                                onclick="editarProducto(<?php echo $producto['id']; ?>)"
+                                                title="Editar producto">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+
+                                        <!-- Botón Eliminar -->
+                                        <button class="btn-action btn-delete" 
+                                                onclick="eliminarProducto(<?php echo $producto['id']; ?>, '<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>')"
+                                                title="Eliminar producto">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+
+                                <!-- Datos para la entrega múltiple (hidden) -->
+                                <script type="application/json" class="product-data">
+                                {
+                                    "id": <?php echo $producto['id']; ?>,
+                                    "nombre": "<?php echo htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8'); ?>",
+                                    "almacen": <?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>,
+                                    "almacen_nombre": "<?php echo htmlspecialchars($almacen_info ? $almacen_info['nombre'] : $producto['almacen_nombre'], ENT_QUOTES, 'UTF-8'); ?>",
+                                    "cantidad": <?php echo $producto['cantidad']; ?>,
+                                    "modelo": "<?php echo htmlspecialchars($producto['modelo'] ?? '', ENT_QUOTES, 'UTF-8'); ?>",
+                                    "color": "<?php echo htmlspecialchars($producto['color'] ?? '', ENT_QUOTES, 'UTF-8'); ?>",
+                                    "talla": "<?php echo htmlspecialchars($producto['talla_dimensiones'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                }
+                                </script>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
             </div>
+
+            <!-- Paginación -->
+            <?php if ($total_paginas > 1): ?>
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    Mostrando <?php echo (($pagina_actual - 1) * $productos_por_pagina) + 1; ?> - 
+                    <?php echo min($pagina_actual * $productos_por_pagina, $total_productos); ?> 
+                    de <?php echo number_format($total_productos); ?> productos
+                </div>
+                
+                <nav class="pagination" aria-label="Navegación de páginas">
+                    <!-- Primera página -->
+                    <?php if ($pagina_actual > 1): ?>
+                        <a href="<?php echo buildUrl(['pagina' => 1]); ?>" class="pagination-btn first" title="Primera página">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual - 1]); ?>" class="pagination-btn prev" title="Página anterior">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    <?php endif; ?>
+
+                    <!-- Páginas numéricas -->
+                    <?php
+                    $inicio = max(1, $pagina_actual - 2);
+                    $fin = min($total_paginas, $pagina_actual + 2);
+                    
+                    if ($inicio > 1) {
+                        echo '<span class="pagination-ellipsis">...</span>';
+                    }
+                    
+                    for ($i = $inicio; $i <= $fin; $i++):
+                    ?>
+                        <?php if ($i == $pagina_actual): ?>
+                            <span class="pagination-btn current"><?php echo $i; ?></span>
+                        <?php else: ?>
+                            <a href="<?php echo buildUrl(['pagina' => $i]); ?>" class="pagination-btn"><?php echo $i; ?></a>
+                        <?php endif; ?>
+                    <?php endfor; ?>
+                    
+                    <?php if ($fin < $total_paginas): ?>
+                        <span class="pagination-ellipsis">...</span>
+                    <?php endif; ?>
+
+                    <!-- Última página -->
+                    <?php if ($pagina_actual < $total_paginas): ?>
+                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>" class="pagination-btn next" title="Página siguiente">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                        <a href="<?php echo buildUrl(['pagina' => $total_paginas]); ?>" class="pagination-btn last" title="Última página">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    <?php endif; ?>
+                </nav>
+
+                <!-- Selector de páginas -->
+                <div class="page-selector">
+                    <label for="pageSelect">Ir a página:</label>
+                    <select id="pageSelect" onchange="window.location.href = this.value">
+                        <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                            <option value="<?php echo buildUrl(['pagina' => $i]); ?>" <?php echo $i == $pagina_actual ? 'selected' : ''; ?>>
+                                <?php echo $i; ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+            </div>
+            <?php endif; ?>
+
         <?php else: ?>
             <div class="empty-state">
                 <div class="empty-icon">
@@ -1194,7 +792,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     </section>
 </main>
 
-<!-- NUEVO: Panel flotante del carrito de entrega -->
+<!-- Panel flotante del carrito de entrega -->
 <div id="carritoEntrega" class="carrito-entrega">
     <div class="carrito-header">
         <div class="carrito-title">
@@ -1231,7 +829,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     </div>
 </div>
 
-<!-- NUEVO: Modal para datos del destinatario -->
+<!-- Modal para datos del destinatario -->
 <div id="modalEntrega" class="modal-entrega">
     <div class="modal-entrega-content">
         <div class="modal-entrega-header">
@@ -1308,7 +906,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     </div>
 </div>
 
-<!-- Modal de Transferencia de Producto (existente) -->
+<!-- Modal de Transferencia de Producto -->
 <div id="modalTransferencia" class="modal" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
     <div class="modal-content">
         <div class="modal-header">
@@ -1400,513 +998,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
 <!-- JavaScript -->
-<script src="../assets/js/productos-listar.js"></script>
-
-<!-- NUEVO: JavaScript para funcionalidad de entrega múltiple -->
-<script>
-// ===== SISTEMA DE ENTREGA MÚLTIPLE =====
-
-class EntregaMultiple {
-    constructor() {
-        this.modoSeleccion = false;
-        this.productosSeleccionados = new Map();
-        this.inicializar();
-    }
-
-    inicializar() {
-        this.btnEntregarPersonal = document.getElementById('btnEntregarPersonal');
-        this.carritoEntrega = document.getElementById('carritoEntrega');
-        this.modalEntrega = document.getElementById('modalEntrega');
-        
-        this.btnEntregarPersonal.addEventListener('click', () => this.toggleModoSeleccion());
-        
-        // Configurar validación de DNI
-        const dniInput = document.getElementById('dniDestinatario');
-        if (dniInput) {
-            dniInput.addEventListener('input', this.validarDNI.bind(this));
-        }
-    }
-
-    toggleModoSeleccion() {
-        this.modoSeleccion = !this.modoSeleccion;
-        
-        if (this.modoSeleccion) {
-            this.activarModoSeleccion();
-        } else {
-            this.desactivarModoSeleccion();
-        }
-    }
-
-    activarModoSeleccion() {
-        const productsSection = document.getElementById('productsSection');
-        productsSection.classList.add('modo-seleccion');
-        
-        // Cambiar texto del botón
-        this.btnEntregarPersonal.innerHTML = '<i class="fas fa-times"></i><span>Cancelar Selección</span>';
-        this.btnEntregarPersonal.classList.add('active');
-        
-        // Mostrar checkboxes
-        document.querySelectorAll('.product-selection').forEach(el => {
-            el.style.display = 'block';
-        });
-        
-        // Configurar click handlers
-        document.querySelectorAll('.product-card').forEach(card => {
-            card.addEventListener('click', this.handleProductClick.bind(this));
-        });
-        
-        // Configurar checkboxes
-        document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('click', this.handleCheckboxClick.bind(this));
-        });
-        
-        // Mostrar carrito si hay productos seleccionados
-        if (this.productosSeleccionados.size > 0) {
-            this.mostrarCarrito();
-        }
-    }
-
-    desactivarModoSeleccion() {
-        const productsSection = document.getElementById('productsSection');
-        productsSection.classList.remove('modo-seleccion');
-        
-        // Restaurar texto del botón
-        this.btnEntregarPersonal.innerHTML = '<i class="fas fa-hand-holding"></i><span>Entregar a Personal</span>';
-        this.btnEntregarPersonal.classList.remove('active');
-        
-        // Ocultar checkboxes
-        document.querySelectorAll('.product-selection').forEach(el => {
-            el.style.display = 'none';
-        });
-        
-        // Remover click handlers
-        document.querySelectorAll('.product-card').forEach(card => {
-            card.removeEventListener('click', this.handleProductClick);
-            card.classList.remove('selected');
-        });
-        
-        // Ocultar carrito
-        this.ocultarCarrito();
-        
-        // Limpiar selecciones
-        this.productosSeleccionados.clear();
-        document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
-            checkbox.classList.remove('checked');
-        });
-    }
-
-    handleProductClick(e) {
-        if (!this.modoSeleccion) return;
-        
-        // Evitar que se active si se clickea en botones
-        if (e.target.closest('.btn-action, .btn-card, .stock-btn')) {
-            return;
-        }
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const card = e.currentTarget;
-        const productId = card.dataset.productoId;
-        const checkbox = card.querySelector('.selection-checkbox');
-        
-        this.toggleProducto(productId, card, checkbox);
-    }
-
-    handleCheckboxClick(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const checkbox = e.currentTarget;
-        const productId = checkbox.dataset.id;
-        const card = document.querySelector(`[data-producto-id="${productId}"]`);
-        
-        this.toggleProducto(productId, card, checkbox);
-    }
-
-    toggleProducto(productId, card, checkbox) {
-        const stockValue = card.querySelector('.stock-value');
-        const stock = parseInt(stockValue.textContent.replace(/,/g, ''));
-        
-        // Verificar si tiene stock
-        if (stock <= 0) {
-            this.mostrarNotificacion('Este producto no tiene stock disponible', 'warning');
-            return;
-        }
-        
-        if (this.productosSeleccionados.has(productId)) {
-            // Deseleccionar
-            this.productosSeleccionados.delete(productId);
-            card.classList.remove('selected');
-            checkbox.classList.remove('checked');
-        } else {
-            // Seleccionar
-            const productData = this.extraerDatosProducto(card);
-            this.productosSeleccionados.set(productId, {
-                ...productData,
-                cantidadSeleccionada: 1
-            });
-            card.classList.add('selected');
-            checkbox.classList.add('checked');
-        }
-        
-        this.actualizarCarrito();
-    }
-
-    extraerDatosProducto(card) {
-        const scriptTag = card.querySelector('.product-data');
-        if (scriptTag) {
-            try {
-                return JSON.parse(scriptTag.textContent);
-            } catch (e) {
-                console.error('Error parsing product data:', e);
-            }
-        }
-        
-        // Fallback manual
-        return {
-            id: card.dataset.productoId,
-            nombre: card.querySelector('.product-name').textContent,
-            cantidad: parseInt(card.querySelector('.stock-value').textContent.replace(/,/g, '')),
-            almacen: document.body.dataset.almacenId
-        };
-    }
-
-    actualizarCarrito() {
-        if (this.productosSeleccionados.size > 0) {
-            this.mostrarCarrito();
-            this.renderizarCarrito();
-        } else {
-            this.ocultarCarrito();
-        }
-    }
-
-    mostrarCarrito() {
-        this.carritoEntrega.classList.add('visible');
-    }
-
-    ocultarCarrito() {
-        this.carritoEntrega.classList.remove('visible');
-    }
-
-    renderizarCarrito() {
-        const contador = document.querySelector('.carrito-contador');
-        const lista = document.getElementById('carritoLista');
-        const totalUnidades = document.getElementById('totalUnidades');
-        const btnProceder = document.querySelector('.btn-proceder');
-        
-        contador.textContent = this.productosSeleccionados.size;
-        
-        if (this.productosSeleccionados.size === 0) {
-            lista.innerHTML = `
-                <div class="carrito-vacio">
-                    <i class="fas fa-hand-holding"></i>
-                    <p>Selecciona productos para entregar</p>
-                </div>
-            `;
-            btnProceder.disabled = true;
-            totalUnidades.textContent = '0';
-            return;
-        }
-        
-        let html = '';
-        let total = 0;
-        
-        this.productosSeleccionados.forEach((producto, id) => {
-            total += producto.cantidadSeleccionada;
-            
-            html += `
-                <div class="carrito-item" data-id="${id}">
-                    <div class="carrito-item-info">
-                        <div class="carrito-item-nombre">${producto.nombre}</div>
-                        <div class="carrito-item-detalles">
-                            Stock: ${producto.cantidad.toLocaleString()} | Almacén: ${producto.almacen_nombre || 'N/A'}
-                        </div>
-                    </div>
-                    <div class="carrito-item-cantidad">
-                        <div class="cantidad-control">
-                            <button class="cantidad-btn" onclick="entregaMultiple.ajustarCantidad('${id}', -1)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <input type="number" class="cantidad-input" value="${producto.cantidadSeleccionada}" 
-                                   min="1" max="${producto.cantidad}"
-                                   onchange="entregaMultiple.cambiarCantidad('${id}', this.value)">
-                            <button class="cantidad-btn" onclick="entregaMultiple.ajustarCantidad('${id}', 1)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                        <button class="btn-remover" onclick="entregaMultiple.removerProducto('${id}')" title="Remover producto">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-        
-        lista.innerHTML = html;
-        totalUnidades.textContent = total.toLocaleString();
-        btnProceder.disabled = false;
-    }
-
-    ajustarCantidad(productId, delta) {
-        const producto = this.productosSeleccionados.get(productId);
-        if (!producto) return;
-        
-        const nuevaCantidad = producto.cantidadSeleccionada + delta;
-        
-        if (nuevaCantidad < 1 || nuevaCantidad > producto.cantidad) {
-            if (nuevaCantidad > producto.cantidad) {
-                this.mostrarNotificacion('No puedes seleccionar más del stock disponible', 'warning');
-            }
-            return;
-        }
-        
-        producto.cantidadSeleccionada = nuevaCantidad;
-        this.renderizarCarrito();
-    }
-
-    cambiarCantidad(productId, nuevaCantidad) {
-        const producto = this.productosSeleccionados.get(productId);
-        if (!producto) return;
-        
-        nuevaCantidad = parseInt(nuevaCantidad);
-        
-        if (isNaN(nuevaCantidad) || nuevaCantidad < 1 || nuevaCantidad > producto.cantidad) {
-            this.renderizarCarrito(); // Restaurar valor anterior
-            return;
-        }
-        
-        producto.cantidadSeleccionada = nuevaCantidad;
-        this.renderizarCarrito();
-    }
-
-    removerProducto(productId) {
-        this.productosSeleccionados.delete(productId);
-        
-        // Actualizar UI
-        const card = document.querySelector(`[data-producto-id="${productId}"]`);
-        const checkbox = card?.querySelector('.selection-checkbox');
-        
-        if (card) card.classList.remove('selected');
-        if (checkbox) checkbox.classList.remove('checked');
-        
-        this.actualizarCarrito();
-    }
-
-    limpiarCarrito() {
-        // Limpiar selecciones visuales
-        document.querySelectorAll('.product-card.selected').forEach(card => {
-            card.classList.remove('selected');
-        });
-        
-        document.querySelectorAll('.selection-checkbox.checked').forEach(checkbox => {
-            checkbox.classList.remove('checked');
-        });
-        
-        // Limpiar datos
-        this.productosSeleccionados.clear();
-        this.actualizarCarrito();
-    }
-
-    procederEntrega() {
-        if (this.productosSeleccionados.size === 0) {
-            this.mostrarNotificacion('No hay productos seleccionados', 'warning');
-            return;
-        }
-        
-        this.mostrarModalEntrega();
-    }
-
-    mostrarModalEntrega() {
-        // Preparar resumen
-        const productosResumen = document.getElementById('productosResumen');
-        const totalUnidadesModal = document.getElementById('totalUnidadesModal');
-        const totalTiposModal = document.getElementById('totalTiposModal');
-        
-        let html = '';
-        let totalUnidades = 0;
-        
-        this.productosSeleccionados.forEach(producto => {
-            totalUnidades += producto.cantidadSeleccionada;
-            
-            html += `
-                <div class="producto-resumen-item">
-                    <div>
-                        <strong>${producto.nombre}</strong>
-                        ${producto.modelo ? `<br><small>Modelo: ${producto.modelo}</small>` : ''}
-                        ${producto.color ? `<br><small>Color: ${producto.color}</small>` : ''}
-                        ${producto.talla ? `<br><small>Talla: ${producto.talla}</small>` : ''}
-                    </div>
-                    <div>
-                        <strong>${producto.cantidadSeleccionada} unidad${producto.cantidadSeleccionada !== 1 ? 'es' : ''}</strong>
-                    </div>
-                </div>
-            `;
-        });
-        
-        productosResumen.innerHTML = html;
-        totalUnidadesModal.textContent = totalUnidades.toLocaleString();
-        totalTiposModal.textContent = this.productosSeleccionados.size;
-        
-        // Limpiar formulario
-        document.getElementById('formEntregaPersonal').reset();
-        
-        // Mostrar modal
-        this.modalEntrega.classList.add('visible');
-        document.body.style.overflow = 'hidden';
-        
-        // Focus en primer campo
-        setTimeout(() => {
-            document.getElementById('nombreDestinatario').focus();
-        }, 300);
-    }
-
-    cerrarModalEntrega() {
-        this.modalEntrega.classList.remove('visible');
-        document.body.style.overflow = '';
-    }
-
-    validarDNI(e) {
-        const valor = e.target.value;
-        // Solo permitir números
-        e.target.value = valor.replace(/[^0-9]/g, '');
-        
-        const btnConfirmar = document.querySelector('.modal-entrega .btn-confirm');
-        if (btnConfirmar) {
-            btnConfirmar.disabled = e.target.value.length !== 8;
-        }
-    }
-
-    async confirmarEntrega() {
-        const form = document.getElementById('formEntregaPersonal');
-        const formData = new FormData(form);
-        
-        // Validaciones
-        const nombre = formData.get('nombre_destinatario').trim();
-        const dni = formData.get('dni_destinatario').trim();
-        
-        if (!nombre || nombre.length < 3) {
-            this.mostrarNotificacion('El nombre debe tener al menos 3 caracteres', 'error');
-            return;
-        }
-        
-        if (!dni || dni.length !== 8 || !/^\d{8}$/.test(dni)) {
-            this.mostrarNotificacion('El DNI debe tener exactamente 8 dígitos', 'error');
-            return;
-        }
-        
-        // Preparar datos de productos
-        const productos = Array.from(this.productosSeleccionados.values()).map(p => ({
-            id: p.id,
-            cantidad: p.cantidadSeleccionada,
-            almacen: p.almacen
-        }));
-        
-        formData.append('productos', JSON.stringify(productos));
-        
-        // Mostrar loading
-        const btnConfirmar = document.querySelector('.modal-entrega .btn-confirm');
-        const textoOriginal = btnConfirmar.innerHTML;
-        btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-        btnConfirmar.disabled = true;
-        
-        try {
-            const response = await fetch('../entregas/Procesar_entrega.php', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.mostrarNotificacion(data.message, 'exito', 8000);
-                this.cerrarModalEntrega();
-                this.desactivarModoSeleccion();
-                
-                // Actualizar stock en la interfaz
-                if (data.productos_actualizados) {
-                    data.productos_actualizados.forEach(prod => {
-                        const stockElement = document.getElementById(`cantidad-${prod.id}`);
-                        if (stockElement) {
-                            stockElement.textContent = prod.nuevo_stock.toLocaleString();
-                            
-                            // Actualizar clases de color
-                            const stockValue = stockElement.closest('.stock-value') || stockElement;
-                            stockValue.classList.remove('stock-critical', 'stock-warning', 'stock-good');
-                            
-                            if (prod.nuevo_stock < 5) {
-                                stockValue.classList.add('stock-critical');
-                            } else if (prod.nuevo_stock < 10) {
-                                stockValue.classList.add('stock-warning');
-                            } else {
-                                stockValue.classList.add('stock-good');
-                            }
-                        }
-                    });
-                }
-                
-                // Recargar página después de un momento
-                setTimeout(() => {
-                    window.location.reload();
-                }, 3000);
-                
-            } else {
-                this.mostrarNotificacion(data.message || 'Error al procesar la entrega', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Error:', error);
-            this.mostrarNotificacion('Error de conexión al procesar la entrega', 'error');
-        } finally {
-            btnConfirmar.innerHTML = textoOriginal;
-            btnConfirmar.disabled = false;
-        }
-    }
-
-    mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
-        // Usar el sistema existente de notificaciones
-        if (window.productosListar && window.productosListar.mostrarNotificacion) {
-            window.productosListar.mostrarNotificacion(mensaje, tipo, duracion);
-        } else {
-            // Fallback
-            alert(mensaje);
-        }
-    }
-}
-
-// Inicializar sistema de entrega múltiple
-let entregaMultiple;
-
-document.addEventListener('DOMContentLoaded', () => {
-    entregaMultiple = new EntregaMultiple();
-});
-
-// Funciones globales para el carrito
-function limpiarCarrito() {
-    entregaMultiple.limpiarCarrito();
-}
-
-function procederEntrega() {
-    entregaMultiple.procederEntrega();
-}
-
-function cerrarModalEntrega() {
-    entregaMultiple.cerrarModalEntrega();
-}
-
-function confirmarEntrega() {
-    entregaMultiple.confirmarEntrega();
-}
-
-// Cerrar modal con Escape
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        if (entregaMultiple.modalEntrega.classList.contains('visible')) {
-            entregaMultiple.cerrarModalEntrega();
-        }
-    }
-});
-</script>
+<script src="../assets/js/universal-confirmation-system.js"></script>
+<script src="../assets/js/productos-listar-tabla.js"></script>
 
 </body>
 </html>
