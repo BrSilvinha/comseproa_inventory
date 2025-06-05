@@ -1,5 +1,5 @@
 /* ============================================
-   PRODUCTOS LISTAR - JAVASCRIPT LIMPIO
+   PRODUCTOS LISTAR - JAVASCRIPT COMPLETO Y CORREGIDO
    Sin conflictos, separado y optimizado
    ============================================ */
 
@@ -418,7 +418,8 @@ function validarDNI(e) {
     validarFormularioEntrega();
 }
 
-function confirmarEntrega() {
+// ===== FUNCIÓN CORREGIDA PARA ENVIAR ENTREGA REAL =====
+async function confirmarEntrega() {
     const nombre = document.getElementById('nombreDestinatario').value.trim();
     const dni = document.getElementById('dniDestinatario').value.trim();
     
@@ -429,36 +430,55 @@ function confirmarEntrega() {
     
     // Preparar datos para envío
     const datosEntrega = {
-        destinatario_nombre: nombre,
-        destinatario_dni: dni,
-        productos: carritoEntrega,
-        fecha_entrega: new Date().toISOString().split('T')[0],
-        entregado_por: document.body.dataset.userId || 'usuario'
+        nombre_destinatario: nombre,
+        dni_destinatario: dni,
+        productos: JSON.stringify(carritoEntrega) // Enviar como JSON string
     };
     
-    // Simular envío (aquí iría la llamada al servidor)
-    enviarEntrega(datosEntrega);
-}
-
-function enviarEntrega(datosEntrega) {
-    mostrarNotificacion('Procesando entrega...', 'info');
+    // Mostrar indicador de carga
+    const btnConfirmar = document.querySelector('.btn-confirm');
+    const textoOriginal = btnConfirmar.innerHTML;
+    btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    btnConfirmar.disabled = true;
     
-    // Simular delay de procesamiento
-    setTimeout(() => {
-        // Aquí iría la llamada real al servidor
-        console.log('Datos de entrega:', datosEntrega);
+    try {
+        // LLAMADA REAL AL SERVIDOR
+        const response = await fetch('../entregas/Procesar_entrega.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(datosEntrega)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            mostrarNotificacion('¡Entrega registrada exitosamente!', 'success');
+            
+            // Cerrar modal y limpiar
+            cerrarModalEntrega();
+            toggleModoSeleccion(); // Salir del modo selección
+            
+            // Recargar página para actualizar stock
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            mostrarNotificacion(data.message || 'Error al registrar la entrega', 'error');
+            
+            // Restaurar botón
+            btnConfirmar.innerHTML = textoOriginal;
+            btnConfirmar.disabled = false;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion('Error de conexión al registrar la entrega', 'error');
         
-        mostrarNotificacion('Entrega registrada exitosamente.', 'success');
-        
-        // Cerrar modal y limpiar
-        cerrarModalEntrega();
-        toggleModoSeleccion(); // Salir del modo selección
-        
-        // Recargar página para actualizar stock
-        setTimeout(() => {
-            window.location.reload();
-        }, 2000);
-    }, 1500);
+        // Restaurar botón
+        btnConfirmar.innerHTML = textoOriginal;
+        btnConfirmar.disabled = false;
+    }
 }
 
 // ===== MODAL DE TRANSFERENCIA =====
@@ -552,13 +572,11 @@ function actualizarClaseStock(element, cantidad) {
 
 // ===== FUNCIONES AUXILIARES =====
 function verProducto(id) {
-    mostrarNotificacion('Función ver producto en desarrollo.', 'info');
-    console.log('Ver producto ID:', id);
+    window.location.href = `ver-producto.php?id=${id}`;
 }
 
 function editarProducto(id) {
-    mostrarNotificacion('Función editar producto en desarrollo.', 'info');
-    console.log('Editar producto ID:', id);
+    window.location.href = `editar.php?id=${id}`;
 }
 
 function eliminarProducto(id, nombre) {
@@ -851,122 +869,6 @@ const estilosAdicionales = `
         display: flex;
         align-items: center;
         gap: 8px;
-    }
-    
-    .transfer-info {
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        border: 1px solid #e9ecef;
-    }
-    
-    .product-summary {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-    
-    .product-icon {
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, #007bff, #0056b3);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 20px;
-    }
-    
-    .product-details-modal h3 {
-        margin: 0 0 5px 0;
-        color: #333;
-        font-size: 16px;
-    }
-    
-    .product-details-modal p {
-        margin: 0;
-        color: #666;
-        font-size: 14px;
-    }
-    
-    .stock-highlight {
-        font-weight: 700;
-        color: #007bff;
-    }
-    
-    .quantity-input {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        justify-content: center;
-        margin: 10px 0;
-    }
-    
-    .qty-btn {
-        width: 40px;
-        height: 40px;
-        border: 2px solid #007bff;
-        border-radius: 8px;
-        background: white;
-        color: #007bff;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        transition: all 0.2s ease;
-    }
-    
-    .qty-btn:hover {
-        background: #007bff;
-        color: white;
-    }
-    
-    .qty-input {
-        width: 80px;
-        height: 40px;
-        text-align: center;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: 600;
-    }
-    
-    .btn-modal {
-        padding: 12px 24px;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .btn-cancel {
-        background: #6c757d;
-        color: white;
-    }
-    
-    .btn-cancel:hover {
-        background: #5a6268;
-    }
-    
-    .btn-confirm {
-        background: #28a745;
-        color: white;
-    }
-    
-    .btn-confirm:hover:not(:disabled) {
-        background: #218838;
-    }
-    
-    .btn-confirm:disabled {
-        background: #ccc;
-        cursor: not-allowed;
     }
 `;
 

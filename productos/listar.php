@@ -236,6 +236,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
 </head>
 <body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" 
       data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
+      data-user-id="<?php echo htmlspecialchars($_SESSION['user_id']); ?>"
       data-page="<?php echo $pagina_actual; ?>"
       data-total-pages="<?php echo $total_paginas; ?>">
 

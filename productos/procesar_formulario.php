@@ -51,8 +51,22 @@ if ($conn->connect_error) {
 // Obtener ID de usuario de la sesión
 $usuario_id = $_SESSION['user_id'];
 
+// ===== DETECTAR SI ES ENTREGA A PERSONAL =====
+// Leer el cuerpo de la petición para verificar si es JSON
+$input = file_get_contents('php://input');
+$json_data = null;
+
+if (!empty($input)) {
+    $json_data = json_decode($input, true);
+    if ($json_data && isset($json_data['tipo_operacion']) && $json_data['tipo_operacion'] === 'entrega_personal') {
+        // Manejar entrega a personal
+        manejarEntregaPersonal($conn, $usuario_id, $json_data);
+        exit();
+    }
+}
+
 try {
-    // Obtener y validar datos del formulario
+    // Obtener y validar datos del formulario (transferencias normales)
     $datos = [
         'producto_id' => limpiarDato($_POST['producto_id'] ?? '', 'int'),
         'almacen_origen' => limpiarDato($_POST['almacen_origen'] ?? '', 'int'),
@@ -160,27 +174,6 @@ try {
     $almacen_destino_info = $result->fetch_assoc();
     $stmt->close();
     
-    // 🔥 CAMBIO IMPORTANTE: No reducir stock hasta que se apruebe
-    // Comentamos la reducción inmediata del stock
-    /*
-    // Reducir stock en el almacén de origen
-    $sql_reducir = "UPDATE productos SET cantidad = cantidad - ? WHERE id = ? AND almacen_id = ?";
-    $stmt = $conn->prepare($sql_reducir);
-    
-    if (!$stmt) {
-        throw new Exception("Error preparando consulta de reducir stock: " . $conn->error);
-    }
-    
-    $stmt->bind_param("iii", $datos['cantidad'], $datos['producto_id'], $datos['almacen_origen']);
-    
-    if (!$stmt->execute() || $stmt->affected_rows === 0) {
-        $stmt->close();
-        $conn->rollback();
-        enviarRespuesta(false, 'Error al actualizar el stock en el almacén de origen.');
-    }
-    $stmt->close();
-    */
-    
     // Crear solicitud de transferencia (SIEMPRE pendiente)
     $observaciones = "Transferencia solicitada desde el sistema web";
     
@@ -248,7 +241,6 @@ try {
         error_log("Error al registrar log de actividad (no crítico): " . $e->getMessage());
     }
     
-    // 🚀 MENSAJE MEJORADO: Explicar que va a pendientes
     // Confirmar transacción (solicitud pendiente)
     $conn->commit();
     
@@ -296,6 +288,128 @@ try {
     // Cerrar conexión si existe
     if (isset($conn) && $conn instanceof mysqli) {
         $conn->close();
+    }
+}
+
+// ===== FUNCIÓN PARA MANEJAR ENTREGAS A PERSONAL =====
+function manejarEntregaPersonal($conn, $usuario_id, $data) {
+    try {
+        // Validar datos requeridos
+        if (empty($data['destinatario_nombre']) || empty($data['destinatario_dni']) || empty($data['productos'])) {
+            enviarRespuesta(false, 'Faltan datos requeridos para la entrega');
+        }
+        
+        $destinatario_nombre = trim($data['destinatario_nombre']);
+        $destinatario_dni = trim($data['destinatario_dni']);
+        $productos = $data['productos'];
+        
+        // Validaciones
+        if (strlen($destinatario_nombre) < 3) {
+            enviarRespuesta(false, 'El nombre del destinatario debe tener al menos 3 caracteres');
+        }
+        
+        if (!preg_match('/^[0-9]{8}$/', $destinatario_dni)) {
+            enviarRespuesta(false, 'El DNI debe tener exactamente 8 dígitos');
+        }
+        
+        if (empty($productos) || !is_array($productos)) {
+            enviarRespuesta(false, 'No se han seleccionado productos');
+        }
+        
+        // Iniciar transacción
+        $conn->begin_transaction();
+        
+        // Generar código de entrega único
+        $codigo_entrega = 'ENT-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        
+        $productos_procesados = [];
+        $total_unidades = 0;
+        $usuario_name = $_SESSION["user_name"] ?? "Usuario";
+        
+        // Procesar cada producto
+        foreach ($productos as $producto) {
+            $producto_id = (int)$producto['id'];
+            $cantidad_solicitada = (int)$producto['cantidad'];
+            
+            if ($cantidad_solicitada <= 0) {
+                continue;
+            }
+            
+            // Obtener información del producto y verificar stock
+            $sql_producto = "SELECT p.*, a.nombre as almacen_nombre, c.nombre as categoria_nombre 
+                            FROM productos p 
+                            JOIN almacenes a ON p.almacen_id = a.id 
+                            JOIN categorias c ON p.categoria_id = c.id 
+                            WHERE p.id = ?";
+            $stmt_producto = $conn->prepare($sql_producto);
+            $stmt_producto->bind_param("i", $producto_id);
+            $stmt_producto->execute();
+            $producto_info = $stmt_producto->get_result()->fetch_assoc();
+            $stmt_producto->close();
+            
+            if (!$producto_info) {
+                throw new Exception("Producto con ID $producto_id no encontrado");
+            }
+            
+            // Verificar stock disponible
+            if ($producto_info['cantidad'] < $cantidad_solicitada) {
+                throw new Exception("Stock insuficiente para {$producto_info['nombre']}. Disponible: {$producto_info['cantidad']}, Solicitado: $cantidad_solicitada");
+            }
+            
+            // Actualizar stock del producto
+            $nuevo_stock = $producto_info['cantidad'] - $cantidad_solicitada;
+            $sql_update = "UPDATE productos SET cantidad = ? WHERE id = ?";
+            $stmt_update = $conn->prepare($sql_update);
+            $stmt_update->bind_param("ii", $nuevo_stock, $producto_id);
+            
+            if (!$stmt_update->execute()) {
+                throw new Exception("Error al actualizar stock del producto {$producto_info['nombre']}");
+            }
+            $stmt_update->close();
+            
+            $productos_procesados[] = [
+                'id' => $producto_id,
+                'nombre' => $producto_info['nombre'],
+                'cantidad' => $cantidad_solicitada,
+                'almacen' => $producto_info['almacen_nombre']
+            ];
+            
+            $total_unidades += $cantidad_solicitada;
+        }
+        
+        if (empty($productos_procesados)) {
+            throw new Exception('No se procesó ningún producto válido');
+        }
+        
+        // Registrar en tabla de movimientos (usando tabla existente)
+        foreach ($productos_procesados as $prod) {
+            $sql_movimiento = "INSERT INTO movimientos (producto_id, cantidad, tipo, descripcion, usuario_id, fecha_movimiento)
+                              VALUES (?, ?, 'entrega_personal', ?, ?, NOW())";
+            $stmt_mov = $conn->prepare($sql_movimiento);
+            $descripcion = "Entrega a {$destinatario_nombre} (DNI: {$destinatario_dni}) - Código: {$codigo_entrega}";
+            $stmt_mov->bind_param("iiss", $prod['id'], $prod['cantidad'], $descripcion, $usuario_id);
+            $stmt_mov->execute();
+            $stmt_mov->close();
+        }
+        
+        // Confirmar transacción
+        $conn->commit();
+        
+        // Respuesta exitosa
+        enviarRespuesta(true, 'Entrega registrada exitosamente', [
+            'codigo_entrega' => $codigo_entrega,
+            'destinatario' => $destinatario_nombre,
+            'dni' => $destinatario_dni,
+            'productos_entregados' => count($productos_procesados),
+            'total_unidades' => $total_unidades,
+            'fecha_entrega' => date('Y-m-d H:i:s')
+        ]);
+        
+    } catch (Exception $e) {
+        // Rollback en caso de error
+        $conn->rollback();
+        error_log("Error en entrega personal: " . $e->getMessage());
+        enviarRespuesta(false, $e->getMessage());
     }
 }
 ?>
