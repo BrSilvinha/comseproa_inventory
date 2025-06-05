@@ -280,9 +280,10 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico corregido -->
-    <link rel="stylesheet" href="../assets/css/historial-entregas-fixed.css">
+    <!-- CSS específico independiente -->
+<link rel="stylesheet" href="../assets/css/historial-entregas.css">
 </head>
-<body>
+<body class="historial-page">
 
 <!-- Mobile hamburger menu button -->
 <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
