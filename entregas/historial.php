@@ -89,8 +89,8 @@ if ($filtro_categoria_id) {
     $stmt->close();
 }
 
-// Función mejorada para obtener entregas con filtro de categoría
-function obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id, $categoria_id = null, $filtros = [], $limite = null, $offset = null) {
+// Función corregida para obtener entregas agrupadas SIN paginación en la consulta
+function obtenerTodasLasEntregasAgrupadas($conn, $almacen_id, $categoria_id = null, $filtros = []) {
     $query = '
         SELECT 
             eu.id,
@@ -150,29 +150,25 @@ function obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id, $categoria_id =
         $types .= 's';
     }
 
-    $query .= ' ORDER BY eu.fecha_entrega DESC';
-
-    if ($limite !== null && $offset !== null) {
-        $query .= ' LIMIT ? OFFSET ?';
-        $params[] = $limite;
-        $params[] = $offset;
-        $types .= 'ii';
-    }
+    $query .= ' ORDER BY eu.fecha_entrega DESC, eu.id DESC';
     
     $stmt = $conn->prepare($query);
     if (!$stmt) {
+        error_log("Error preparando consulta: " . $conn->error);
         return [];
     }
     
     $stmt->bind_param($types, ...$params);
     
     if (!$stmt->execute()) {
+        error_log("Error ejecutando consulta: " . $stmt->error);
         return [];
     }
     
     $result = $stmt->get_result();
     $entregasAgrupadas = [];
     
+    // Agrupar por fecha_entrega + nombre_destinatario + dni_destinatario
     while ($row = $result->fetch_assoc()) {
         $key = $row['fecha_entrega'] . '|' . $row['nombre_destinatario'] . '|' . $row['dni_destinatario'];
         
@@ -195,7 +191,30 @@ function obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id, $categoria_id =
         ];
     }
 
-    return array_values($entregasAgrupadas);
+    $stmt->close();
+    
+    // Convertir el array asociativo a array indexado y ordenar por fecha descendente
+    $entregasOrdenadas = array_values($entregasAgrupadas);
+    
+    // Ordenar por fecha de entrega descendente
+    usort($entregasOrdenadas, function($a, $b) {
+        return strtotime($b['fecha_entrega']) - strtotime($a['fecha_entrega']);
+    });
+
+    return $entregasOrdenadas;
+}
+
+// Función para aplicar paginación a entregas ya agrupadas
+function aplicarPaginacion($entregas, $pagina_actual, $registros_por_pagina) {
+    $total_entregas = count($entregas);
+    $offset = ($pagina_actual - 1) * $registros_por_pagina;
+    
+    $entregas_paginadas = array_slice($entregas, $offset, $registros_por_pagina);
+    
+    return [
+        'entregas' => $entregas_paginadas,
+        'total' => $total_entregas
+    ];
 }
 
 // Preparar filtros
@@ -208,19 +227,31 @@ $filtros = [
 
 // Configuración de paginación
 $registros_por_pagina = 10;
-$pagina_actual = isset($_GET['pagina']) ? intval($_GET['pagina']) : 1;
-$offset = ($pagina_actual - 1) * $registros_por_pagina;
+$pagina_actual = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
 
-// Obtener entregas si hay almacén y categoría seleccionados
-$entregas = [];
+// Obtener TODAS las entregas agrupadas primero
+$todas_las_entregas = [];
 $total_entregas = 0;
+$entregas = [];
+
 if ($almacen_id_mostrar && $filtro_categoria_id) {
-    $entregas = obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id_mostrar, $filtro_categoria_id, $filtros, $registros_por_pagina, $offset);
-    $total_entregas_temp = obtenerEntregasPorAlmacenYCategoria($conn, $almacen_id_mostrar, $filtro_categoria_id, $filtros);
-    $total_entregas = count($total_entregas_temp);
+    // Obtener todas las entregas agrupadas (sin paginación en SQL)
+    $todas_las_entregas = obtenerTodasLasEntregasAgrupadas($conn, $almacen_id_mostrar, $filtro_categoria_id, $filtros);
+    
+    // Aplicar paginación a las entregas ya agrupadas
+    $resultado_paginacion = aplicarPaginacion($todas_las_entregas, $pagina_actual, $registros_por_pagina);
+    $entregas = $resultado_paginacion['entregas'];
+    $total_entregas = $resultado_paginacion['total'];
 }
 
-$total_paginas = ceil($total_entregas / $registros_por_pagina);
+$total_paginas = $total_entregas > 0 ? ceil($total_entregas / $registros_por_pagina) : 0;
+
+// Ajustar página actual si está fuera de rango
+if ($pagina_actual > $total_paginas && $total_paginas > 0) {
+    $pagina_actual = $total_paginas;
+    $resultado_paginacion = aplicarPaginacion($todas_las_entregas, $pagina_actual, $registros_por_pagina);
+    $entregas = $resultado_paginacion['entregas'];
+}
 
 // Contar solicitudes pendientes para el badge
 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
@@ -258,6 +289,11 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
     
     return 'generar_reporte.php?' . http_build_query($params);
 }
+
+// Debug: Log para verificar datos (eliminar en producción)
+if ($almacen_id_mostrar && $filtro_categoria_id) {
+    error_log("Debug - Almacén: $almacen_id_mostrar, Categoría: $filtro_categoria_id, Total entregas agrupadas: $total_entregas, Página: $pagina_actual");
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -279,9 +315,8 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS específico corregido -->
-    <!-- CSS específico independiente -->
-<link rel="stylesheet" href="../assets/css/historial-entregas.css">
+    <!-- CSS específico -->
+    <link rel="stylesheet" href="../assets/css/historial-entregas.css">
 </head>
 <body class="historial-page">
 
@@ -328,7 +363,7 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
             </ul>
         </li>
         
-        <!-- Historial Section - Reemplaza la sección de Entregas -->
+        <!-- Historial Section -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-history"></i> Historial</span>
@@ -337,11 +372,10 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
             <ul class="submenu" role="menu">
                 <li><a href="../entregas/historial.php"role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
-                
             </ul>
         </li>
         
-        <!-- Notifications Section - Con badge rojo de notificaciones -->
+        <!-- Notifications Section -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
                 <span>
@@ -383,7 +417,6 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                
                 <li><a href="../perfil/cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
@@ -429,7 +462,10 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
                 <i class="fas fa-tag"></i>
                 <?php echo htmlspecialchars($categoria_info['nombre']); ?>
             </h4>
-            <p>Entregas realizadas en <?php echo htmlspecialchars($almacen_info['nombre']); ?></p>
+            <p>
+                Entregas realizadas en <?php echo htmlspecialchars($almacen_info['nombre']); ?>
+                <strong>(<?php echo number_format($total_entregas); ?> envíos encontrados)</strong>
+            </p>
         </div>
 
         <!-- Sección de Descarga de Reportes -->
@@ -504,13 +540,27 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
             </form>
         </div>
 
+        <!-- Información de paginación -->
+        <?php if ($total_entregas > 0): ?>
+        <div class="pagination-info">
+            <p>
+                Mostrando envíos <?php echo number_format((($pagina_actual - 1) * $registros_por_pagina) + 1); ?> - 
+                <?php echo number_format(min($pagina_actual * $registros_por_pagina, $total_entregas)); ?> 
+                de <?php echo number_format($total_entregas); ?> envíos totales
+                <?php if ($total_paginas > 1): ?>
+                    (Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?>)
+                <?php endif; ?>
+            </p>
+        </div>
+        <?php endif; ?>
+
         <!-- Tabla de entregas de la categoría -->
         <div class="historial-table-container">
             <div class="historial-table-responsive">
                 <table class="historial-table" id="tabla-historial-entregas">
                     <thead>
                         <tr>
-                            <th><i class="fas fa-calendar"></i> Fecha</th>
+                            <th><i class="fas fa-calendar"></i> Fecha y Hora</th>
                             <th><i class="fas fa-user"></i> Destinatario</th>
                             <th><i class="fas fa-id-card"></i> DNI</th>
                             <th><i class="fas fa-boxes"></i> Productos Entregados</th>
@@ -522,7 +572,11 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
                             <tr>
                                 <td colspan="5" class="historial-no-results">
                                     <i class="fas fa-inbox"></i>
-                                    No hay entregas registradas para esta categoría
+                                    <?php if ($total_entregas == 0): ?>
+                                        No hay entregas registradas para esta categoría
+                                    <?php else: ?>
+                                        No se encontraron entregas con los filtros aplicados
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php else: ?>
@@ -567,7 +621,7 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
             </div>
         </div>
 
-        <!-- Paginación -->
+        <!-- Paginación mejorada -->
         <?php if ($total_paginas > 1): ?>
         <div class="historial-pagination">
             <?php
@@ -579,25 +633,58 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
             }
             $url_params = !empty($params) ? '?' . implode('&', $params) . '&' : '?';
             
+            // Calcular rango de páginas a mostrar
+            $rango = 2;
+            $inicio = max(1, $pagina_actual - $rango);
+            $fin = min($total_paginas, $pagina_actual + $rango);
+            
+            // Primera página
+            if ($inicio > 1): ?>
+                <a href="<?php echo $url_params; ?>pagina=1" class="pagination-btn">
+                    <i class="fas fa-angle-double-left"></i> Primera
+                </a>
+            <?php endif;
+            
+            // Página anterior
             if ($pagina_actual > 1): ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual - 1; ?>">
+                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual - 1; ?>" class="pagination-btn">
                     <i class="fas fa-chevron-left"></i> Anterior
                 </a>
-            <?php endif; ?>
+            <?php endif;
             
-            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+            // Páginas numeradas
+            for ($i = $inicio; $i <= $fin; $i++): ?>
                 <?php if ($i == $pagina_actual): ?>
-                    <span class="historial-pagination-active"><?php echo $i; ?></span>
+                    <span class="pagination-btn pagination-active"><?php echo $i; ?></span>
                 <?php else: ?>
-                    <a href="<?php echo $url_params; ?>pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
+                    <a href="<?php echo $url_params; ?>pagina=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
                 <?php endif; ?>
-            <?php endfor; ?>
+            <?php endfor;
             
-            <?php if ($pagina_actual < $total_paginas): ?>
-                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual + 1; ?>">
+            // Página siguiente
+            if ($pagina_actual < $total_paginas): ?>
+                <a href="<?php echo $url_params; ?>pagina=<?php echo $pagina_actual + 1; ?>" class="pagination-btn">
                     Siguiente <i class="fas fa-chevron-right"></i>
                 </a>
+            <?php endif;
+            
+            // Última página
+            if ($fin < $total_paginas): ?>
+                <a href="<?php echo $url_params; ?>pagina=<?php echo $total_paginas; ?>" class="pagination-btn">
+                    Última <i class="fas fa-angle-double-right"></i>
+                </a>
             <?php endif; ?>
+            
+            <!-- Salto directo a página -->
+            <div class="pagination-jump">
+                <span>Ir a página:</span>
+                <input type="number" id="jumpPage" min="1" max="<?php echo $total_paginas; ?>" 
+                       value="<?php echo $pagina_actual; ?>" 
+                       onkeypress="if(event.key==='Enter') saltarAPagina()">
+                <button onclick="saltarAPagina()" class="pagination-btn">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
         </div>
         <?php endif; ?>
 
@@ -796,10 +883,10 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript del Dashboard con funcionalidad de descarga -->
+<!-- JavaScript mejorado -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Elementos principales (igual que el dashboard)
+    // Elementos principales
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('main-content');
@@ -813,7 +900,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 mainContent.classList.toggle('with-sidebar');
             }
             
-            // Cambiar icono del botón
             const icon = this.querySelector('i');
             if (sidebar.classList.contains('active')) {
                 icon.classList.remove('fa-bars');
@@ -837,7 +923,6 @@ document.addEventListener('DOMContentLoaded', function() {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 
-                // Cerrar otros submenús
                 submenuContainers.forEach(otherContainer => {
                     if (otherContainer !== container) {
                         const otherSubmenu = otherContainer.querySelector('.submenu');
@@ -856,7 +941,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                // Toggle del submenú actual
                 submenu.classList.toggle('activo');
                 const isExpanded = submenu.classList.contains('activo');
                 
@@ -887,8 +971,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Animaciones para las tarjetas de categoría
     const categoriaCards = document.querySelectorAll('.categoria-card');
-    
-    // Intersection Observer para animaciones al scroll
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -899,15 +981,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }, { threshold: 0.1 });
     
     categoriaCards.forEach((card, index) => {
-        // Configurar estado inicial para animación
         card.style.opacity = '0';
         card.style.transform = 'translateY(20px)';
         card.style.transition = `all 0.6s ease ${index * 0.1}s`;
-        
-        // Observar para animación
         observer.observe(card);
         
-        // Efecto hover mejorado
         card.addEventListener('mouseenter', function() {
             this.style.transform = 'translateY(-8px)';
         });
@@ -936,7 +1014,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Navegación por teclado
     document.addEventListener('keydown', function(e) {
-        // Cerrar menú móvil con Escape
         if (e.key === 'Escape' && sidebar.classList.contains('active')) {
             sidebar.classList.remove('active');
             if (mainContent) {
@@ -945,12 +1022,10 @@ document.addEventListener('DOMContentLoaded', function() {
             menuToggle.focus();
         }
         
-        // Cerrar modal con Escape
         if (e.key === 'Escape') {
             cerrarModal();
         }
         
-        // Indicador visual para navegación por teclado
         if (e.key === 'Tab') {
             document.body.classList.add('keyboard-navigation');
         }
@@ -960,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.remove('keyboard-navigation');
     });
 
-    // Efecto de carga para la tabla (si existe)
+    // Efecto de carga para la tabla
     const tabla = document.getElementById('tabla-historial-entregas');
     if (tabla) {
         tabla.style.opacity = '0';
@@ -991,11 +1066,26 @@ document.addEventListener('DOMContentLoaded', function() {
 let formatoSeleccionado = '';
 let urlDescarga = '';
 
+// Función para saltar a página específica
+function saltarAPagina() {
+    const pageInput = document.getElementById('jumpPage');
+    const pageNumber = parseInt(pageInput.value);
+    const maxPages = parseInt(pageInput.max);
+    
+    if (pageNumber >= 1 && pageNumber <= maxPages) {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('pagina', pageNumber);
+        window.location.href = currentUrl.toString();
+    } else {
+        mostrarNotificacion(`Por favor ingrese un número entre 1 y ${maxPages}`, 'warning');
+        pageInput.focus();
+    }
+}
+
 // Función para confirmar descarga
 function confirmarDescarga(formato) {
     formatoSeleccionado = formato;
     
-    // Construir URL de descarga con filtros actuales
     const params = new URLSearchParams(window.location.search);
     const almacenId = params.get('almacen_id');
     const categoriaId = params.get('categoria_id');
@@ -1005,14 +1095,12 @@ function confirmarDescarga(formato) {
         return;
     }
     
-    // Construir parámetros para el reporte
     const reportParams = new URLSearchParams({
         formato: formato,
         almacen_id: almacenId,
         categoria_id: categoriaId
     });
     
-    // Agregar filtros actuales si existen
     const filtros = ['dni', 'nombre', 'fecha_inicio', 'fecha_fin'];
     filtros.forEach(filtro => {
         const valor = params.get(filtro);
@@ -1023,11 +1111,9 @@ function confirmarDescarga(formato) {
     
     urlDescarga = 'generar_reporte.php?' + reportParams.toString();
     
-    // Mostrar modal de confirmación
     document.getElementById('formatoSeleccionado').textContent = formato.toUpperCase();
     document.getElementById('downloadModal').style.display = 'block';
     
-    // Animar entrada del modal
     setTimeout(() => {
         document.querySelector('.download-modal-content').style.transform = 'scale(1)';
     }, 10);
@@ -1037,11 +1123,9 @@ function confirmarDescarga(formato) {
 function procederDescarga() {
     cerrarModal();
     
-    // Mostrar indicador de descarga
     const indicator = document.getElementById('downloadIndicator');
     indicator.style.display = 'block';
     
-    // Crear enlace temporal para descarga
     const link = document.createElement('a');
     link.href = urlDescarga;
     link.target = '_blank';
@@ -1049,7 +1133,6 @@ function procederDescarga() {
     link.click();
     document.body.removeChild(link);
     
-    // Simular tiempo de preparación y ocultar indicador
     setTimeout(() => {
         indicator.style.display = 'none';
         mostrarNotificacion('¡Descarga iniciada correctamente!', 'success');
@@ -1093,7 +1176,6 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
     const notificacion = document.createElement('div');
     notificacion.className = `historial-notificacion historial-${tipo}`;
     
-    // Configurar colores según el tipo
     let color = '#0a253c';
     let icono = 'fas fa-info-circle';
     
@@ -1117,7 +1199,6 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
         <span>${mensaje}</span>
     `;
     
-    // Estilos para la notificación
     notificacion.style.cssText = `
         position: fixed;
         top: 20px;
@@ -1140,13 +1221,11 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
     
     container.appendChild(notificacion);
     
-    // Mostrar notificación
     setTimeout(() => {
         notificacion.style.opacity = '1';
         notificacion.style.transform = 'translateX(0)';
     }, 100);
     
-    // Ocultar y eliminar notificación
     setTimeout(() => {
         notificacion.style.opacity = '0';
         notificacion.style.transform = 'translateX(100%)';
@@ -1163,23 +1242,6 @@ window.addEventListener('error', function(e) {
     console.error('Error detectado:', e.error);
     mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
 });
-
-// Optimización de rendimiento
-if ('IntersectionObserver' in window) {
-    const downloadObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }
-        });
-    }, { threshold: 0.1 });
-    
-    const downloadElements = document.querySelectorAll('.download-btn');
-    downloadElements.forEach(btn => {
-        downloadObserver.observe(btn);
-    });
-}
 </script>
 </body>
 </html>

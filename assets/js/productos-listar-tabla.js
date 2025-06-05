@@ -1,12 +1,17 @@
 /* ============================================
-   PRODUCTOS LISTAR - JAVASCRIPT COMPLETO Y CORREGIDO
-   Sin conflictos, separado y optimizado
+   PRODUCTOS LISTAR - JAVASCRIPT COMPLETO MEJORADO
+   Con carrito persistente, esquina derecha y UX optimizada
    ============================================ */
 
 // ===== VARIABLES GLOBALES =====
 let modoSeleccion = false;
 let productosSeleccionados = new Set();
 let carritoEntrega = [];
+let carritoMinimizado = false;
+
+// ===== CLAVES PARA LOCALSTORAGE =====
+const CARRITO_STORAGE_KEY = 'productos_entrega_carrito';
+const MODO_STORAGE_KEY = 'productos_entrega_modo';
 
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -14,7 +19,137 @@ document.addEventListener('DOMContentLoaded', function() {
     configurarEventListeners();
     inicializarSidebar();
     configurarTeclasRapidas();
+    
+    // ⭐ RESTAURAR CARRITO GUARDADO
+    restaurarCarritoGuardado();
+    
+    // ⭐ CREAR ELEMENTOS ADICIONALES
+    crearIndicadorCarrito();
+    
+    // ⭐ AJUSTAR TAMAÑO INICIAL
+    ajustarTamañoCarrito();
 });
+
+// ===== PERSISTENCIA DEL CARRITO =====
+function guardarCarritoEnStorage() {
+    try {
+        const carritoData = {
+            productos: carritoEntrega,
+            seleccionados: Array.from(productosSeleccionados),
+            modoActivo: modoSeleccion,
+            timestamp: Date.now(),
+            url: window.location.href
+        };
+        localStorage.setItem(CARRITO_STORAGE_KEY, JSON.stringify(carritoData));
+        console.log('💾 Carrito guardado en localStorage');
+    } catch (error) {
+        console.error('Error al guardar carrito:', error);
+    }
+}
+
+function restaurarCarritoGuardado() {
+    try {
+        const carritoGuardado = localStorage.getItem(CARRITO_STORAGE_KEY);
+        if (!carritoGuardado) return;
+        
+        const carritoData = JSON.parse(carritoGuardado);
+        
+        // Verificar que no sea muy antiguo (máximo 2 horas)
+        const dosHoras = 2 * 60 * 60 * 1000;
+        if (Date.now() - carritoData.timestamp > dosHoras) {
+            localStorage.removeItem(CARRITO_STORAGE_KEY);
+            return;
+        }
+        
+        // Verificar que estemos en la misma sección (productos)
+        if (!carritoData.url || !carritoData.url.includes('/productos/')) {
+            return;
+        }
+        
+        // Restaurar datos
+        carritoEntrega = carritoData.productos || [];
+        productosSeleccionados = new Set(carritoData.seleccionados || []);
+        
+        // Si había productos en el carrito, restaurar modo selección
+        if (carritoEntrega.length > 0) {
+            console.log('🔄 Restaurando carrito con', carritoEntrega.length, 'productos');
+            
+            // Activar modo selección sin mostrar notificación
+            modoSeleccion = true;
+            activarModoSeleccionVisual();
+            
+            // Marcar checkboxes correspondientes (solo los que existen en esta página)
+            productosSeleccionados.forEach(productoId => {
+                const checkbox = document.querySelector(`[data-id="${productoId}"]`);
+                if (checkbox) {
+                    checkbox.classList.add('checked');
+                }
+            });
+            
+            // Mostrar carrito y actualizar
+            const carritoElement = document.getElementById('carritoEntrega');
+            carritoElement.classList.add('show');
+            actualizarCarrito();
+            
+            // Mostrar notificación de restauración
+            mostrarNotificacion(`Carrito restaurado con ${carritoEntrega.length} productos`, 'info', 3000);
+        }
+        
+    } catch (error) {
+        console.error('Error al restaurar carrito:', error);
+        localStorage.removeItem(CARRITO_STORAGE_KEY);
+    }
+}
+
+function limpiarCarritoStorage() {
+    localStorage.removeItem(CARRITO_STORAGE_KEY);
+    console.log('🗑️ Carrito eliminado del localStorage');
+}
+
+// ===== CREAR INDICADOR DEL CARRITO =====
+function crearIndicadorCarrito() {
+    const indicador = document.createElement('div');
+    indicador.id = 'carritoIndicator';
+    indicador.className = 'carrito-indicator';
+    indicador.innerHTML = `
+        <i class="fas fa-shopping-cart"></i>
+        <span class="indicator-count">0</span>
+    `;
+    
+    indicador.addEventListener('click', () => {
+        if (carritoMinimizado) {
+            expandirCarrito();
+        } else {
+            const carrito = document.getElementById('carritoEntrega');
+            if (!carrito.classList.contains('show')) {
+                toggleModoSeleccion();
+            }
+        }
+    });
+    
+    document.body.appendChild(indicador);
+    console.log('📍 Indicador del carrito creado en la esquina inferior derecha');
+}
+
+// ===== AJUSTAR TAMAÑO SEGÚN PANTALLA =====
+function ajustarTamañoCarrito() {
+    const carrito = document.getElementById('carritoEntrega');
+    if (!carrito) return;
+    
+    const width = window.innerWidth;
+    
+    // Remover todas las clases de tamaño
+    carrito.classList.remove('compact', 'mini');
+    
+    // Aplicar clase según el tamaño de pantalla
+    if (width <= 350) {
+        carrito.classList.add('compact', 'mini');
+    } else if (width <= 768) {
+        carrito.classList.add('compact');
+    }
+    
+    console.log(`📐 Carrito ajustado para pantalla de ${width}px`);
+}
 
 // ===== INICIALIZACIÓN DE COMPONENTES =====
 function inicializarComponentes() {
@@ -27,7 +162,7 @@ function inicializarComponentes() {
     // Inicializar efectos visuales
     inicializarEfectosVisuales();
     
-    console.log('Componentes inicializados correctamente');
+    console.log('✅ Componentes inicializados correctamente');
 }
 
 // ===== CONFIGURACIÓN DE EVENT LISTENERS =====
@@ -78,6 +213,9 @@ function configurarEventListeners() {
     if (nombreInput) {
         nombreInput.addEventListener('input', validarFormularioEntrega);
     }
+    
+    // Escuchar cambios de tamaño de ventana
+    window.addEventListener('resize', ajustarTamañoCarrito);
 }
 
 // ===== SIDEBAR =====
@@ -111,7 +249,7 @@ function inicializarSidebar() {
     submenuContainers.forEach(container => {
         const link = container.querySelector('a');
         const submenu = container.querySelector('.submenu');
-        const chevron = link.querySelector('.fa-chevron-down');
+        const chevron = link?.querySelector('.fa-chevron-down');
         
         if (link && submenu) {
             link.addEventListener('click', function(e) {
@@ -160,43 +298,145 @@ function inicializarSidebar() {
     });
 }
 
-// ===== MODO SELECCIÓN MÚLTIPLE =====
+// ===== MODO SELECCIÓN MÚLTIPLE MEJORADO =====
 function toggleModoSeleccion() {
     modoSeleccion = !modoSeleccion;
-    const tabla = document.getElementById('productosTabla');
-    const btnEntregarPersonal = document.getElementById('btnEntregarPersonal');
-    const carritoEntrega = document.getElementById('carritoEntrega');
     
     if (modoSeleccion) {
-        // Activar modo selección
-        tabla.classList.add('modo-seleccion');
-        btnEntregarPersonal.classList.add('active');
-        btnEntregarPersonal.innerHTML = '<i class="fas fa-times"></i><span>Cancelar Selección</span>';
-        carritoEntrega.classList.add('show');
-        
-        // Mostrar columnas de selección
-        document.querySelectorAll('.selection-column, .selection-cell').forEach(el => {
-            el.style.display = 'table-cell';
-        });
-        
-        mostrarNotificacion('Modo de selección activado. Selecciona los productos para entregar.', 'info');
+        activarModoSeleccion();
     } else {
-        // Desactivar modo selección
-        tabla.classList.remove('modo-seleccion');
-        btnEntregarPersonal.classList.remove('active');
-        btnEntregarPersonal.innerHTML = '<i class="fas fa-hand-holding"></i><span>Entregar a Personal</span>';
-        carritoEntrega.classList.remove('show');
+        desactivarModoSeleccion();
+    }
+    
+    // Guardar estado
+    guardarCarritoEnStorage();
+}
+
+function activarModoSeleccion() {
+    modoSeleccion = true;
+    activarModoSeleccionVisual();
+    
+    const carritoEntrega = document.getElementById('carritoEntrega');
+    carritoEntrega.classList.add('show');
+    
+    // Ajustar tamaño al activar
+    setTimeout(ajustarTamañoCarrito, 100);
+    
+    mostrarNotificacion('Modo de selección activado. Selecciona productos para entregar.', 'info');
+}
+
+function activarModoSeleccionVisual() {
+    const tabla = document.getElementById('productosTabla');
+    const btnEntregarPersonal = document.getElementById('btnEntregarPersonal');
+    
+    // Activar clases visuales
+    tabla.classList.add('modo-seleccion');
+    btnEntregarPersonal.classList.add('active');
+    btnEntregarPersonal.innerHTML = '<i class="fas fa-times"></i><span>Cancelar Selección</span>';
+    
+    // Mostrar columnas de selección
+    document.querySelectorAll('.selection-column, .selection-cell').forEach(el => {
+        el.style.display = 'table-cell';
+    });
+    
+    // Agregar toggle al header del carrito
+    agregarToggleCarrito();
+}
+
+function desactivarModoSeleccion() {
+    modoSeleccion = false;
+    const tabla = document.getElementById('productosTabla');
+    const btnEntregarPersonal = document.getElementById('btnEntregarPersonal');
+    const carritoElement = document.getElementById('carritoEntrega');
+    const indicador = document.getElementById('carritoIndicator');
+    
+    // Desactivar clases visuales
+    tabla.classList.remove('modo-seleccion');
+    btnEntregarPersonal.classList.remove('active');
+    btnEntregarPersonal.innerHTML = '<i class="fas fa-hand-holding"></i><span>Entregar a Personal</span>';
+    carritoElement.classList.remove('show');
+    indicador.classList.remove('show');
+    
+    // Ocultar columnas de selección
+    document.querySelectorAll('.selection-column, .selection-cell').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Limpiar carrito
+    limpiarCarrito();
+}
+
+// ===== FUNCIONES DE MINIMIZAR/EXPANDIR =====
+function agregarToggleCarrito() {
+    const carritoHeader = document.querySelector('.carrito-header');
+    if (!carritoHeader.querySelector('.carrito-toggle')) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'carrito-toggle';
+        toggleBtn.innerHTML = '<i class="fas fa-minus"></i>';
+        toggleBtn.title = 'Minimizar carrito';
         
-        // Ocultar columnas de selección
-        document.querySelectorAll('.selection-column, .selection-cell').forEach(el => {
-            el.style.display = 'none';
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleCarrito();
         });
         
-        // Limpiar selecciones
-        limpiarCarrito();
+        carritoHeader.appendChild(toggleBtn);
+    }
+    
+    // Hacer el header clickeable para toggle
+    carritoHeader.style.cursor = 'pointer';
+    carritoHeader.addEventListener('click', toggleCarrito);
+}
+
+function toggleCarrito() {
+    if (carritoMinimizado) {
+        expandirCarrito();
+    } else {
+        minimizarCarrito();
     }
 }
 
+function minimizarCarrito() {
+    const carrito = document.getElementById('carritoEntrega');
+    const indicador = document.getElementById('carritoIndicator');
+    const toggleBtn = document.querySelector('.carrito-toggle i');
+    
+    carrito.classList.add('minimized');
+    indicador.classList.add('show');
+    
+    if (toggleBtn) {
+        toggleBtn.className = 'fas fa-plus';
+        toggleBtn.parentElement.title = 'Expandir carrito';
+    }
+    
+    carritoMinimizado = true;
+    
+    // Actualizar contador en indicador
+    const count = document.querySelector('.indicator-count');
+    count.textContent = carritoEntrega.length;
+    
+    console.log('📱 Carrito minimizado');
+}
+
+function expandirCarrito() {
+    const carrito = document.getElementById('carritoEntrega');
+    const indicador = document.getElementById('carritoIndicator');
+    const toggleBtn = document.querySelector('.carrito-toggle i');
+    
+    carrito.classList.remove('minimized');
+    indicador.classList.remove('show');
+    
+    if (toggleBtn) {
+        toggleBtn.className = 'fas fa-minus';
+        toggleBtn.parentElement.title = 'Minimizar carrito';
+    }
+    
+    carritoMinimizado = false;
+    
+    console.log('📱 Carrito expandido');
+}
+
+// ===== GESTIÓN DE PRODUCTOS MEJORADA =====
 function manejarSeleccionProducto(checkbox) {
     const productoId = checkbox.dataset.id;
     const isChecked = checkbox.classList.contains('checked');
@@ -214,36 +454,79 @@ function manejarSeleccionProducto(checkbox) {
     }
     
     actualizarCarrito();
+    guardarCarritoEnStorage(); // ⭐ Guardar después de cada cambio
 }
 
 function agregarAlCarrito(productoId) {
     const row = document.querySelector(`[data-producto-id="${productoId}"]`);
-    const productData = JSON.parse(row.querySelector('.product-data').textContent);
+    if (!row) {
+        console.warn('No se encontró la fila del producto:', productoId);
+        return;
+    }
     
-    const itemCarrito = {
-        id: productData.id,
-        nombre: productData.nombre,
-        modelo: productData.modelo,
-        color: productData.color,
-        talla: productData.talla,
-        cantidad: 1, // Por defecto 1, se puede ajustar
-        maxCantidad: productData.cantidad,
-        almacen: productData.almacen,
-        almacenNombre: productData.almacen_nombre
-    };
+    const productDataScript = row.querySelector('.product-data');
+    if (!productDataScript) {
+        console.warn('No se encontraron datos del producto:', productoId);
+        return;
+    }
     
-    carritoEntrega.push(itemCarrito);
+    try {
+        const productData = JSON.parse(productDataScript.textContent);
+        
+        const itemCarrito = {
+            id: productData.id,
+            nombre: productData.nombre,
+            modelo: productData.modelo || '',
+            color: productData.color || '',
+            talla: productData.talla || '',
+            cantidad: 1,
+            maxCantidad: productData.cantidad,
+            almacen: productData.almacen,
+            almacenNombre: productData.almacen_nombre
+        };
+        
+        carritoEntrega.push(itemCarrito);
+        console.log('➕ Producto agregado al carrito:', itemCarrito.nombre);
+        
+    } catch (error) {
+        console.error('Error al agregar producto al carrito:', error);
+        mostrarNotificacion('Error al agregar el producto al carrito', 'error');
+    }
 }
 
 function eliminarDelCarrito(productoId) {
+    const initialLength = carritoEntrega.length;
     carritoEntrega = carritoEntrega.filter(item => item.id != productoId);
+    
+    if (carritoEntrega.length < initialLength) {
+        console.log('➖ Producto eliminado del carrito:', productoId);
+    }
 }
 
+// ===== FUNCIÓN MEJORADA PARA ACTUALIZAR CARRITO =====
 function actualizarCarrito() {
     const carritoLista = document.getElementById('carritoLista');
     const carritoContador = document.querySelector('.carrito-contador');
     const totalUnidades = document.getElementById('totalUnidades');
     const btnProceder = document.querySelector('.btn-proceder');
+    const indicadorCount = document.querySelector('.indicator-count');
+    
+    // Guardar valor anterior para animación
+    const valorAnterior = parseInt(carritoContador.textContent) || 0;
+    const valorNuevo = carritoEntrega.length;
+    
+    // Actualizar contador en indicador
+    if (indicadorCount) {
+        indicadorCount.textContent = valorNuevo;
+    }
+    
+    // Animar contador si cambió
+    if (valorAnterior !== valorNuevo) {
+        carritoContador.classList.add('updated');
+        setTimeout(() => {
+            carritoContador.classList.remove('updated');
+        }, 500);
+    }
     
     if (carritoEntrega.length === 0) {
         carritoLista.innerHTML = `
@@ -255,7 +538,18 @@ function actualizarCarrito() {
         carritoContador.textContent = '0';
         totalUnidades.textContent = '0';
         btnProceder.disabled = true;
+        
+        // Remover clase compact si no hay productos
+        document.getElementById('carritoEntrega').classList.remove('compact');
         return;
+    }
+    
+    // Agregar clase compact si hay muchos productos (para ahorrar espacio)
+    const carritoElement = document.getElementById('carritoEntrega');
+    if (carritoEntrega.length >= 3) {
+        carritoElement.classList.add('compact');
+    } else {
+        carritoElement.classList.remove('compact');
     }
     
     let html = '';
@@ -291,9 +585,12 @@ function actualizarCarrito() {
     });
     
     carritoLista.innerHTML = html;
-    carritoContador.textContent = carritoEntrega.length;
+    carritoContador.textContent = valorNuevo;
     totalUnidades.textContent = totalUnidadesCount;
     btnProceder.disabled = false;
+    
+    // Ajustar notificaciones para no solaparse
+    ajustarPosicionNotificaciones();
 }
 
 function ajustarCantidadCarrito(productoId, cambio) {
@@ -303,6 +600,7 @@ function ajustarCantidadCarrito(productoId, cambio) {
         if (nuevaCantidad >= 1 && nuevaCantidad <= item.maxCantidad) {
             item.cantidad = nuevaCantidad;
             actualizarCarrito();
+            guardarCarritoEnStorage(); // ⭐ Guardar cambios
         }
     }
 }
@@ -317,6 +615,7 @@ function removerDelCarrito(productoId) {
     productosSeleccionados.delete(productoId.toString());
     eliminarDelCarrito(productoId);
     actualizarCarrito();
+    guardarCarritoEnStorage(); // ⭐ Guardar cambios
 }
 
 function limpiarCarrito() {
@@ -329,6 +628,7 @@ function limpiarCarrito() {
     });
     
     actualizarCarrito();
+    limpiarCarritoStorage(); // ⭐ Limpiar storage
 }
 
 function procederEntrega() {
@@ -392,7 +692,10 @@ function cerrarModalEntrega() {
     
     // Limpiar formulario
     document.getElementById('formEntregaPersonal').reset();
-    document.querySelector('.btn-confirm').disabled = true;
+    const btnConfirmar = document.querySelector('.btn-confirm');
+    if (btnConfirmar) {
+        btnConfirmar.disabled = true;
+    }
 }
 
 function validarFormularioEntrega() {
@@ -403,7 +706,9 @@ function validarFormularioEntrega() {
     const nombreValido = nombre.length >= 3;
     const dniValido = /^[0-9]{8}$/.test(dni);
     
-    btnConfirmar.disabled = !(nombreValido && dniValido);
+    if (btnConfirmar) {
+        btnConfirmar.disabled = !(nombreValido && dniValido);
+    }
 }
 
 function validarDNI(e) {
@@ -418,7 +723,7 @@ function validarDNI(e) {
     validarFormularioEntrega();
 }
 
-// ===== FUNCIÓN CORREGIDA PARA ENVIAR ENTREGA REAL =====
+// ===== FUNCIÓN MEJORADA PARA ENVIAR ENTREGA =====
 async function confirmarEntrega() {
     const nombre = document.getElementById('nombreDestinatario').value.trim();
     const dni = document.getElementById('dniDestinatario').value.trim();
@@ -432,7 +737,7 @@ async function confirmarEntrega() {
     const datosEntrega = {
         nombre_destinatario: nombre,
         dni_destinatario: dni,
-        productos: JSON.stringify(carritoEntrega) // Enviar como JSON string
+        productos: JSON.stringify(carritoEntrega)
     };
     
     // Mostrar indicador de carga
@@ -458,7 +763,7 @@ async function confirmarEntrega() {
             
             // Cerrar modal y limpiar
             cerrarModalEntrega();
-            toggleModoSeleccion(); // Salir del modo selección
+            desactivarModoSeleccion(); // Salir del modo selección completamente
             
             // Recargar página para actualizar stock
             setTimeout(() => {
@@ -525,7 +830,7 @@ function manejarCambioStock(button) {
     const productoId = button.dataset.id;
     const accion = button.dataset.accion;
     const stockElement = document.getElementById(`cantidad-${productoId}`);
-    const currentStock = parseInt(stockElement.textContent);
+    const currentStock = parseInt(stockElement.textContent.replace(/,/g, ''));
     
     // Deshabilitar botón temporalmente
     button.disabled = true;
@@ -542,7 +847,7 @@ function manejarCambioStock(button) {
         }
         
         // Actualizar visualmente
-        stockElement.textContent = newStock;
+        stockElement.textContent = newStock.toLocaleString();
         actualizarClaseStock(stockElement, newStock);
         
         // Restaurar botón
@@ -665,6 +970,13 @@ function configurarTeclasRapidas() {
                     toggleModoSeleccion();
                 }
                 break;
+                
+            case 'm':
+            case 'M':
+                if (modoSeleccion && carritoEntrega.length > 0) {
+                    toggleCarrito();
+                }
+                break;
         }
         
         if (e.ctrlKey || e.metaKey) {
@@ -683,12 +995,40 @@ function configurarTeclasRapidas() {
     });
 }
 
-// ===== SISTEMA DE NOTIFICACIONES =====
-function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
-    const container = document.getElementById('notificaciones-container') || document.body;
+// ===== FUNCIÓN PARA AJUSTAR POSICIÓN DE NOTIFICACIONES =====
+function ajustarPosicionNotificaciones() {
+    const container = document.getElementById('notificaciones-container');
+    if (!container) return;
     
-    const notificacion = document.createElement('div');
-    notificacion.className = `notificacion notificacion-${tipo}`;
+    // Si el carrito está visible, ajustar la posición de las notificaciones
+    const carritoVisible = document.getElementById('carritoEntrega').classList.contains('show');
+    if (carritoVisible && !carritoMinimizado) {
+        container.style.right = '360px'; // Espacio para el carrito de 320px + margen
+    } else {
+        container.style.right = '20px';
+    }
+}
+
+// ===== SISTEMA DE NOTIFICACIONES MEJORADO =====
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
+    let container = document.getElementById('notificaciones-container');
+    
+    // Crear container si no existe
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificaciones-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 350px;
+        `;
+        document.body.appendChild(container);
+    }
+    
+    // Ajustar posición para no solaparse con carrito
+    ajustarPosicionNotificaciones();
     
     const iconos = {
         success: 'fa-check-circle',
@@ -696,6 +1036,16 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
         warning: 'fa-exclamation-triangle',
         info: 'fa-info-circle'
     };
+    
+    const colores = {
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107', 
+        info: '#0a253c'
+    };
+    
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion notificacion-${tipo}`;
     
     notificacion.innerHTML = `
         <i class="fas ${iconos[tipo]}"></i>
@@ -707,20 +1057,18 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
     
     // Estilos inline para la notificación
     notificacion.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
         background: white;
         padding: 15px 20px;
         border-radius: 8px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        border-left: 4px solid var(--${tipo === 'success' ? 'success' : tipo === 'error' ? 'danger' : tipo === 'warning' ? 'warning' : 'info'}-color);
+        border-left: 4px solid ${colores[tipo] || colores.info};
         z-index: 10000;
         display: flex;
         align-items: center;
         gap: 10px;
-        max-width: 400px;
         animation: slideInRight 0.3s ease;
+        margin-bottom: 10px;
+        max-width: 100%;
     `;
     
     container.appendChild(notificacion);
@@ -748,134 +1096,43 @@ const estilosAdicionales = `
         to { transform: translateX(100%); opacity: 0; }
     }
     
-    .carrito-item {
-        display: flex;
-        align-items: center;
-        padding: 12px;
-        border-bottom: 1px solid #eee;
-        gap: 10px;
+    @keyframes slideUpRight {
+        from {
+            opacity: 0;
+            transform: translateX(20px) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0) translateY(0);
+        }
     }
     
-    .item-info {
-        flex: 1;
-    }
-    
-    .item-nombre {
-        font-weight: 600;
-        color: #333;
-        font-size: 14px;
-    }
-    
-    .item-detalles {
-        font-size: 12px;
-        color: #666;
-        margin-top: 2px;
-    }
-    
-    .item-cantidad {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .qty-btn-small {
-        width: 24px;
-        height: 24px;
+    .notificacion-close {
+        background: none;
         border: none;
-        border-radius: 4px;
-        background: #f8f9fa;
+        color: inherit;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        transition: all 0.2s ease;
-    }
-    
-    .qty-btn-small:hover {
-        background: #e9ecef;
-    }
-    
-    .qty-btn-small.minus {
-        color: #dc3545;
-    }
-    
-    .qty-btn-small.plus {
-        color: #28a745;
-    }
-    
-    .qty-display {
-        min-width: 20px;
-        text-align: center;
-        font-weight: 600;
-    }
-    
-    .item-remove {
-        width: 24px;
-        height: 24px;
-        border: none;
+        font-size: 16px;
+        font-weight: bold;
+        padding: 2px 6px;
         border-radius: 4px;
-        background: #dc3545;
-        color: white;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        transition: all 0.2s ease;
+        transition: background 0.2s;
+        opacity: 0.7;
     }
     
-    .item-remove:hover {
-        background: #c82333;
-    }
-    
-    .producto-resumen-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .producto-resumen-detalles {
-        font-size: 12px;
-        color: #666;
-        margin-top: 2px;
-    }
-    
-    .cantidad-badge {
-        background: #007bff;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    
-    .resumen-titulo {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .total-unidades {
-        padding: 15px 0;
-        border-top: 2px solid #eee;
-        font-weight: 600;
-        color: #333;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .notificacion-close:hover {
+        background: rgba(0,0,0,0.1);
+        opacity: 1;
     }
 `;
 
 // Inyectar estilos
-const styleSheet = document.createElement('style');
-styleSheet.textContent = estilosAdicionales;
-document.head.appendChild(styleSheet);
+if (!document.getElementById('carrito-animations')) {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'carrito-animations';
+    styleSheet.textContent = estilosAdicionales;
+    document.head.appendChild(styleSheet);
+}
 
 // ===== FUNCIONES EXPUESTAS GLOBALMENTE =====
 window.toggleModoSeleccion = toggleModoSeleccion;
@@ -892,3 +1149,9 @@ window.eliminarProducto = eliminarProducto;
 window.manejarCerrarSesion = manejarCerrarSesion;
 window.ajustarCantidadCarrito = ajustarCantidadCarrito;
 window.removerDelCarrito = removerDelCarrito;
+window.toggleCarrito = toggleCarrito;
+window.minimizarCarrito = minimizarCarrito;
+window.expandirCarrito = expandirCarrito;
+window.ajustarTamañoCarrito = ajustarTamañoCarrito;
+
+console.log('🚀 Sistema de carrito de entrega completamente inicializado con todas las mejoras');

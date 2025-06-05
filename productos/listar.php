@@ -15,8 +15,8 @@ $user_name = $_SESSION["user_name"] ?? "Usuario";
 $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 $usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
 
-// Configuración de paginación optimizada
-$productos_por_pagina = 15;
+// Configuración de paginación optimizada - CAMBIADO DE 15 A 10
+$productos_por_pagina = 10;
 $pagina_actual = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
 $offset = ($pagina_actual - 1) * $productos_por_pagina;
 
@@ -670,46 +670,135 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                 </table>
             </div>
 
-            <!-- Paginación -->
+            <!-- Paginación MEJORADA -->
             <?php if ($total_paginas > 1): ?>
             <div class="pagination-container">
                 <div class="pagination-info">
+                    <i class="fas fa-info-circle"></i>
                     Mostrando <?php echo number_format($inicio_rango); ?> - <?php echo number_format($fin_rango); ?> 
                     de <?php echo number_format($total_productos); ?> productos
                 </div>
                 
-                <nav class="pagination">
+                <nav class="pagination" aria-label="Navegación de páginas">
                     <?php if ($pagina_actual > 1): ?>
-                        <a href="<?php echo buildUrl(['pagina' => 1]); ?>" class="pagination-btn first" title="Primera página">
+                        <!-- Primera página -->
+                        <a href="<?php echo buildUrl(['pagina' => 1]); ?>" 
+                           class="pagination-btn first" 
+                           title="Primera página"
+                           aria-label="Ir a la primera página">
                             <i class="fas fa-angle-double-left"></i>
                         </a>
-                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual - 1]); ?>" class="pagination-btn prev" title="Anterior">
+                        
+                        <!-- Página anterior -->
+                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual - 1]); ?>" 
+                           class="pagination-btn prev" 
+                           title="Página anterior"
+                           aria-label="Ir a la página anterior">
                             <i class="fas fa-angle-left"></i>
                         </a>
+                    <?php else: ?>
+                        <!-- Botones deshabilitados -->
+                        <span class="pagination-btn first disabled" title="Primera página">
+                            <i class="fas fa-angle-double-left"></i>
+                        </span>
+                        <span class="pagination-btn prev disabled" title="Página anterior">
+                            <i class="fas fa-angle-left"></i>
+                        </span>
                     <?php endif; ?>
 
                     <?php
-                    $inicio = max(1, $pagina_actual - 2);
-                    $fin = min($total_paginas, $pagina_actual + 2);
+                    // Calcular rango de páginas a mostrar
+                    $rango_inicio = max(1, $pagina_actual - 2);
+                    $rango_fin = min($total_paginas, $pagina_actual + 2);
                     
-                    for ($i = $inicio; $i <= $fin; $i++):
+                    // Ajustar para mostrar siempre 5 páginas cuando sea posible
+                    if ($rango_fin - $rango_inicio < 4) {
+                        if ($rango_inicio == 1) {
+                            $rango_fin = min($total_paginas, $rango_inicio + 4);
+                        } else {
+                            $rango_inicio = max(1, $rango_fin - 4);
+                        }
+                    }
+                    
+                    // Mostrar "..." si hay páginas anteriores
+                    if ($rango_inicio > 1): ?>
+                        <a href="<?php echo buildUrl(['pagina' => 1]); ?>" class="pagination-btn">1</a>
+                        <?php if ($rango_inicio > 2): ?>
+                            <span class="pagination-ellipsis">...</span>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                    
+                    <?php
+                    // Mostrar páginas en el rango
+                    for ($i = $rango_inicio; $i <= $rango_fin; $i++):
                     ?>
                         <?php if ($i == $pagina_actual): ?>
-                            <span class="pagination-btn current"><?php echo $i; ?></span>
+                            <span class="pagination-btn current" 
+                                  aria-label="Página actual, página <?php echo $i; ?>"
+                                  aria-current="page">
+                                <?php echo $i; ?>
+                            </span>
                         <?php else: ?>
-                            <a href="<?php echo buildUrl(['pagina' => $i]); ?>" class="pagination-btn"><?php echo $i; ?></a>
+                            <a href="<?php echo buildUrl(['pagina' => $i]); ?>" 
+                               class="pagination-btn"
+                               aria-label="Ir a la página <?php echo $i; ?>">
+                                <?php echo $i; ?>
+                            </a>
                         <?php endif; ?>
                     <?php endfor; ?>
-
-                    <?php if ($pagina_actual < $total_paginas): ?>
-                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>" class="pagination-btn next" title="Siguiente">
-                            <i class="fas fa-angle-right"></i>
-                        </a>
-                        <a href="<?php echo buildUrl(['pagina' => $total_paginas]); ?>" class="pagination-btn last" title="Última">
-                            <i class="fas fa-angle-double-right"></i>
+                    
+                    <?php
+                    // Mostrar "..." si hay páginas posteriores
+                    if ($rango_fin < $total_paginas): ?>
+                        <?php if ($rango_fin < $total_paginas - 1): ?>
+                            <span class="pagination-ellipsis">...</span>
+                        <?php endif; ?>
+                        <a href="<?php echo buildUrl(['pagina' => $total_paginas]); ?>" class="pagination-btn">
+                            <?php echo $total_paginas; ?>
                         </a>
                     <?php endif; ?>
+
+                    <?php if ($pagina_actual < $total_paginas): ?>
+                        <!-- Página siguiente -->
+                        <a href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>" 
+                           class="pagination-btn next" 
+                           title="Página siguiente"
+                           aria-label="Ir a la página siguiente">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                        
+                        <!-- Última página -->
+                        <a href="<?php echo buildUrl(['pagina' => $total_paginas]); ?>" 
+                           class="pagination-btn last" 
+                           title="Última página"
+                           aria-label="Ir a la última página">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    <?php else: ?>
+                        <!-- Botones deshabilitados -->
+                        <span class="pagination-btn next disabled" title="Página siguiente">
+                            <i class="fas fa-angle-right"></i>
+                        </span>
+                        <span class="pagination-btn last disabled" title="Última página">
+                            <i class="fas fa-angle-double-right"></i>
+                        </span>
+                    <?php endif; ?>
                 </nav>
+                
+                <!-- Información adicional -->
+                <div class="pagination-summary">
+                    <small>
+                        Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?>
+                    </small>
+                </div>
+            </div>
+            <?php else: ?>
+            <!-- No hay suficientes productos para paginación -->
+            <div class="pagination-container single-page">
+                <div class="pagination-info">
+                    <i class="fas fa-info-circle"></i>
+                    Mostrando todos los <?php echo number_format($total_productos); ?> productos
+                </div>
             </div>
             <?php endif; ?>
 
@@ -745,14 +834,25 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
     </section>
 </main>
 
-<!-- Carrito de Entrega -->
+<!-- Carrito de Entrega MEJORADO PARA ESQUINA DERECHA -->
 <div id="carritoEntrega" class="carrito-entrega">
     <div class="carrito-header">
         <div class="carrito-title">
-            <i class="fas fa-hand-holding"></i>
-            Productos para Entrega
+            <!-- Versión completa para pantallas normales -->
+            <span class="carrito-title-long">
+                <i class="fas fa-hand-holding"></i>
+                Productos para Entrega
+            </span>
+            
+            <!-- Versión corta para pantallas muy pequeñas -->
+            <span class="carrito-title-short">
+                <i class="fas fa-shopping-cart"></i>
+                Entrega
+            </span>
+            
             <span class="carrito-contador">0</span>
         </div>
+        <!-- El botón toggle se agrega dinámicamente -->
     </div>
     
     <div class="carrito-lista" id="carritoLista">
@@ -781,6 +881,8 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
         </div>
     </div>
 </div>
+
+<!-- El indicador se crea dinámicamente con JavaScript -->
 
 <!-- Modal de Entrega -->
 <div id="modalEntrega" class="modal-entrega">
