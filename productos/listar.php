@@ -268,60 +268,67 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
 </button>
 
 <!-- Sidebar Navigation -->
-<nav class="sidebar" id="sidebar">
+<nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
     <h2>GRUPO SEAL</h2>
     <ul>
         <li>
-            <a href="../dashboard.php">
+            <a href="../dashboard.php" aria-label="Ir a inicio">
                 <span><i class="fas fa-home"></i> Inicio</span>
             </a>
         </li>
 
+        <!-- Users Section - Only visible to administrators -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
-            <a href="#" aria-expanded="false">
+            <a href="#" aria-label="Menú Usuarios" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-users"></i> Usuarios</span>
                 <i class="fas fa-chevron-down"></i>
             </a>
-            <ul class="submenu">
-                <li><a href="../usuarios/registrar.php"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
-                <li><a href="../usuarios/listar.php"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
+            <ul class="submenu" role="menu">
+                <li><a href="../usuarios/registrar.php" role="menuitem"><i class="fas fa-user-plus"></i> Registrar Usuario</a></li>
+                <li><a href="../usuarios/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Usuarios</a></li>
             </ul>
         </li>
         <?php endif; ?>
 
+        <!-- Warehouses Section - Adjusted according to permissions -->
         <li class="submenu-container">
-            <a href="#" aria-expanded="false">
+            <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-warehouse"></i> Almacenes</span>
                 <i class="fas fa-chevron-down"></i>
             </a>
-            <ul class="submenu">
+            <ul class="submenu" role="menu">
                 <?php if ($usuario_rol == 'admin'): ?>
-                <li><a href="../almacenes/registrar.php"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
+                <li><a href="../almacenes/registrar.php" role="menuitem"><i class="fas fa-plus"></i> Registrar Almacén</a></li>
                 <?php endif; ?>
-                <li><a href="../almacenes/listar.php"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
+                <li><a href="../almacenes/listar.php" role="menuitem"><i class="fas fa-list"></i> Lista de Almacenes</a></li>
             </ul>
         </li>
         
+        <!-- Historial Section - Reemplaza la sección de Entregas -->
         <li class="submenu-container">
-            <a href="#" aria-expanded="false">
+            <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-history"></i> Historial</span>
                 <i class="fas fa-chevron-down"></i>
             </a>
-            <ul class="submenu">
-                <li><a href="../entregas/historial.php"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
-                <li><a href="../notificaciones/historial.php"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
+            <ul class="submenu" role="menu">
+                <li><a href="../entregas/historial.php"role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
+                <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
+                
             </ul>
         </li>
         
+        <!-- Notifications Section - Con badge rojo de notificaciones -->
         <li class="submenu-container">
-            <a href="#" aria-expanded="false">
-                <span><i class="fas fa-bell"></i> Notificaciones</span>
+            <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
+                <span>
+                    <i class="fas fa-bell"></i> Notificaciones
+                </span>
                 <i class="fas fa-chevron-down"></i>
             </a>
-            <ul class="submenu">
+            <ul class="submenu" role="menu">
                 <li>
-                    <a href="../notificaciones/pendientes.php">
+                    <a href="../notificaciones/pendientes.php" role="menuitem">
                         <i class="fas fa-clock"></i> Solicitudes Pendientes
                         <?php if ($total_pendientes > 0): ?>
                         <span class="badge-small"><?php echo $total_pendientes; ?></span>
@@ -331,32 +338,36 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
             </ul>
         </li>
 
+        <!-- Reports Section (Admin only) -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
-            <a href="#" aria-expanded="false">
+            <a href="#" aria-label="Menú Reportes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-chart-bar"></i> Reportes</span>
                 <i class="fas fa-chevron-down"></i>
             </a>
-            <ul class="submenu">
-                <li><a href="../reportes/inventario.php"><i class="fas fa-warehouse"></i> Inventario General</a></li>
-                <li><a href="../reportes/movimientos.php"><i class="fas fa-exchange-alt"></i> Movimientos</a></li>
-                <li><a href="../reportes/usuarios.php"><i class="fas fa-users"></i> Actividad de Usuarios</a></li>
+            <ul class="submenu" role="menu">
+                <li><a href="../reportes/inventario.php" role="menuitem"><i class="fas fa-warehouse"></i> Inventario General</a></li>
+                <li><a href="../reportes/movimientos.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Movimientos</a></li>
+                <li><a href="../reportes/usuarios.php" role="menuitem"><i class="fas fa-users"></i> Actividad de Usuarios</a></li>
             </ul>
         </li>
         <?php endif; ?>
 
+        <!-- User Profile -->
         <li class="submenu-container">
-            <a href="#" aria-expanded="false">
+            <a href="#" aria-label="Menú Perfil" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-user-circle"></i> Mi Perfil</span>
                 <i class="fas fa-chevron-down"></i>
             </a>
-            <ul class="submenu">
-                <li><a href="../perfil/cambiar-password.php"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
+            <ul class="submenu" role="menu">
+                
+                <li><a href="../perfil/cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
 
+        <!-- Logout -->
         <li>
-            <a href="#" onclick="manejarCerrarSesion(event)">
+            <a href="#" onclick="manejarCerrarSesion(event)" aria-label="Cerrar sesión">
                 <span><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</span>
             </a>
         </li>
