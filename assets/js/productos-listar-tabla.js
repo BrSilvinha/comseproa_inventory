@@ -1,6 +1,6 @@
 /* ============================================
    PRODUCTOS LISTAR - JAVASCRIPT COMPLETO MEJORADO
-   Con carrito persistente, esquina derecha y UX optimizada
+   Con carrito persistente, esquina derecha, UX optimizada y NAVEGACIÓN CONTEXTUAL
    ============================================ */
 
 // ===== VARIABLES GLOBALES =====
@@ -13,8 +13,15 @@ let carritoMinimizado = false;
 const CARRITO_STORAGE_KEY = 'productos_entrega_carrito';
 const MODO_STORAGE_KEY = 'productos_entrega_modo';
 
+// ⭐ VARIABLE GLOBAL PARA CONTEXTO
+let CONTEXTO_PARAMS = '';
+
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', function() {
+    // ⭐ OBTENER CONTEXTO DESDE EL BODY
+    CONTEXTO_PARAMS = document.body.dataset.context || '';
+    console.log('🔄 Contexto cargado:', CONTEXTO_PARAMS);
+    
     inicializarComponentes();
     configurarEventListeners();
     inicializarSidebar();
@@ -735,9 +742,10 @@ async function confirmarEntrega() {
     
     // Preparar datos para envío
     const datosEntrega = {
-        nombre_destinatario: nombre,
-        dni_destinatario: dni,
-        productos: JSON.stringify(carritoEntrega)
+        tipo_operacion: 'entrega_personal',
+        destinatario_nombre: nombre,
+        destinatario_dni: dni,
+        productos: carritoEntrega
     };
     
     // Mostrar indicador de carga
@@ -748,12 +756,12 @@ async function confirmarEntrega() {
     
     try {
         // LLAMADA REAL AL SERVIDOR
-        const response = await fetch('../entregas/Procesar_entrega.php', {
+        const response = await fetch('procesar_formulario.php', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: new URLSearchParams(datosEntrega)
+            body: JSON.stringify(datosEntrega)
         });
 
         const data = await response.json();
@@ -875,13 +883,28 @@ function actualizarClaseStock(element, cantidad) {
     }
 }
 
+// ⭐ ===== FUNCIONES DE NAVEGACIÓN CON CONTEXTO ===== ⭐
+function verProductoConContexto(id) {
+    const baseUrl = 'ver-producto.php?id=' + id;
+    const fullUrl = CONTEXTO_PARAMS ? baseUrl + '&from=' + encodeURIComponent(CONTEXTO_PARAMS) : baseUrl;
+    console.log('🔗 Navegando a ver producto con contexto:', fullUrl);
+    window.location.href = fullUrl;
+}
+
+function editarProductoConContexto(id) {
+    const baseUrl = 'editar.php?id=' + id;
+    const fullUrl = CONTEXTO_PARAMS ? baseUrl + '&from=' + encodeURIComponent(CONTEXTO_PARAMS) : baseUrl;
+    console.log('🔗 Navegando a editar producto con contexto:', fullUrl);
+    window.location.href = fullUrl;
+}
+
 // ===== FUNCIONES AUXILIARES =====
 function verProducto(id) {
-    window.location.href = `ver-producto.php?id=${id}`;
+    verProductoConContexto(id);
 }
 
 function editarProducto(id) {
-    window.location.href = `editar.php?id=${id}`;
+    editarProductoConContexto(id);
 }
 
 function eliminarProducto(id, nombre) {
@@ -1154,4 +1177,8 @@ window.minimizarCarrito = minimizarCarrito;
 window.expandirCarrito = expandirCarrito;
 window.ajustarTamañoCarrito = ajustarTamañoCarrito;
 
-console.log('🚀 Sistema de carrito de entrega completamente inicializado con todas las mejoras');
+// ⭐ FUNCIONES DE CONTEXTO EXPUESTAS GLOBALMENTE
+window.verProductoConContexto = verProductoConContexto;
+window.editarProductoConContexto = editarProductoConContexto;
+
+console.log('🚀 Sistema de productos con navegación contextual completamente inicializado');

@@ -32,6 +32,52 @@ if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
 
 $producto_id = $_GET['id'];
 
+// ⭐ OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
+$context_params = isset($_GET['from']) ? $_GET['from'] : '';
+parse_str($context_params, $context_array);
+
+// Función para construir URL de retorno inteligente
+function buildReturnUrl($context_array, $current_product) {
+    $base_url = 'listar.php';
+    $params = [];
+    
+    // Prioridad: categoría > almacén > default
+    if (isset($context_array['categoria_id']) && !empty($context_array['categoria_id'])) {
+        $params['categoria_id'] = $context_array['categoria_id'];
+    }
+    
+    if (isset($context_array['almacen_id']) && !empty($context_array['almacen_id'])) {
+        $params['almacen_id'] = $context_array['almacen_id'];
+    }
+    
+    if (isset($context_array['busqueda']) && !empty($context_array['busqueda'])) {
+        $params['busqueda'] = $context_array['busqueda'];
+    }
+    
+    if (isset($context_array['pagina']) && !empty($context_array['pagina'])) {
+        $params['pagina'] = $context_array['pagina'];
+    }
+    
+    // Si no hay contexto específico, usar el almacén del producto
+    if (empty($params)) {
+        $params['almacen_id'] = $current_product['almacen_id'];
+    }
+    
+    return $base_url . (!empty($params) ? '?' . http_build_query($params) : '');
+}
+
+// Función para obtener texto descriptivo del contexto
+function getContextDescription($context_array, $producto) {
+    if (isset($context_array['categoria_id']) && !empty($context_array['categoria_id'])) {
+        return 'Categoría: ' . htmlspecialchars($producto['categoria_nombre']);
+    } elseif (isset($context_array['almacen_id']) && !empty($context_array['almacen_id'])) {
+        return 'Almacén: ' . htmlspecialchars($producto['almacen_nombre']);
+    } elseif (isset($context_array['busqueda']) && !empty($context_array['busqueda'])) {
+        return 'Búsqueda: ' . htmlspecialchars($context_array['busqueda']);
+    }
+    return 'Lista de Productos';
+}
+
 // Obtener información del producto
 $sql = "SELECT p.*, c.nombre as categoria_nombre, a.nombre as almacen_nombre 
         FROM productos p 
@@ -50,6 +96,10 @@ if (!$producto) {
     header("Location: listar.php");
     exit();
 }
+
+// ⭐ CONSTRUIR URLs DE NAVEGACIÓN CON CONTEXTO
+$return_url = buildReturnUrl($context_array, $producto);
+$return_text = getContextDescription($context_array, $producto);
 
 // Obtener lista de categorías
 $sql_categorias = "SELECT id, nombre FROM categorias ORDER BY nombre";
@@ -103,7 +153,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 if ($stmt_update->execute()) {
                     $_SESSION['success'] = "✅ Producto actualizado con éxito.";
-                    header("Location: ver-producto.php?id=" . $producto_id);
+                    
+                    // ⭐ REDIRIGIR MANTENIENDO EL CONTEXTO
+                    $redirect_url = "ver-producto.php?id=" . $producto_id;
+                    if ($context_params) {
+                        $redirect_url .= '&from=' . urlencode($context_params);
+                    }
+                    header("Location: " . $redirect_url);
                     exit();
                 } else {
                     $error = "❌ Error al actualizar el producto: " . $stmt_update->error;
@@ -296,13 +352,13 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             Modifica la información del producto "<?php echo htmlspecialchars($producto['nombre']); ?>"
         </p>
         
-        <!-- Breadcrumb -->
+        <!-- ⭐ BREADCRUMB CON CONTEXTO -->
         <div class="breadcrumb">
             <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <a href="listar.php">Productos</a>
+            <a href="<?php echo $return_url; ?>"><?php echo $return_text; ?></a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <a href="ver-producto.php?id=<?php echo $producto_id; ?>"><?php echo htmlspecialchars($producto['nombre']); ?></a>
+            <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>"><?php echo htmlspecialchars($producto['nombre']); ?></a>
             <span><i class="fas fa-chevron-right"></i></span>
             <span class="current">Editar</span>
         </div>
@@ -521,7 +577,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     Guardar Cambios
                 </button>
                 
-                <a href="ver-producto.php?id=<?php echo $producto_id; ?>" class="btn-cancel">
+                <!-- ⭐ BOTÓN CANCELAR CON CONTEXTO -->
+                <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>" class="btn-cancel">
                     <i class="fas fa-times"></i>
                     Cancelar
                 </a>
@@ -530,7 +587,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 
         <div class="additional-actions">
             <div class="action-item">
-                <a href="ver-producto.php?id=<?php echo $producto_id; ?>" class="action-link">
+                <!-- ⭐ ENLACE VER PRODUCTO CON CONTEXTO -->
+                <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>" class="action-link">
                     <i class="fas fa-eye"></i>
                     <div>
                         <strong>Ver Detalle del Producto</strong>
@@ -540,11 +598,12 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </div>
             
             <div class="action-item">
-                <a href="listar.php?almacen_id=<?php echo $producto['almacen_id']; ?>" class="action-link">
+                <!-- ⭐ ENLACE LISTA CON CONTEXTO -->
+                <a href="<?php echo $return_url; ?>" class="action-link">
                     <i class="fas fa-list"></i>
                     <div>
-                        <strong>Lista de Productos</strong>
-                        <small>Ver productos del almacén</small>
+                        <strong><?php echo $return_text; ?></strong>
+                        <small>Volver a la lista de productos</small>
                     </div>
                 </a>
             </div>
@@ -565,8 +624,13 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript -->
+<!-- ⭐ JAVASCRIPT CON CONTEXTO -->
 <script>
+// Variables para el contexto
+const CONTEXT_PARAMS = '<?php echo urlencode($context_params); ?>';
+const RETURN_URL = '<?php echo $return_url; ?>';
+const PRODUCT_ID = <?php echo $producto_id; ?>;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos principales
     const menuToggle = document.getElementById('menuToggle');
@@ -802,11 +866,36 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
     }
 }
 
-// Función para eliminar producto
-function eliminarProducto(id, nombre) {
+// ⭐ FUNCIÓN PARA ELIMINAR PRODUCTO CON REDIRECCIÓN CONTEXTUAL
+async function eliminarProducto(id, nombre) {
     if (confirm(`¿Está seguro de que desea eliminar el producto "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
-        // Aquí iría la lógica para eliminar el producto
-        mostrarNotificacion('Funcionalidad de eliminar en desarrollo', 'warning');
+        mostrarNotificacion('Eliminando producto...', 'info');
+        
+        try {
+            const response = await fetch('eliminar_producto.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: id })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                mostrarNotificacion('Producto eliminado correctamente', 'exito');
+                
+                setTimeout(() => {
+                    // Redirigir a la lista con contexto
+                    window.location.href = RETURN_URL;
+                }, 2000);
+            } else {
+                mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            mostrarNotificacion('Error de conexión al eliminar el producto', 'error');
+        }
     }
 }
 

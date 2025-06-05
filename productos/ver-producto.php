@@ -25,6 +25,52 @@ if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
 
 $producto_id = $_GET['id'];
 
+// ⭐ OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
+$context_params = isset($_GET['from']) ? $_GET['from'] : '';
+parse_str($context_params, $context_array);
+
+// Función para construir URL de retorno inteligente
+function buildReturnUrl($context_array, $current_product) {
+    $base_url = 'listar.php';
+    $params = [];
+    
+    // Prioridad: categoría > almacén > default
+    if (isset($context_array['categoria_id']) && !empty($context_array['categoria_id'])) {
+        $params['categoria_id'] = $context_array['categoria_id'];
+    }
+    
+    if (isset($context_array['almacen_id']) && !empty($context_array['almacen_id'])) {
+        $params['almacen_id'] = $context_array['almacen_id'];
+    }
+    
+    if (isset($context_array['busqueda']) && !empty($context_array['busqueda'])) {
+        $params['busqueda'] = $context_array['busqueda'];
+    }
+    
+    if (isset($context_array['pagina']) && !empty($context_array['pagina'])) {
+        $params['pagina'] = $context_array['pagina'];
+    }
+    
+    // Si no hay contexto específico, usar el almacén del producto
+    if (empty($params)) {
+        $params['almacen_id'] = $current_product['almacen_id'];
+    }
+    
+    return $base_url . (!empty($params) ? '?' . http_build_query($params) : '');
+}
+
+// Función para obtener texto descriptivo del contexto
+function getContextDescription($context_array, $producto) {
+    if (isset($context_array['categoria_id']) && !empty($context_array['categoria_id'])) {
+        return 'Categoría: ' . htmlspecialchars($producto['categoria_nombre']);
+    } elseif (isset($context_array['almacen_id']) && !empty($context_array['almacen_id'])) {
+        return 'Almacén: ' . htmlspecialchars($producto['almacen_nombre']);
+    } elseif (isset($context_array['busqueda']) && !empty($context_array['busqueda'])) {
+        return 'Búsqueda: ' . htmlspecialchars($context_array['busqueda']);
+    }
+    return 'Lista de Productos';
+}
+
 // Obtener información completa del producto
 $sql = "SELECT p.*, c.nombre as categoria_nombre, a.nombre as almacen_nombre 
         FROM productos p 
@@ -43,6 +89,10 @@ if (!$producto) {
     header("Location: listar.php");
     exit();
 }
+
+// ⭐ CONSTRUIR URLs DE NAVEGACIÓN CON CONTEXTO
+$return_url = buildReturnUrl($context_array, $producto);
+$return_text = getContextDescription($context_array, $producto);
 
 // Verificar permisos de acceso (si no es admin, solo puede ver productos de su almacén)
 if ($usuario_rol != 'admin' && $usuario_almacen_id != $producto['almacen_id']) {
@@ -306,7 +356,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             
             <div class="header-actions">
                 <?php if ($usuario_rol == 'admin'): ?>
-                <button class="btn-action btn-edit" onclick="editarProducto(<?php echo $producto_id; ?>)" title="Editar producto">
+                <!-- ⭐ BOTÓN EDITAR CON CONTEXTO -->
+                <button class="btn-action btn-edit" onclick="editarProductoConContexto(<?php echo $producto_id; ?>)" title="Editar producto">
                     <i class="fas fa-edit"></i>
                     <span>Editar</span>
                 </button>
@@ -329,20 +380,19 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 </button>
                 <?php endif; ?>
                 
-                <a href="listar.php?almacen_id=<?php echo $producto['almacen_id']; ?>" class="btn-action btn-back">
+                <!-- ⭐ BOTÓN VOLVER CON CONTEXTO -->
+                <a href="<?php echo $return_url; ?>" class="btn-action btn-back">
                     <i class="fas fa-arrow-left"></i>
                     <span>Volver</span>
                 </a>
             </div>
         </div>
         
-        <!-- Breadcrumb -->
+        <!-- ⭐ BREADCRUMB CON CONTEXTO -->
         <nav class="breadcrumb" aria-label="Ruta de navegación">
             <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <a href="listar.php">Productos</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-            <a href="listar.php?almacen_id=<?php echo $producto['almacen_id']; ?>"><?php echo htmlspecialchars($producto['almacen_nombre']); ?></a>
+            <a href="<?php echo $return_url; ?>"><?php echo $return_text; ?></a>
             <span><i class="fas fa-chevron-right"></i></span>
             <span class="current"><?php echo htmlspecialchars($producto['nombre']); ?></span>
         </nav>
@@ -729,7 +779,116 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript -->
+<!-- ⭐ JAVASCRIPT CON FUNCIONES DE CONTEXTO -->
+<script>
+// Variables para el contexto
+const CONTEXT_PARAMS = '<?php echo urlencode($context_params); ?>';
+const PRODUCT_ID = <?php echo $producto_id; ?>;
+
+// ⭐ FUNCIÓN PARA EDITAR CON CONTEXTO
+function editarProductoConContexto(productoId) {
+    const baseUrl = 'editar.php?id=' + productoId;
+    const fullUrl = CONTEXT_PARAMS ? baseUrl + '&from=' + CONTEXT_PARAMS : baseUrl;
+    window.location.href = fullUrl;
+}
+
+// Función para abrir modal de transferencia
+function abrirModalTransferencia(button) {
+    const datos = {
+        id: button.dataset.id,
+        nombre: button.dataset.nombre,
+        almacen: button.dataset.almacen,
+        cantidad: button.dataset.cantidad
+    };
+    
+    // Usar la función del objeto global si existe
+    if (window.productosVer) {
+        window.productosVer.abrirModal(datos);
+    } else {
+        // Fallback simple
+        console.log('Abriendo modal para:', datos);
+    }
+}
+
+// Funciones de compatibilidad
+function cerrarModal() {
+    if (window.productosVer) {
+        window.productosVer.cerrarModal();
+    }
+}
+
+function adjustQuantity(increment) {
+    if (window.productosVer) {
+        window.productosVer.adjustQuantity(increment);
+    }
+}
+
+function editarProducto(id) {
+    editarProductoConContexto(id);
+}
+
+async function eliminarProducto(id, nombre) {
+    if (window.productosVer) {
+        // Usar el sistema de confirmación del objeto
+        const confirmado = await window.productosVer.confirmarAccion(
+            `¿Estás seguro que deseas eliminar el producto "${nombre}"? Esta acción no se puede deshacer.`,
+            'Eliminar Producto',
+            'danger'
+        );
+        
+        if (confirmado) {
+            window.productosVer.mostrarNotificacion('Eliminando producto...', 'info');
+            
+            try {
+                const response = await fetch('eliminar_producto.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ id: id })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    window.productosVer.mostrarNotificacion('Producto eliminado correctamente', 'exito');
+                    
+                    setTimeout(() => {
+                        window.location.href = '<?php echo $return_url; ?>';
+                    }, 2000);
+                } else {
+                    window.productosVer.mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                window.productosVer.mostrarNotificacion('Error de conexión al eliminar el producto', 'error');
+            }
+        }
+    } else {
+        // Fallback simple
+        if (confirm(`¿Estás seguro que deseas eliminar el producto "${nombre}"?`)) {
+            console.log('Eliminar producto ID:', id);
+        }
+    }
+}
+
+function manejarCerrarSesion(event) {
+    if (window.productosVer) {
+        window.productosVer.manejarCerrarSesion(event);
+    } else {
+        event.preventDefault();
+        if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+            window.location.href = '../logout.php';
+        }
+    }
+}
+</script>
+
+<!-- JavaScript principal -->
 <script src="../assets/js/productos-ver.js"></script>
 </body>
 </html>

@@ -25,6 +25,21 @@ $filtro_almacen_id = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : nul
 $filtro_categoria_id = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : null;
 $busqueda = isset($_GET['busqueda']) ? trim($_GET['busqueda']) : '';
 
+// ⭐ FUNCIÓN PARA CONSTRUIR PARÁMETROS DE CONTEXTO
+function construirParametrosContexto() {
+    global $filtro_almacen_id, $filtro_categoria_id, $busqueda, $pagina_actual;
+    
+    $params = [];
+    if ($filtro_almacen_id) $params['almacen_id'] = $filtro_almacen_id;
+    if ($filtro_categoria_id) $params['categoria_id'] = $filtro_categoria_id;
+    if (!empty($busqueda)) $params['busqueda'] = $busqueda;
+    if ($pagina_actual > 1) $params['pagina'] = $pagina_actual;
+    
+    return http_build_query($params);
+}
+
+$contexto_params = construirParametrosContexto();
+
 // Verificar permisos si hay filtro de almacén
 if ($filtro_almacen_id && $usuario_rol != 'admin' && $usuario_almacen_id != $filtro_almacen_id) {
     $_SESSION['error'] = "No tienes permiso para ver productos de este almacén";
@@ -238,7 +253,8 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
       data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
       data-user-id="<?php echo htmlspecialchars($_SESSION['user_id']); ?>"
       data-page="<?php echo $pagina_actual; ?>"
-      data-total-pages="<?php echo $total_paginas; ?>">
+      data-total-pages="<?php echo $total_paginas; ?>"
+      data-context="<?php echo htmlspecialchars($contexto_params); ?>">
 
 <!-- Indicador de carga -->
 <div id="loading-indicator" class="loading-indicator" style="display: none;">
@@ -611,8 +627,9 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                                 <!-- Acciones -->
                                 <td class="actions-cell">
                                     <div class="action-buttons">
+                                        <!-- ⭐ BOTÓN VER MODIFICADO CON CONTEXTO -->
                                         <button class="btn-action btn-view" 
-                                                onclick="verProducto(<?php echo $producto['id']; ?>)"
+                                                onclick="verProductoConContexto(<?php echo $producto['id']; ?>)"
                                                 title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </button>
@@ -636,8 +653,9 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                                         <?php endif; ?>
 
                                         <?php if ($usuario_rol == 'admin'): ?>
+                                        <!-- ⭐ BOTÓN EDITAR MODIFICADO CON CONTEXTO -->
                                         <button class="btn-action btn-edit" 
-                                                onclick="editarProducto(<?php echo $producto['id']; ?>)"
+                                                onclick="editarProductoConContexto(<?php echo $producto['id']; ?>)"
                                                 title="Editar producto">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -1038,7 +1056,35 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
 <!-- Container para notificaciones -->
 <div id="notificaciones-container"></div>
 
-<!-- JavaScript -->
+<!-- ⭐ JAVASCRIPT CON FUNCIONES DE CONTEXTO -->
+<script>
+// Variables globales para el contexto
+const CONTEXTO_PARAMS = document.body.dataset.context || '';
+
+// ⭐ FUNCIONES MODIFICADAS PARA INCLUIR CONTEXTO
+function verProductoConContexto(id) {
+    const baseUrl = 'ver-producto.php?id=' + id;
+    const fullUrl = CONTEXTO_PARAMS ? baseUrl + '&from=' + encodeURIComponent(CONTEXTO_PARAMS) : baseUrl;
+    window.location.href = fullUrl;
+}
+
+function editarProductoConContexto(id) {
+    const baseUrl = 'editar.php?id=' + id;
+    const fullUrl = CONTEXTO_PARAMS ? baseUrl + '&from=' + encodeURIComponent(CONTEXTO_PARAMS) : baseUrl;
+    window.location.href = fullUrl;
+}
+
+// Funciones de compatibilidad (mantener las originales también)
+function verProducto(id) {
+    verProductoConContexto(id);
+}
+
+function editarProducto(id) {
+    editarProductoConContexto(id);
+}
+</script>
+
+<!-- JavaScript principal -->
 <script src="../assets/js/productos-listar-tabla.js"></script>
 
 </body>
