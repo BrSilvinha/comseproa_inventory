@@ -406,7 +406,7 @@ $stmt->close();
             <i class="fas fa-user-plus"></i> Registrar Nuevo Usuario
         </a>
         <a href="../dashboard.php" style="background: #6c757d; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; margin: 0 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
-            <i class="fas fa-home"></i> Volver al Dashboard
+            <i class="fas fa-home"></i> Volver al Inicio
         </a>
     </div>
 </main>

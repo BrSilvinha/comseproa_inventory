@@ -279,7 +279,7 @@ $almacenes_result = $conn->query("SELECT id, nombre FROM almacenes");
                 <i class="fas fa-list"></i> Ver Lista de Usuarios
             </a>
             <a href="../dashboard.php" class="btn" style="background: #6c757d; color: white; text-decoration: none;">
-                <i class="fas fa-home"></i> Volver al Dashboard
+                <i class="fas fa-home"></i> Volver al Inicio
             </a>
         </div>
     </div>

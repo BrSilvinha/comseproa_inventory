@@ -476,7 +476,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
         </a>
         <?php else: ?>
         <a href="../dashboard.php" class="action-btn btn-back">
-            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+            <i class="fas fa-arrow-left"></i> Volver al Inicio
         </a>
         <?php endif; ?>
     </div>
