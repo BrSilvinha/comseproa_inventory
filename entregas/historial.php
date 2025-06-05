@@ -449,14 +449,6 @@ function generarUrlDescarga($formato, $almacen_id, $categoria_id = null, $filtro
                     <i class="fas fa-file-pdf"></i>
                     Descargar PDF
                 </button>
-                <button class="download-btn download-btn-excel" onclick="confirmarDescarga('excel')">
-                    <i class="fas fa-file-excel"></i>
-                    Descargar Excel
-                </button>
-                <button class="download-btn download-btn-csv" onclick="confirmarDescarga('csv')">
-                    <i class="fas fa-file-csv"></i>
-                    Descargar CSV
-                </button>
             </div>
 
             <div class="download-info">
