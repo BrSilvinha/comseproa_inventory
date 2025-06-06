@@ -15,6 +15,11 @@ $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario
 // Require database connection
 require_once "../config/database.php";
 
+// ===== CONFIGURACIÓN DE PAGINACIÓN =====
+$registros_por_pagina = 15; // Número de registros por página
+$pagina_actual = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
+$offset = ($pagina_actual - 1) * $registros_por_pagina;
+
 // ===== CONTAR SOLICITUDES PENDIENTES PARA EL BADGE =====
 $total_pendientes = 0;
 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
@@ -34,13 +39,28 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     $total_pendientes = $row_pendientes['total'];
 }
 
-// ===== OBTENER DATOS DE MOVIMIENTOS =====
+// ===== OBTENER DATOS DE MOVIMIENTOS CON PAGINACIÓN =====
 $filtro_fecha_inicio = isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : date('Y-m-01');
 $filtro_fecha_fin = isset($_GET['fecha_fin']) ? $_GET['fecha_fin'] : date('Y-m-t');
 $filtro_almacen = isset($_GET['almacen']) ? $_GET['almacen'] : '';
 $filtro_tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
 
-// Query para movimientos - USANDO LA TABLA CORRECTA 'movimientos'
+// Construir parámetros dinámicamente
+$param_fecha_inicio = $filtro_fecha_inicio . ' 00:00:00';
+$param_fecha_fin = $filtro_fecha_fin . ' 23:59:59';
+
+// Query base para contar total de registros
+$sql_count = "
+    SELECT COUNT(*) as total
+    FROM movimientos m
+    LEFT JOIN productos p ON m.producto_id = p.id
+    LEFT JOIN almacenes ao ON m.almacen_origen = ao.id
+    LEFT JOIN almacenes ad ON m.almacen_destino = ad.id
+    LEFT JOIN usuarios u ON m.usuario_id = u.id
+    WHERE m.fecha BETWEEN ? AND ?
+";
+
+// Query para movimientos con paginación
 $sql_movimientos = "
     SELECT 
         m.id,
@@ -61,47 +81,71 @@ $sql_movimientos = "
     WHERE m.fecha BETWEEN ? AND ?
 ";
 
-// Construir parámetros dinámicamente
-$param_fecha_inicio = $filtro_fecha_inicio . ' 00:00:00';
-$param_fecha_fin = $filtro_fecha_fin . ' 23:59:59';
+// Construir condiciones WHERE adicionales
+$where_conditions = "";
+$params_count = [];
+$params_data = [];
+$types_count = "ss";
+$types_data = "ss";
 
+// Agregar parámetros base
+$params_count[] = $param_fecha_inicio;
+$params_count[] = $param_fecha_fin;
+$params_data[] = $param_fecha_inicio;
+$params_data[] = $param_fecha_fin;
+
+// Filtros específicos según rol y parámetros
 if (!empty($filtro_almacen) && $usuario_rol == 'admin') {
-    $sql_movimientos .= " AND (m.almacen_origen = ? OR m.almacen_destino = ?)";
-    if (!empty($filtro_tipo)) {
-        $sql_movimientos .= " AND m.tipo = ?";
-        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
-        $stmt_movimientos = $conn->prepare($sql_movimientos);
-        $stmt_movimientos->bind_param("ssiss", $param_fecha_inicio, $param_fecha_fin, $filtro_almacen, $filtro_almacen, $filtro_tipo);
-    } else {
-        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
-        $stmt_movimientos = $conn->prepare($sql_movimientos);
-        $stmt_movimientos->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $filtro_almacen, $filtro_almacen);
-    }
+    $where_conditions .= " AND (m.almacen_origen = ? OR m.almacen_destino = ?)";
+    $params_count[] = $filtro_almacen;
+    $params_count[] = $filtro_almacen;
+    $params_data[] = $filtro_almacen;
+    $params_data[] = $filtro_almacen;
+    $types_count .= "ii";
+    $types_data .= "ii";
 } elseif ($usuario_rol != 'admin') {
-    $sql_movimientos .= " AND (m.almacen_origen = ? OR m.almacen_destino = ?)";
-    if (!empty($filtro_tipo)) {
-        $sql_movimientos .= " AND m.tipo = ?";
-        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
-        $stmt_movimientos = $conn->prepare($sql_movimientos);
-        $stmt_movimientos->bind_param("ssiss", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id, $filtro_tipo);
-    } else {
-        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
-        $stmt_movimientos = $conn->prepare($sql_movimientos);
-        $stmt_movimientos->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id);
-    }
-} else {
-    if (!empty($filtro_tipo)) {
-        $sql_movimientos .= " AND m.tipo = ?";
-        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
-        $stmt_movimientos = $conn->prepare($sql_movimientos);
-        $stmt_movimientos->bind_param("sss", $param_fecha_inicio, $param_fecha_fin, $filtro_tipo);
-    } else {
-        $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 100";
-        $stmt_movimientos = $conn->prepare($sql_movimientos);
-        $stmt_movimientos->bind_param("ss", $param_fecha_inicio, $param_fecha_fin);
-    }
+    $where_conditions .= " AND (m.almacen_origen = ? OR m.almacen_destino = ?)";
+    $params_count[] = $usuario_almacen_id;
+    $params_count[] = $usuario_almacen_id;
+    $params_data[] = $usuario_almacen_id;
+    $params_data[] = $usuario_almacen_id;
+    $types_count .= "ii";
+    $types_data .= "ii";
 }
 
+if (!empty($filtro_tipo)) {
+    $where_conditions .= " AND m.tipo = ?";
+    $params_count[] = $filtro_tipo;
+    $params_data[] = $filtro_tipo;
+    $types_count .= "s";
+    $types_data .= "s";
+}
+
+// Aplicar condiciones a ambas queries
+$sql_count .= $where_conditions;
+$sql_movimientos .= $where_conditions;
+
+// Ejecutar query de conteo
+$stmt_count = $conn->prepare($sql_count);
+if (!empty($params_count)) {
+    $stmt_count->bind_param($types_count, ...$params_count);
+}
+$stmt_count->execute();
+$result_count = $stmt_count->get_result();
+$total_registros = $result_count->fetch_assoc()['total'];
+$total_paginas = ceil($total_registros / $registros_por_pagina);
+
+// Agregar ORDER BY y LIMIT a la query de datos
+$sql_movimientos .= " ORDER BY m.fecha DESC LIMIT ? OFFSET ?";
+$params_data[] = $registros_por_pagina;
+$params_data[] = $offset;
+$types_data .= "ii";
+
+// Ejecutar query de datos
+$stmt_movimientos = $conn->prepare($sql_movimientos);
+if (!empty($params_data)) {
+    $stmt_movimientos->bind_param($types_data, ...$params_data);
+}
 $stmt_movimientos->execute();
 $result_movimientos = $stmt_movimientos->get_result();
 
@@ -140,6 +184,13 @@ if ($usuario_rol == 'admin') {
         }
     }
 }
+
+// Función para construir URL con parámetros
+function construirURL($pagina) {
+    $params = $_GET;
+    $params['pagina'] = $pagina;
+    return '?' . http_build_query($params);
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -166,6 +217,150 @@ if ($usuario_rol == 'admin') {
     
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
+    
+    <style>
+    /* Estilos para paginación */
+    .pagination-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e0e7ff;
+    }
+
+    .pagination-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .pagination-stats {
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .pagination-stats strong {
+        color: #1f2937;
+    }
+
+    .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .pagination-controls a,
+    .pagination-controls span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        min-width: 36px;
+        transition: all 0.2s ease;
+    }
+
+    .pagination-controls a:hover {
+        background: #f3f4f6;
+        border-color: #9ca3af;
+        transform: translateY(-1px);
+    }
+
+    .pagination-controls .current {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+        font-weight: 600;
+    }
+
+    .pagination-controls .disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .pagination-controls .prev,
+    .pagination-controls .next {
+        font-weight: 500;
+        padding: 8px 16px;
+    }
+
+    .pagination-controls .prev:hover,
+    .pagination-controls .next:hover {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    .records-per-page {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-left: auto;
+    }
+
+    .records-per-page select {
+        padding: 6px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: white;
+        color: #374151;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .records-per-page select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Responsive para paginación */
+    @media (max-width: 768px) {
+        .pagination-info {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .pagination-controls {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .records-per-page {
+            margin-left: 0;
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    /* Animación de carga */
+    .table-loading {
+        display: none;
+        text-align: center;
+        padding: 40px;
+        color: #6b7280;
+    }
+
+    .table-loading.active {
+        display: block;
+    }
+
+    .movimientos-table.loading {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    </style>
 </head>
 <body>
 
@@ -328,7 +523,9 @@ if ($usuario_rol == 'admin') {
             <h3><i class="fas fa-filter"></i> Filtros de Búsqueda</h3>
         </div>
         
-        <form class="filters-form" method="GET">
+        <form class="filters-form" method="GET" id="filtrosForm">
+            <input type="hidden" name="pagina" value="1">
+            
             <div class="filter-group">
                 <label class="filter-label">Fecha Inicio</label>
                 <input type="date" name="fecha_inicio" value="<?php echo $filtro_fecha_inicio; ?>" class="filter-control">
@@ -369,14 +566,109 @@ if ($usuario_rol == 'admin') {
         </form>
     </section>
 
+    <!-- Información de Paginación -->
+    <?php if ($total_registros > 0): ?>
+    <section class="pagination-section">
+        <div class="pagination-info">
+            <div class="pagination-stats">
+                <strong>
+                    <?php 
+                    $inicio = $offset + 1;
+                    $fin = min($offset + $registros_por_pagina, $total_registros);
+                    echo number_format($inicio) . '-' . number_format($fin) . ' de ' . number_format($total_registros) . ' movimientos';
+                    ?>
+                </strong>
+            </div>
+            
+            <div class="pagination-controls">
+                <?php if ($pagina_actual > 1): ?>
+                    <a href="<?php echo construirURL(1); ?>" class="prev">
+                        <i class="fas fa-angle-double-left"></i> Primera
+                    </a>
+                    <a href="<?php echo construirURL($pagina_actual - 1); ?>" class="prev">
+                        <i class="fas fa-angle-left"></i> Anterior
+                    </a>
+                <?php else: ?>
+                    <span class="prev disabled">
+                        <i class="fas fa-angle-double-left"></i> Primera
+                    </span>
+                    <span class="prev disabled">
+                        <i class="fas fa-angle-left"></i> Anterior
+                    </span>
+                <?php endif; ?>
+
+                <?php
+                // Lógica para mostrar números de página
+                $rango = 2;
+                $inicio_rango = max(1, $pagina_actual - $rango);
+                $fin_rango = min($total_paginas, $pagina_actual + $rango);
+
+                if ($inicio_rango > 1) {
+                    echo '<a href="' . construirURL(1) . '">1</a>';
+                    if ($inicio_rango > 2) {
+                        echo '<span>...</span>';
+                    }
+                }
+
+                for ($i = $inicio_rango; $i <= $fin_rango; $i++) {
+                    if ($i == $pagina_actual) {
+                        echo '<span class="current">' . $i . '</span>';
+                    } else {
+                        echo '<a href="' . construirURL($i) . '">' . $i . '</a>';
+                    }
+                }
+
+                if ($fin_rango < $total_paginas) {
+                    if ($fin_rango < $total_paginas - 1) {
+                        echo '<span>...</span>';
+                    }
+                    echo '<a href="' . construirURL($total_paginas) . '">' . $total_paginas . '</a>';
+                }
+                ?>
+
+                <?php if ($pagina_actual < $total_paginas): ?>
+                    <a href="<?php echo construirURL($pagina_actual + 1); ?>" class="next">
+                        Siguiente <i class="fas fa-angle-right"></i>
+                    </a>
+                    <a href="<?php echo construirURL($total_paginas); ?>" class="next">
+                        Última <i class="fas fa-angle-double-right"></i>
+                    </a>
+                <?php else: ?>
+                    <span class="next disabled">
+                        Siguiente <i class="fas fa-angle-right"></i>
+                    </span>
+                    <span class="next disabled">
+                        Última <i class="fas fa-angle-double-right"></i>
+                    </span>
+                <?php endif; ?>
+            </div>
+            
+            <div class="records-per-page">
+                <label for="registrosPorPagina">Mostrar:</label>
+                <select id="registrosPorPagina" onchange="cambiarRegistrosPorPagina(this.value)">
+                    <option value="10" <?php echo ($registros_por_pagina == 10) ? 'selected' : ''; ?>>10</option>
+                    <option value="25" <?php echo ($registros_por_pagina == 25) ? 'selected' : ''; ?>>25</option>
+                    <option value="50" <?php echo ($registros_por_pagina == 50) ? 'selected' : ''; ?>>50</option>
+                    <option value="100" <?php echo ($registros_por_pagina == 100) ? 'selected' : ''; ?>>100</option>
+                </select>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <!-- Tabla de Movimientos -->
     <section class="movimientos-table-section">
         <div class="table-header">
             <h3><i class="fas fa-table"></i> Detalle de Movimientos</h3>
         </div>
         
+        <div class="table-loading" id="tableLoading">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p>Cargando movimientos...</p>
+        </div>
+        
         <div class="table-responsive">
-            <table class="movimientos-table">
+            <table class="movimientos-table" id="movimientosTable">
                 <thead>
                     <tr>
                         <th><i class="fas fa-hashtag"></i> ID</th>
@@ -440,6 +732,31 @@ if ($usuario_rol == 'admin') {
             </table>
         </div>
     </section>
+
+    <!-- Paginación inferior -->
+    <?php if ($total_registros > 0 && $total_paginas > 1): ?>
+    <section class="pagination-section">
+        <div class="pagination-info">
+            <div class="pagination-stats">
+                Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?>
+            </div>
+            
+            <div class="pagination-controls">
+                <?php if ($pagina_actual > 1): ?>
+                    <a href="<?php echo construirURL($pagina_actual - 1); ?>" class="prev">
+                        <i class="fas fa-angle-left"></i> Anterior
+                    </a>
+                <?php endif; ?>
+
+                <?php if ($pagina_actual < $total_paginas): ?>
+                    <a href="<?php echo construirURL($pagina_actual + 1); ?>" class="next">
+                        Siguiente <i class="fas fa-angle-right"></i>
+                    </a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 </main>
 
 <!-- Container for dynamic notifications -->
@@ -505,7 +822,35 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    // Animación de entrada para las filas de la tabla
+    const tableRows = document.querySelectorAll('.movimientos-table tbody tr');
+    tableRows.forEach((row, index) => {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            row.style.transition = 'all 0.3s ease';
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
 });
+
+// Función para cambiar registros por página
+function cambiarRegistrosPorPagina(nuevaCantidad) {
+    const url = new URL(window.location);
+    url.searchParams.set('registros_por_pagina', nuevaCantidad);
+    url.searchParams.set('pagina', '1'); // Resetear a la primera página
+    
+    // Mostrar indicador de carga
+    document.getElementById('tableLoading').classList.add('active');
+    document.getElementById('movimientosTable').classList.add('loading');
+    
+    // Redirigir después de un breve delay para mostrar la animación
+    setTimeout(() => {
+        window.location.href = url.toString();
+    }, 300);
+}
 
 // Función para exportar movimientos a PDF
 function exportarMovimientosPDF() {
@@ -594,6 +939,24 @@ async function manejarCerrarSesion(event) {
         }, 1000);
     }
 }
+
+// Navegación con teclado para accesibilidad
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey) {
+        switch(e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                const prevBtn = document.querySelector('.pagination-controls .prev:not(.disabled)');
+                if (prevBtn) prevBtn.click();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                const nextBtn = document.querySelector('.pagination-controls .next:not(.disabled)');
+                if (nextBtn) nextBtn.click();
+                break;
+        }
+    }
+});
 </script>
 </body>
 </html>
