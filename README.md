@@ -164,7 +164,7 @@ COMSEPROA_INVENTORY/
 1. **Clonar/Descargar el proyecto**
 ```bash
 # Si tienes Git
-git clone [URL_DEL_REPOSITORIO]
+git clone (https://github.com/BrSilvinha/comseproa_inventory.git)
 
 # O descargar y extraer el ZIP
 ```
