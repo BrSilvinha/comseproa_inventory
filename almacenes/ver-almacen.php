@@ -482,10 +482,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <div class="quick-actions">
                     <h5>Acciones Rápidas</h5>
                     <div class="action-buttons">
-                        <a href="../productos/listar.php?almacen_id=<?php echo $almacen_id; ?>" class="quick-action-btn">
-                            <i class="fas fa-list"></i>
-                            Ver Inventario Completo
-                        </a>
                         
                         <?php if ($usuario_rol == 'admin'): ?>
                         <a href="../reportes/inventario.php?almacen_id=<?php echo $almacen_id; ?>" class="quick-action-btn">
