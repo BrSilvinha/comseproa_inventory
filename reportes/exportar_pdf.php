@@ -16,6 +16,10 @@ $user_name = $_SESSION["user_name"] ?? "Usuario";
 $tipo_reporte = $_GET['tipo'] ?? 'inventario';
 $almacen_id = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : null;
 
+// Parámetro para limitar registros en PDF
+$limite_registros = isset($_GET['limite']) ? (int)$_GET['limite'] : 100;
+$limite_registros = min($limite_registros, 1000); // Máximo 1000 registros para evitar PDFs muy grandes
+
 // Verificar permisos específicos
 if ($tipo_reporte == 'usuarios' && $usuario_rol != 'admin') {
     http_response_code(403);
@@ -32,11 +36,11 @@ switch($tipo_reporte) {
         $titulo_reporte = 'Reporte de Inventario';
         break;
     case 'movimientos':
-        $datos_reporte = obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id);
+        $datos_reporte = obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limite_registros);
         $titulo_reporte = 'Reporte de Movimientos';
         break;
     case 'usuarios':
-        $datos_reporte = obtenerDatosUsuarios($conn);
+        $datos_reporte = obtenerDatosUsuarios($conn, $limite_registros);
         $titulo_reporte = 'Reporte de Actividad de Usuarios';
         break;
     default:
@@ -134,11 +138,24 @@ function obtenerDatosInventario($conn, $almacen_id, $usuario_rol, $usuario_almac
     return $datos;
 }
 
-function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id) {
+function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limite_registros = 100) {
     $fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-01');
     $fecha_fin = $_GET['fecha_fin'] ?? date('Y-m-t');
+    $filtro_almacen = $_GET['almacen'] ?? '';
+    $filtro_tipo = $_GET['tipo'] ?? '';
     
-    $datos = ['fecha_inicio' => $fecha_inicio, 'fecha_fin' => $fecha_fin, 'stats' => [], 'movimientos' => []];
+    $datos = [
+        'fecha_inicio' => $fecha_inicio, 
+        'fecha_fin' => $fecha_fin, 
+        'stats' => [], 
+        'movimientos' => [],
+        'limite_aplicado' => $limite_registros,
+        'filtros_aplicados' => []
+    ];
+
+    // Registrar filtros aplicados
+    if ($filtro_almacen) $datos['filtros_aplicados'][] = "Almacén ID: $filtro_almacen";
+    if ($filtro_tipo) $datos['filtros_aplicados'][] = "Tipo: $filtro_tipo";
 
     // Estadísticas
     $param_fecha_inicio = $fecha_inicio . ' 00:00:00';
@@ -150,19 +167,38 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id) {
                   SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END) as rechazados
                   FROM movimientos WHERE fecha BETWEEN ? AND ?";
     
+    $where_conditions = "";
+    $params_stats = [$param_fecha_inicio, $param_fecha_fin];
+    $types_stats = "ss";
+
+    // Aplicar filtros a estadísticas
     if ($usuario_rol != 'admin') {
-        $sql_stats .= " AND (almacen_origen = ? OR almacen_destino = ?)";
-        $stmt = $conn->prepare($sql_stats);
-        $stmt->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id);
-    } else {
-        $stmt = $conn->prepare($sql_stats);
-        $stmt->bind_param("ss", $param_fecha_inicio, $param_fecha_fin);
+        $where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
+        $params_stats[] = $usuario_almacen_id;
+        $params_stats[] = $usuario_almacen_id;
+        $types_stats .= "ii";
     }
-    
+
+    if (!empty($filtro_almacen) && $usuario_rol == 'admin') {
+        $where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
+        $params_stats[] = $filtro_almacen;
+        $params_stats[] = $filtro_almacen;
+        $types_stats .= "ii";
+    }
+
+    if (!empty($filtro_tipo)) {
+        $where_conditions .= " AND tipo = ?";
+        $params_stats[] = $filtro_tipo;
+        $types_stats .= "s";
+    }
+
+    $sql_stats .= $where_conditions;
+    $stmt = $conn->prepare($sql_stats);
+    $stmt->bind_param($types_stats, ...$params_stats);
     $stmt->execute();
     $datos['stats'] = $stmt->get_result()->fetch_assoc();
 
-    // Detalle de movimientos
+    // Detalle de movimientos con los mismos filtros
     $sql_movimientos = "SELECT m.id, m.fecha, m.cantidad, m.estado, m.tipo as tipo_movimiento,
                         p.nombre as producto_nombre, CONCAT('PROD-', LPAD(p.id, 4, '0')) as producto_codigo,
                         ao.nombre as almacen_origen, ad.nombre as almacen_destino, u.nombre as usuario_nombre
@@ -173,31 +209,36 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id) {
                         LEFT JOIN usuarios u ON m.usuario_id = u.id
                         WHERE m.fecha BETWEEN ? AND ?";
 
-    if ($usuario_rol != 'admin') {
-        $sql_movimientos .= " AND (m.almacen_origen = ? OR m.almacen_destino = ?)";
-    }
-
-    $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT 50";
+    $sql_movimientos .= $where_conditions;
+    $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT ?";
     
-    if ($usuario_rol != 'admin') {
-        $stmt = $conn->prepare($sql_movimientos);
-        $stmt->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id);
-    } else {
-        $stmt = $conn->prepare($sql_movimientos);
-        $stmt->bind_param("ss", $param_fecha_inicio, $param_fecha_fin);
-    }
+    $params_mov = $params_stats;
+    $params_mov[] = $limite_registros;
+    $types_mov = $types_stats . "i";
     
+    $stmt = $conn->prepare($sql_movimientos);
+    $stmt->bind_param($types_mov, ...$params_mov);
     $stmt->execute();
     $datos['movimientos'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
     return $datos;
 }
 
-function obtenerDatosUsuarios($conn) {
+function obtenerDatosUsuarios($conn, $limite_registros = 50) {
     $fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-01');
     $fecha_fin = $_GET['fecha_fin'] ?? date('Y-m-t');
+    $filtro_usuario = $_GET['usuario'] ?? '';
     
-    $datos = ['fecha_inicio' => $fecha_inicio, 'fecha_fin' => $fecha_fin, 'stats' => [], 'usuarios' => []];
+    $datos = [
+        'fecha_inicio' => $fecha_inicio, 
+        'fecha_fin' => $fecha_fin, 
+        'stats' => [], 
+        'usuarios' => [],
+        'limite_aplicado' => $limite_registros,
+        'filtros_aplicados' => []
+    ];
+
+    if ($filtro_usuario) $datos['filtros_aplicados'][] = "Usuario ID: $filtro_usuario";
 
     $param_fecha_inicio = $fecha_inicio . ' 00:00:00';
     $param_fecha_fin = $fecha_fin . ' 23:59:59';
@@ -208,8 +249,15 @@ function obtenerDatosUsuarios($conn) {
                   (SELECT COUNT(*) FROM solicitudes_transferencia s WHERE s.fecha_solicitud BETWEEN ? AND ?) as total_actividades
                   FROM usuarios u WHERE u.estado = 'activo'";
     
-    $stmt = $conn->prepare($sql_stats);
-    $stmt->bind_param("ssss", $param_fecha_inicio, $param_fecha_fin, $param_fecha_inicio, $param_fecha_fin);
+    if (!empty($filtro_usuario)) {
+        $sql_stats .= " AND u.id = ?";
+        $stmt = $conn->prepare($sql_stats);
+        $stmt->bind_param("ssssi", $param_fecha_inicio, $param_fecha_fin, $param_fecha_inicio, $param_fecha_fin, $filtro_usuario);
+    } else {
+        $stmt = $conn->prepare($sql_stats);
+        $stmt->bind_param("ssss", $param_fecha_inicio, $param_fecha_fin, $param_fecha_inicio, $param_fecha_fin);
+    }
+    
     $stmt->execute();
     $datos['stats'] = $stmt->get_result()->fetch_assoc();
 
@@ -220,11 +268,19 @@ function obtenerDatosUsuarios($conn) {
                       a.nombre as almacen_nombre
                       FROM usuarios u
                       LEFT JOIN almacenes a ON u.almacen_id = a.id
-                      WHERE u.estado = 'activo'
-                      ORDER BY total_actividades DESC";
+                      WHERE u.estado = 'activo'";
     
-    $stmt = $conn->prepare($sql_actividad);
-    $stmt->bind_param("ssss", $param_fecha_inicio, $param_fecha_fin, $param_fecha_inicio, $param_fecha_fin);
+    if (!empty($filtro_usuario)) {
+        $sql_actividad .= " AND u.id = ?";
+        $sql_actividad .= " ORDER BY total_actividades DESC LIMIT ?";
+        $stmt = $conn->prepare($sql_actividad);
+        $stmt->bind_param("ssssii", $param_fecha_inicio, $param_fecha_fin, $param_fecha_inicio, $param_fecha_fin, $filtro_usuario, $limite_registros);
+    } else {
+        $sql_actividad .= " ORDER BY total_actividades DESC LIMIT ?";
+        $stmt = $conn->prepare($sql_actividad);
+        $stmt->bind_param("ssssi", $param_fecha_inicio, $param_fecha_fin, $param_fecha_inicio, $param_fecha_fin, $limite_registros);
+    }
+    
     $stmt->execute();
     $datos['usuarios'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -280,6 +336,20 @@ function obtenerDatosUsuarios($conn) {
             justify-content: space-between;
             margin-top: 15px;
             font-size: 10px;
+        }
+        
+        .filters-info {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+            font-size: 10px;
+        }
+        
+        .filters-info h4 {
+            margin-bottom: 5px;
+            font-size: 11px;
+            color: #0a253c;
         }
         
         .section {
@@ -362,7 +432,10 @@ function obtenerDatosUsuarios($conn) {
         
         @media print {
             .no-print { display: none !important; }
-            body { -webkit-print-color-adjust: exact; }
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+            }
         }
         
         .status-completado { color: #28a745; }
@@ -372,6 +445,16 @@ function obtenerDatosUsuarios($conn) {
         .stock-critical { color: #dc3545; font-weight: bold; }
         .stock-warning { color: #ffc107; font-weight: bold; }
         .stock-good { color: #28a745; font-weight: bold; }
+
+        .limite-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 8px 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #856404;
+        }
     </style>
 </head>
 <body>
@@ -396,6 +479,22 @@ function obtenerDatosUsuarios($conn) {
             <?php endif; ?>
         </div>
     </div>
+
+    <!-- Información de filtros aplicados -->
+    <?php if (isset($datos_reporte['filtros_aplicados']) && !empty($datos_reporte['filtros_aplicados'])): ?>
+    <div class="filters-info">
+        <h4>🔍 Filtros Aplicados:</h4>
+        <p><?php echo implode(' • ', $datos_reporte['filtros_aplicados']); ?></p>
+    </div>
+    <?php endif; ?>
+
+    <!-- Información de límite de registros -->
+    <?php if (isset($datos_reporte['limite_aplicado'])): ?>
+    <div class="limite-info">
+        <strong>📄 Nota:</strong> Este reporte muestra un máximo de <?php echo number_format($datos_reporte['limite_aplicado']); ?> registros. 
+        Para ver todos los registros, utilice la vista web con paginación.
+    </div>
+    <?php endif; ?>
 
     <?php if ($tipo_reporte == 'inventario'): ?>
         <!-- Reporte de Inventario -->
@@ -506,7 +605,7 @@ function obtenerDatosUsuarios($conn) {
         </div>
 
         <div class="section">
-            <div class="section-title">📋 Detalle de Movimientos</div>
+            <div class="section-title">📋 Detalle de Movimientos (Últimos <?php echo count($datos_reporte['movimientos']); ?> registros)</div>
             <table>
                 <thead>
                     <tr>
@@ -517,6 +616,7 @@ function obtenerDatosUsuarios($conn) {
                         <th>Origen</th>
                         <th>Destino</th>
                         <th>Usuario</th>
+                        <th>Tipo</th>
                         <th>Estado</th>
                     </tr>
                 </thead>
@@ -530,6 +630,7 @@ function obtenerDatosUsuarios($conn) {
                         <td><?php echo htmlspecialchars($mov['almacen_origen'] ?? 'Sistema'); ?></td>
                         <td><?php echo htmlspecialchars($mov['almacen_destino'] ?? 'Sistema'); ?></td>
                         <td><?php echo htmlspecialchars($mov['usuario_nombre']); ?></td>
+                        <td><?php echo ucfirst($mov['tipo_movimiento']); ?></td>
                         <td class="status-<?php echo $mov['estado']; ?>"><?php echo ucfirst($mov['estado']); ?></td>
                     </tr>
                     <?php endforeach; ?>
@@ -555,14 +656,14 @@ function obtenerDatosUsuarios($conn) {
                     <div class="stat-label">Promedio por Usuario</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">-</div>
-                    <div class="stat-label">Eficiencia</div>
+                    <div class="stat-value"><?php echo count($datos_reporte['usuarios']); ?></div>
+                    <div class="stat-label">En este reporte</div>
                 </div>
             </div>
         </div>
 
         <div class="section">
-            <div class="section-title">👥 Actividad por Usuario</div>
+            <div class="section-title">👥 Actividad por Usuario (Top <?php echo count($datos_reporte['usuarios']); ?>)</div>
             <table>
                 <thead>
                     <tr>
