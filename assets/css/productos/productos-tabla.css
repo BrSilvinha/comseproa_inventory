@@ -1228,101 +1228,6 @@ body {
     flex-wrap: wrap;
 }
 
-/* ===== RESPONSIVE ===== */
-@media (min-width: 1200px) {
-    .content {
-        margin-left: 280px;
-        padding-left: 40px;
-    }
-    
-    .sidebar {
-        left: 0;
-    }
-    
-    .menu-toggle {
-        display: none;
-    }
-}
-
-@media (max-width: 768px) {
-    .content {
-        padding: 20px 15px;
-    }
-    
-    .header-content {
-        flex-direction: column;
-        gap: 20px;
-    }
-    
-    .header-actions {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .table-container {
-        margin: -15px;
-        border-radius: 0;
-    }
-    
-    .carrito-entrega {
-        right: 10px;
-        bottom: 10px;
-        width: calc(100vw - 20px);
-        max-width: 350px;
-        max-height: 60vh;
-    }
-    
-    .pagination-container {
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .pagination {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    .pagination-btn {
-        min-width: 35px;
-        height: 35px;
-        font-size: 0.8rem;
-    }
-}
-
-@media (max-width: 576px) {
-    .header-info h1 {
-        font-size: 24px;
-    }
-    
-    .products-table {
-        font-size: 12px;
-    }
-    
-    .products-table th,
-    .products-table td {
-        padding: 10px 8px;
-    }
-    
-    .btn-action {
-        width: 32px;
-        height: 32px;
-        font-size: 12px;
-    }
-    
-    .carrito-entrega {
-        width: calc(100vw - 20px);
-    }
-    
-    .carrito-acciones {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .btn-carrito {
-        width: 100%;
-    }
-}
-
 /* ===== BOTONES DEL MODAL ===== */
 .btn-modal {
     padding: 12px 20px !important;
@@ -1480,4 +1385,168 @@ body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* ===== NOTIFICACIONES - CONSOLIDADO DESDE PHP ===== */
+#notificaciones-container {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    z-index: 9999 !important;
+    max-width: 400px !important;
+    pointer-events: none !important;
+}
+
+.notificacion {
+    position: relative !important;
+    pointer-events: auto !important;
+    z-index: 10000 !important;
+    animation: slideInFromTop 0.4s ease !important;
+    background: var(--bg-white);
+    border-radius: var(--border-radius);
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-lg);
+    border-left: 4px solid;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notificacion.exito {
+    border-left-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.notificacion.error {
+    border-left-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.notificacion.info {
+    border-left-color: var(--info-color);
+    color: var(--info-color);
+}
+
+.notificacion .cerrar {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 5px;
+    margin-left: auto;
+    opacity: 0.7;
+    transition: var(--transition);
+}
+
+.notificacion .cerrar:hover {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (min-width: 1200px) {
+    .content {
+        margin-left: 280px;
+        padding-left: 40px;
+    }
+    
+    .sidebar {
+        left: 0;
+    }
+    
+    .menu-toggle {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .content {
+        padding: 20px 15px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .table-container {
+        margin: -15px;
+        border-radius: 0;
+    }
+    
+    .carrito-entrega {
+        right: 10px;
+        bottom: 10px;
+        width: calc(100vw - 20px);
+        max-width: 350px;
+        max-height: 60vh;
+    }
+    
+    .pagination-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .pagination-btn {
+        min-width: 35px;
+        height: 35px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .header-info h1 {
+        font-size: 24px;
+    }
+    
+    .products-table {
+        font-size: 12px;
+    }
+    
+    .products-table th,
+    .products-table td {
+        padding: 10px 8px;
+    }
+    
+    .btn-action {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+    
+    .carrito-entrega {
+        width: calc(100vw - 20px);
+    }
+    
+    .carrito-acciones {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn-carrito {
+        width: 100%;
+    }
 }

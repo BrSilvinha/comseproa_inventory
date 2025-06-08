@@ -53,87 +53,135 @@ function obtenerDatosInventario($conn, $almacen_id, $usuario_rol, $usuario_almac
         return ['error' => 'No tienes permiso para ver este reporte'];
     }
 
-    $datos = ['almacen_info' => null, 'stats' => [], 'categorias' => [], 'productos_criticos' => [], 'productos_alto_stock' => []];
+    $datos = [
+        'almacen_info' => null, 
+        'stats' => [], 
+        'categorias' => [], 
+        'productos_criticos' => [], 
+        'productos_alto_stock' => []
+    ];
 
     // Información del almacén
     if ($almacen_id) {
         $stmt = $conn->prepare("SELECT nombre, ubicacion FROM almacenes WHERE id = ?");
         $stmt->bind_param("i", $almacen_id);
         $stmt->execute();
-        $datos['almacen_info'] = $stmt->get_result()->fetch_assoc();
+        $result = $stmt->get_result();
+        $datos['almacen_info'] = $result->fetch_assoc();
+        $stmt->close();
+    }
+
+    // Determinar qué almacén(es) consultar
+    $consultar_almacen_id = null;
+    if ($almacen_id) {
+        $consultar_almacen_id = $almacen_id;
+    } else if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $consultar_almacen_id = $usuario_almacen_id;
     }
 
     // Estadísticas generales
-    if ($almacen_id) {
-        $sql_stats = "SELECT COUNT(DISTINCT p.categoria_id) as total_categorias, COUNT(p.id) as total_productos, 
-                      COALESCE(SUM(p.cantidad), 0) as total_stock, COALESCE(AVG(p.cantidad), 0) as promedio_stock,
-                      COALESCE(MIN(p.cantidad), 0) as stock_minimo, COALESCE(MAX(p.cantidad), 0) as stock_maximo
-                      FROM productos p WHERE p.almacen_id = ?";
+    if ($consultar_almacen_id) {
+        $sql_stats = "SELECT 
+            COUNT(DISTINCT p.categoria_id) as total_categorias, 
+            COUNT(p.id) as total_productos, 
+            COALESCE(SUM(p.cantidad), 0) as total_stock, 
+            COALESCE(AVG(p.cantidad), 0) as promedio_stock,
+            COALESCE(MIN(p.cantidad), 0) as stock_minimo, 
+            COALESCE(MAX(p.cantidad), 0) as stock_maximo
+            FROM productos p 
+            WHERE p.almacen_id = ?";
         $stmt = $conn->prepare($sql_stats);
-        $stmt->bind_param("i", $almacen_id);
+        $stmt->bind_param("i", $consultar_almacen_id);
     } else {
-        $sql_stats = "SELECT COUNT(DISTINCT p.categoria_id) as total_categorias, COUNT(p.id) as total_productos, 
-                      COALESCE(SUM(p.cantidad), 0) as total_stock, COALESCE(AVG(p.cantidad), 0) as promedio_stock,
-                      COALESCE(MIN(p.cantidad), 0) as stock_minimo, COALESCE(MAX(p.cantidad), 0) as stock_maximo
-                      FROM productos p";
+        $sql_stats = "SELECT 
+            COUNT(DISTINCT p.categoria_id) as total_categorias, 
+            COUNT(p.id) as total_productos, 
+            COALESCE(SUM(p.cantidad), 0) as total_stock, 
+            COALESCE(AVG(p.cantidad), 0) as promedio_stock,
+            COALESCE(MIN(p.cantidad), 0) as stock_minimo, 
+            COALESCE(MAX(p.cantidad), 0) as stock_maximo
+            FROM productos p";
         $stmt = $conn->prepare($sql_stats);
     }
     
     $stmt->execute();
-    $datos['stats'] = $stmt->get_result()->fetch_assoc();
+    $result = $stmt->get_result();
+    $datos['stats'] = $result->fetch_assoc();
+    $stmt->close();
 
     // Productos por categoría
-    if ($almacen_id) {
-        $sql_categorias = "SELECT c.nombre, COUNT(p.id) as total_productos, COALESCE(SUM(p.cantidad), 0) as total_stock
-                          FROM categorias c LEFT JOIN productos p ON c.id = p.categoria_id AND p.almacen_id = ?
-                          GROUP BY c.id, c.nombre ORDER BY total_stock DESC";
+    if ($consultar_almacen_id) {
+        $sql_categorias = "SELECT c.nombre, 
+            COUNT(p.id) as total_productos,
+            COALESCE(SUM(p.cantidad), 0) as total_stock
+            FROM categorias c
+            LEFT JOIN productos p ON c.id = p.categoria_id AND p.almacen_id = ?
+            GROUP BY c.id, c.nombre 
+            ORDER BY total_stock DESC";
         $stmt = $conn->prepare($sql_categorias);
-        $stmt->bind_param("i", $almacen_id);
+        $stmt->bind_param("i", $consultar_almacen_id);
     } else {
-        $sql_categorias = "SELECT c.nombre, COUNT(p.id) as total_productos, COALESCE(SUM(p.cantidad), 0) as total_stock
-                          FROM categorias c LEFT JOIN productos p ON c.id = p.categoria_id
-                          GROUP BY c.id, c.nombre ORDER BY total_stock DESC";
+        $sql_categorias = "SELECT c.nombre, 
+            COUNT(p.id) as total_productos,
+            COALESCE(SUM(p.cantidad), 0) as total_stock
+            FROM categorias c
+            LEFT JOIN productos p ON c.id = p.categoria_id
+            GROUP BY c.id, c.nombre 
+            ORDER BY total_stock DESC";
         $stmt = $conn->prepare($sql_categorias);
     }
     
     $stmt->execute();
-    $datos['categorias'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = $stmt->get_result();
+    $datos['categorias'] = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 
     // Productos con stock crítico
-    if ($almacen_id) {
+    if ($consultar_almacen_id) {
         $sql_critico = "SELECT p.nombre, p.cantidad, c.nombre as categoria 
-                        FROM productos p JOIN categorias c ON p.categoria_id = c.id 
-                        WHERE p.almacen_id = ? AND p.cantidad < 10 ORDER BY p.cantidad ASC";
+                        FROM productos p 
+                        JOIN categorias c ON p.categoria_id = c.id 
+                        WHERE p.almacen_id = ? AND p.cantidad < 10 
+                        ORDER BY p.cantidad ASC";
         $stmt = $conn->prepare($sql_critico);
-        $stmt->bind_param("i", $almacen_id);
+        $stmt->bind_param("i", $consultar_almacen_id);
     } else {
         $sql_critico = "SELECT p.nombre, p.cantidad, c.nombre as categoria, a.nombre as almacen 
-                        FROM productos p JOIN categorias c ON p.categoria_id = c.id 
+                        FROM productos p 
+                        JOIN categorias c ON p.categoria_id = c.id 
                         JOIN almacenes a ON p.almacen_id = a.id 
-                        WHERE p.cantidad < 10 ORDER BY p.cantidad ASC";
+                        WHERE p.cantidad < 10 
+                        ORDER BY p.cantidad ASC";
         $stmt = $conn->prepare($sql_critico);
     }
     
     $stmt->execute();
-    $datos['productos_criticos'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = $stmt->get_result();
+    $datos['productos_criticos'] = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 
     // Top 10 productos con mayor stock
-    if ($almacen_id) {
+    if ($consultar_almacen_id) {
         $sql_alto = "SELECT p.nombre, p.cantidad, c.nombre as categoria
-                     FROM productos p JOIN categorias c ON p.categoria_id = c.id
-                     WHERE p.almacen_id = ? ORDER BY p.cantidad DESC LIMIT 10";
+                     FROM productos p 
+                     JOIN categorias c ON p.categoria_id = c.id
+                     WHERE p.almacen_id = ? 
+                     ORDER BY p.cantidad DESC LIMIT 10";
         $stmt = $conn->prepare($sql_alto);
-        $stmt->bind_param("i", $almacen_id);
+        $stmt->bind_param("i", $consultar_almacen_id);
     } else {
         $sql_alto = "SELECT p.nombre, p.cantidad, c.nombre as categoria, a.nombre as almacen
-                     FROM productos p JOIN categorias c ON p.categoria_id = c.id
+                     FROM productos p 
+                     JOIN categorias c ON p.categoria_id = c.id
                      JOIN almacenes a ON p.almacen_id = a.id
                      ORDER BY p.cantidad DESC LIMIT 10";
         $stmt = $conn->prepare($sql_alto);
     }
     
     $stmt->execute();
-    $datos['productos_alto_stock'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = $stmt->get_result();
+    $datos['productos_alto_stock'] = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 
     return $datos;
 }
@@ -162,9 +210,9 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limi
     $param_fecha_fin = $fecha_fin . ' 23:59:59';
     
     $sql_stats = "SELECT COUNT(*) as total_movimientos,
-                  SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END) as completados,
-                  SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-                  SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END) as rechazados
+                  COALESCE(SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END), 0) as completados,
+                  COALESCE(SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END), 0) as pendientes,
+                  COALESCE(SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END), 0) as rechazados
                   FROM movimientos WHERE fecha BETWEEN ? AND ?";
     
     $where_conditions = "";
@@ -172,7 +220,7 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limi
     $types_stats = "ss";
 
     // Aplicar filtros a estadísticas
-    if ($usuario_rol != 'admin') {
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
         $where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
         $params_stats[] = $usuario_almacen_id;
         $params_stats[] = $usuario_almacen_id;
@@ -186,7 +234,7 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limi
         $types_stats .= "ii";
     }
 
-    if (!empty($filtro_tipo)) {
+    if (!empty($filtro_tipo) && in_array($filtro_tipo, ['entrada', 'salida', 'transferencia', 'ajuste'])) {
         $where_conditions .= " AND tipo = ?";
         $params_stats[] = $filtro_tipo;
         $types_stats .= "s";
@@ -197,6 +245,7 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limi
     $stmt->bind_param($types_stats, ...$params_stats);
     $stmt->execute();
     $datos['stats'] = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 
     // Detalle de movimientos con los mismos filtros
     $sql_movimientos = "SELECT m.id, m.fecha, m.cantidad, m.estado, m.tipo as tipo_movimiento,
@@ -220,6 +269,7 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limi
     $stmt->bind_param($types_mov, ...$params_mov);
     $stmt->execute();
     $datos['movimientos'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 
     return $datos;
 }
@@ -260,6 +310,7 @@ function obtenerDatosUsuarios($conn, $limite_registros = 50) {
     
     $stmt->execute();
     $datos['stats'] = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 
     // Actividad por usuario
     $sql_actividad = "SELECT u.id as usuario_id, u.nombre as usuario_nombre, u.correo as usuario_email, u.rol,
@@ -283,8 +334,131 @@ function obtenerDatosUsuarios($conn, $limite_registros = 50) {
     
     $stmt->execute();
     $datos['usuarios'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 
     return $datos;
+}
+
+// Verificar errores antes de mostrar el reporte
+if (isset($datos_reporte['error'])) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Error en Reporte - GRUPO SEAL</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                padding: 50px; 
+                text-align: center; 
+                background: #f8f9fa;
+            }
+            .error { 
+                color: #dc3545; 
+                background: #f8d7da; 
+                padding: 30px; 
+                border-radius: 10px;
+                border: 1px solid #f5c6cb;
+                max-width: 600px;
+                margin: 0 auto;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .error h2 { margin-top: 0; }
+            .btn {
+                display: inline-block;
+                background: #007bff;
+                color: white;
+                padding: 10px 20px;
+                text-decoration: none;
+                border-radius: 5px;
+                margin: 10px;
+            }
+            .btn:hover { background: #0056b3; }
+        </style>
+    </head>
+    <body>
+        <div class="error">
+            <h2>❌ Error al generar el reporte</h2>
+            <p><?php echo htmlspecialchars($datos_reporte['error']); ?></p>
+            <div>
+                <a href="javascript:history.back()" class="btn">« Volver</a>
+                <a href="../dashboard.php" class="btn">🏠 Dashboard</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit();
+}
+
+// Verificar si hay datos para mostrar
+$hay_datos = false;
+if ($tipo_reporte == 'inventario') {
+    $hay_datos = !empty($datos_reporte['stats']) && $datos_reporte['stats']['total_productos'] > 0;
+} else {
+    $hay_datos = !empty($datos_reporte) && !empty($datos_reporte['stats']);
+}
+
+if (!$hay_datos) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Sin datos - GRUPO SEAL</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                padding: 50px; 
+                text-align: center;
+                background: #f8f9fa;
+            }
+            .warning { 
+                color: #856404; 
+                background: #fff3cd; 
+                padding: 30px; 
+                border-radius: 10px;
+                border: 1px solid #ffeaa7;
+                max-width: 600px;
+                margin: 0 auto;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .warning h2 { margin-top: 0; }
+            .btn {
+                display: inline-block;
+                background: #007bff;
+                color: white;
+                padding: 10px 20px;
+                text-decoration: none;
+                border-radius: 5px;
+                margin: 10px;
+            }
+            .btn:hover { background: #0056b3; }
+            ul { text-align: left; display: inline-block; margin: 20px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="warning">
+            <h2>⚠️ Sin datos para mostrar</h2>
+            <p>No se encontraron datos para generar el reporte <strong><?php echo htmlspecialchars($titulo_reporte); ?></strong>.</p>
+            <p>Esto puede deberse a:</p>
+            <ul>
+                <li>🔒 Permisos insuficientes</li>
+                <li>📦 No hay productos registrados</li>
+                <li>🏪 No tienes almacén asignado</li>
+                <li>📅 Rango de fechas sin actividad</li>
+                <li>🔍 Filtros muy restrictivos</li>
+            </ul>
+            <div>
+                <a href="javascript:history.back()" class="btn">« Volver</a>
+                <a href="../dashboard.php" class="btn">🏠 Dashboard</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -606,6 +780,7 @@ function obtenerDatosUsuarios($conn, $limite_registros = 50) {
 
         <div class="section">
             <div class="section-title">📋 Detalle de Movimientos (Últimos <?php echo count($datos_reporte['movimientos']); ?> registros)</div>
+            <?php if (!empty($datos_reporte['movimientos'])): ?>
             <table>
                 <thead>
                     <tr>
@@ -636,6 +811,9 @@ function obtenerDatosUsuarios($conn, $limite_registros = 50) {
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            <?php else: ?>
+            <p style="text-align: center; padding: 20px; color: #666;">No se encontraron movimientos en el período seleccionado.</p>
+            <?php endif; ?>
         </div>
 
     <?php elseif ($tipo_reporte == 'usuarios'): ?>
