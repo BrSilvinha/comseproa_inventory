@@ -1,0 +1,67 @@
+RewriteEngine On
+
+# ===== REGLAS PARA ALMACENES (SIN IDs VISIBLES) =====
+RewriteRule ^almacenes/?$ almacenes/listar.php [L,QSA]
+RewriteRule ^almacenes/registrar/?$ almacenes/registrar.php [L,QSA]
+RewriteRule ^almacenes/ver/?$ almacenes/ver-almacen.php [L,QSA]
+RewriteRule ^almacenes/editar/?$ almacenes/editar.php [L,QSA]
+RewriteRule ^almacenes/eliminar/?$ almacenes/eliminar-almacen.php [L,QSA]
+
+# ===== REGLAS PARA PRODUCTOS (SIN IDs VISIBLES) =====
+RewriteRule ^productos/?$ productos/listar.php [L,QSA]
+RewriteRule ^productos/registrar/?$ productos/registrar.php [L,QSA]
+RewriteRule ^productos/ver/?$ productos/ver-producto.php [L,QSA]
+RewriteRule ^productos/editar/?$ productos/editar.php [L,QSA]
+RewriteRule ^productos/eliminar/?$ productos/eliminar_producto.php [L,QSA]
+
+# ===== REGLAS PARA USUARIOS (SIN IDs VISIBLES) =====
+RewriteRule ^usuarios/?$ usuarios/listar.php [L,QSA]
+RewriteRule ^usuarios/registrar/?$ usuarios/registrar.php [L,QSA]
+RewriteRule ^usuarios/ver/?$ usuarios/ver-usuario.php [L,QSA]
+RewriteRule ^usuarios/editar/?$ usuarios/editar.php [L,QSA]
+RewriteRule ^usuarios/eliminar/?$ usuarios/eliminar_usuario.php [L,QSA]
+
+# ===== REGLAS PARA REPORTES =====
+RewriteRule ^reportes/inventario/?$ reportes/inventario.php [L,QSA]
+RewriteRule ^reportes/movimientos/?$ reportes/movimientos.php [L,QSA]
+RewriteRule ^reportes/usuarios/?$ reportes/usuarios.php [L,QSA]
+
+# ===== REGLAS PARA NOTIFICACIONES =====
+RewriteRule ^notificaciones/pendientes/?$ notificaciones/pendientes.php [L,QSA]
+RewriteRule ^notificaciones/historial/?$ notificaciones/historial.php [L,QSA]
+
+# ===== REGLAS PARA ENTREGAS =====
+RewriteRule ^entregas/historial/?$ entregas/historial.php [L,QSA]
+
+# ===== PÁGINA PRINCIPAL =====
+RewriteRule ^inicio/?$ dashboard.php [L,QSA]
+
+# ===== BLOQUEAR ACCESO DIRECTO A ARCHIVOS PHP CON PARÁMETROS =====
+RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s?] [NC]
+RewriteCond %{QUERY_STRING} ^.+$ [NC]
+RewriteRule ^(almacenes|productos|usuarios)/ - [F,L]
+
+# ===== CONFIGURACIONES ADICIONALES =====
+Options -Indexes
+DirectoryIndex dashboard.php index.php
+
+# ===== SEGURIDAD AVANZADA =====
+<Files ".htaccess">
+Order allow,deny
+Deny from all
+</Files>
+
+<Files "*.ini">
+Order allow,deny
+Deny from all
+</Files>
+
+# Bloquear acceso a archivos sensibles
+<FilesMatch "\.(inc|conf|config|log)$">
+Order allow,deny
+Deny from all
+</FilesMatch>
+
+# Ocultar información del servidor
+ServerTokens Prod
+ServerSignature Off
