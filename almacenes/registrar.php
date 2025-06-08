@@ -10,6 +10,7 @@ session_regenerate_id(true);
 
 require_once "../config/database.php";
 
+
 $mensaje = "";
 $error = "";
 $nombre = "";
@@ -18,6 +19,23 @@ $ubicacion = "";
 $user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
 $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
 $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
+
+// Contar solicitudes pendientes para el badge
+$sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+if ($usuario_rol != 'admin') {
+    $sql_pendientes .= " AND almacen_destino = ?";
+    $stmt_pendientes = $conn->prepare($sql_pendientes);
+    $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+    $stmt_pendientes->execute();
+    $result_pendientes = $stmt_pendientes->get_result();
+} else {
+    $result_pendientes = $conn->query($sql_pendientes);
+}
+
+$total_pendientes = 0;
+if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+    $total_pendientes = $row_pendientes['total'];
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!empty($_POST["nombre"]) && !empty($_POST["ubicacion"])) {
