@@ -83,8 +83,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico para registrar almacenes -->
-    <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    <link rel="stylesheet" href="../assets/css/almacenes-registrar.css">
+    <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
+    <link rel="stylesheet" href="../assets/css/almacen/almacenes-registrar.css">
 </head>
 <body>
 

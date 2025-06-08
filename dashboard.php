@@ -65,7 +65,7 @@ if ($result_pendientes) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
     <!-- CSS consistente con las otras páginas -->
-    <link rel="stylesheet" href="assets/css/listar-usuarios.css">
+    <link rel="stylesheet" href="assets/css/usuarios/listar-usuarios.css">
     <link rel="stylesheet" href="assets/css/dashboard-consistent.css">
     
     <!-- Favicons -->
@@ -265,7 +265,7 @@ if ($result_pendientes) {
                 </div>
             </a>
 
-            <a href="uniformes/historial_entregas_uniformes.php" class="dashboard-card notification-card" tabindex="0" aria-label="Gestión de uniformes">
+            <a href="entregas/historial.php" class="dashboard-card notification-card" tabindex="0" aria-label="Gestión de uniformes">
                 <h3><i class="fas fa-tshirt"></i> Gestión de Uniformes</h3>
                 <p>Administrar entregas de uniformes y equipamiento. Control de distribución de materiales.</p>
                 <div class="card-footer">

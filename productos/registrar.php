@@ -147,7 +147,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico para registrar productos -->
-    <link rel="stylesheet" href="../assets/css/productos-registrar.css">
+    <link rel="stylesheet" href="../assets/css/productos/productos-registrar.css">
 </head>
 <body>
 

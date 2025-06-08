@@ -239,7 +239,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico y limpio -->
-    <link rel="stylesheet" href="../assets/css/productos-tabla.css">
+    <link rel="stylesheet" href="../assets/css/productos/productos-tabla.css">
     
     
     <!-- Prefetch de páginas -->

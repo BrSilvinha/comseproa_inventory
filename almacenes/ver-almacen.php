@@ -125,8 +125,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico para ver almacén -->
-    <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    <link rel="stylesheet" href="../assets/css/almacenes-ver.css">
+    <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
+    <link rel="stylesheet" href="../assets/css/almacen/almacenes-ver.css">
 </head>
 <body data-almacen-id="<?php echo $almacen_id; ?>">
 

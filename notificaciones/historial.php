@@ -130,7 +130,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
     <!-- CSS específico para historial -->
-    <link rel="stylesheet" href="../assets/css/notificaciones-historial-specific.css">
+    
+    <link rel="stylesheet" href="../assets/css/notificaciones/notificaciones-historial-specific.css">
     
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">

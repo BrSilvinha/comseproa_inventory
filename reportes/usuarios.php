@@ -301,7 +301,7 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico para reportes de usuarios -->
-    <link rel="stylesheet" href="../assets/css/reportes-usuarios.css">
+    <link rel="stylesheet" href="../assets/css/reportes/reportes-usuarios.css">
     
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">

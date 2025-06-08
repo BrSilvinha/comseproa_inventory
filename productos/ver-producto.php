@@ -195,7 +195,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     
     <!-- CSS específico para ver producto - USAR ESTE EN LUGAR DEL ORIGINAL -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    <link rel="stylesheet" href="../assets/css/productos-ver.css">
+    <link rel="stylesheet" href="../assets/css/productos/productos-ver.css">
 </head>
 <body data-producto-id="<?php echo $producto_id; ?>" class="productos-ver-page">
 

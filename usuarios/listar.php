@@ -136,12 +136,8 @@ $stmt->close();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
     <!-- CSS consistente con dashboard -->
-    <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
+    <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
     
-    <!-- Favicons -->
-    <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
-    <link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
-</head>
 <body>
 
 <!-- Mobile hamburger menu button -->
