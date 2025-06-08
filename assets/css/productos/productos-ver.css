@@ -71,9 +71,9 @@ body {
     font-size: 18px;
 }
 
-/* ===== SIDEBAR ===== */
+/* ===== SIDEBAR Y NAVEGACIÓN ===== */
 .sidebar {
-    width: var(--ver-sidebar-width);
+    width: 260px;
     height: 100vh;
     background: linear-gradient(180deg, var(--list-primary) 0%, #164463 100%);
     color: var(--list-background);
@@ -81,27 +81,9 @@ body {
     top: 0;
     left: 0;
     padding: 20px 0;
-    transition: var(--list-transition);
+    transition: transform 0.3s ease;
     z-index: 999;
     box-shadow: 3px 0 15px rgba(0, 0, 0, 0.1);
-    overflow-y: auto;
-}
-
-.sidebar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4);
 }
 
 .sidebar h2 {
@@ -112,7 +94,6 @@ body {
     font-size: 24px;
     padding: 0 20px 20px;
     border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-    letter-spacing: 2px;
 }
 
 .sidebar ul {
@@ -122,7 +103,6 @@ body {
 
 .sidebar ul li {
     margin: 3px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .sidebar ul li a {
@@ -134,30 +114,13 @@ body {
     text-decoration: none;
     transition: var(--list-transition);
     border-left: 4px solid transparent;
-    position: relative;
-    overflow: hidden;
-}
-
-.sidebar ul li a::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    transition: left 0.6s ease;
-}
-
-.sidebar ul li a:hover::before {
-    left: 100%;
 }
 
 .sidebar ul li a:hover {
     background: rgba(255, 255, 255, 0.15);
     color: var(--list-background);
     border-left-color: var(--list-warning);
-    padding-left: 30px;
+    transform: translateX(8px);
 }
 
 .sidebar ul li a i {
@@ -167,18 +130,7 @@ body {
     text-align: center;
 }
 
-.sidebar ul li a span {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-/* ===== SUBMENÚS ===== */
-.submenu-container > a {
-    cursor: pointer;
-    justify-content: space-between;
-}
-
+/* Submenús */
 .submenu-container .submenu {
     display: none;
     background: rgba(0, 0, 0, 0.3);
@@ -192,79 +144,22 @@ body {
     animation: expandMenu 0.3s ease-out;
 }
 
-.submenu-container .submenu li {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.submenu-container .submenu li:last-child {
-    border-bottom: none;
-}
-
 .submenu-container .submenu li a {
-    padding: 12px 20px 12px 50px;
+    padding: 12px 20px;
     font-size: 14px;
     border-left: none;
     background: transparent;
-    color: rgba(255, 255, 255, 0.8);
 }
 
 .submenu-container .submenu li a:hover {
     background: rgba(255, 255, 255, 0.1);
-    padding-left: 55px;
-    color: white;
+    transform: translateX(5px);
 }
 
 .submenu-container > a .fa-chevron-down {
     transition: transform 0.3s ease;
-    margin-left: auto;
 }
 
-.submenu-container.activo > a .fa-chevron-down {
-    transform: rotate(180deg);
-}
-
-/* ===== BADGES ===== */
-.badge {
-    background: var(--list-danger);
-    color: white;
-    border-radius: 50%;
-    padding: 3px 7px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-left: 5px;
-    min-width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    animation: pulseBadge 2s infinite;
-}
-
-.badge-small {
-    background: var(--list-danger);
-    color: white;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 50%;
-    font-weight: 600;
-    margin-left: 8px;
-    min-width: 16px;
-    height: 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-@keyframes pulseBadge {
-    0%, 100% { 
-        transform: scale(1); 
-        opacity: 1; 
-    }
-    50% { 
-        transform: scale(1.1); 
-        opacity: 0.8; 
-    }
-}
 
 /* ===== CONTENIDO PRINCIPAL ===== */
 .content {
