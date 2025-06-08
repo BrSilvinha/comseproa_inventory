@@ -1,17 +1,44 @@
 <?php
 session_start();
 
-// Configurar cabeceras para JSON y evitar cache
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-cache, must-revalidate');
+// ⭐ DETECTAR SI ES PETICIÓN AJAX
+$is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+           strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
 
-// Función para enviar respuesta JSON y terminar ejecución
-function enviarRespuesta($success, $message, $data = []) {
-    echo json_encode(array_merge([
-        'success' => $success,
-        'message' => $message,
-        'timestamp' => date('Y-m-d H:i:s')
-    ], $data));
+// ⭐ CONFIGURAR CABECERAS SOLO SI ES AJAX
+if ($is_ajax) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-cache, must-revalidate');
+}
+
+// Función para enviar respuesta (JSON para AJAX, redirección para formularios normales)
+function enviarRespuesta($success, $message, $data = [], $redirect_url = null) {
+    global $is_ajax;
+    
+    if ($is_ajax) {
+        // ⭐ RESPUESTA AJAX (JSON)
+        $response = array_merge([
+            'success' => $success,
+            'message' => $message,
+            'timestamp' => date('Y-m-d H:i:s')
+        ], $data);
+        
+        echo json_encode($response, JSON_UNESCAPED_UNICODE);
+    } else {
+        // ⭐ RESPUESTA FORMULARIO NORMAL (REDIRECCIÓN)
+        if ($success) {
+            $_SESSION['success'] = $message;
+        } else {
+            $_SESSION['error'] = $message;
+        }
+        
+        // Determinar URL de redirección
+        if (!$redirect_url) {
+            $redirect_url = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../dashboard.php';
+        }
+        
+        header("Location: " . $redirect_url);
+    }
     exit();
 }
 
@@ -31,13 +58,13 @@ function limpiarDato($dato, $tipo = 'string') {
 // Verificar si el usuario ha iniciado sesión
 if (!isset($_SESSION["user_id"])) {
     http_response_code(401);
-    enviarRespuesta(false, 'Sesión expirada. Por favor, inicie sesión nuevamente.');
+    enviarRespuesta(false, 'Sesión expirada. Por favor, inicie sesión nuevamente.', [], '../views/login_form.php');
 }
 
 // Verificar que sea una petición POST
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     http_response_code(405);
-    enviarRespuesta(false, 'Método no permitido. Use POST.');
+    enviarRespuesta(false, 'Método no permitido. Use POST.', [], '../dashboard.php');
 }
 
 require_once "../config/database.php";
@@ -45,14 +72,13 @@ require_once "../config/database.php";
 // Verificar conexión a la base de datos
 if ($conn->connect_error) {
     http_response_code(500);
-    enviarRespuesta(false, 'Error de conexión a la base de datos.');
+    enviarRespuesta(false, 'Error de conexión a la base de datos.', [], '../dashboard.php');
 }
 
 // Obtener ID de usuario de la sesión
 $usuario_id = $_SESSION['user_id'];
 
 // ===== DETECTAR SI ES ENTREGA A PERSONAL =====
-// Leer el cuerpo de la petición para verificar si es JSON
 $input = file_get_contents('php://input');
 $json_data = null;
 
@@ -66,7 +92,9 @@ if (!empty($input)) {
 }
 
 try {
-    // Obtener y validar datos del formulario (transferencias normales)
+    // ===== PROCESAMIENTO DE TRANSFERENCIA NORMAL =====
+    
+    // Obtener y validar datos del formulario
     $datos = [
         'producto_id' => limpiarDato($_POST['producto_id'] ?? '', 'int'),
         'almacen_origen' => limpiarDato($_POST['almacen_origen'] ?? '', 'int'),
@@ -244,7 +272,16 @@ try {
     // Confirmar transacción (solicitud pendiente)
     $conn->commit();
     
-    enviarRespuesta(true, "Solicitud de transferencia enviada correctamente", [
+    // ⭐ DETERMINAR URL DE REDIRECCIÓN
+    $redirect_url = '../notificaciones/pendientes.php';
+    
+    // Si venimos de ver-producto.php, volver ahí
+    if (isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'ver-producto.php') !== false) {
+        $redirect_url = $_SERVER['HTTP_REFERER'];
+    }
+    
+    // ⭐ RESPUESTA EXITOSA
+    enviarRespuesta(true, "✅ Solicitud de transferencia enviada correctamente. La solicitud está pendiente de aprobación.", [
         'solicitud_id' => $solicitud_id,
         'estado' => 'pendiente',
         'almacen_destino' => $almacen_destino_info['nombre'],
@@ -252,7 +289,7 @@ try {
         'producto_nombre' => $producto['nombre'],
         'mensaje_proceso' => 'La solicitud está pendiente de aprobación por el almacén destino.',
         'siguiente_paso' => 'Puedes ver el estado en "Notificaciones > Solicitudes Pendientes"'
-    ]);
+    ], $redirect_url);
     
 } catch (mysqli_sql_exception $e) {
     // Rollback en caso de error de base de datos
@@ -293,6 +330,8 @@ try {
 
 // ===== FUNCIÓN PARA MANEJAR ENTREGAS A PERSONAL =====
 function manejarEntregaPersonal($conn, $usuario_id, $data) {
+    global $is_ajax;
+    
     try {
         // Validar datos requeridos
         if (empty($data['destinatario_nombre']) || empty($data['destinatario_dni']) || empty($data['productos'])) {

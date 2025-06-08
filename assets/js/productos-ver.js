@@ -1,26 +1,160 @@
 /* ============================================
-   PRODUCTOS VER - JAVASCRIPT COMPLETO
+   PRODUCTOS VER - JAVASCRIPT CORREGIDO
    ============================================ */
 
+// ===== VARIABLES GLOBALES =====
+let productosVer = null;
+
+// ===== CLASE PRINCIPAL =====
 class ProductosVer {
     constructor() {
+        this.modal = null;
+        this.form = null;
         this.maxStock = 0;
         this.inicializar();
-        this.configurarEventListeners();
     }
 
     inicializar() {
-        // Configurar sidebar - ESTO ES LO QUE FALTABA
+        console.log('🚀 Inicializando ProductosVer...');
+        
+        // Configurar elementos principales
+        this.modal = document.getElementById('modalTransferencia');
+        this.form = document.getElementById('formTransferencia');
+        
+        // Configurar componentes
         this.configurarSidebar();
-        
-        // Configurar controles de stock
         this.configurarControlesStock();
-        
-        // Configurar modal
         this.configurarModal();
-        
-        // Auto-cerrar alertas
         this.configurarAlertas();
+        this.configurarEventListeners();
+        
+        console.log('✅ ProductosVer inicializado correctamente');
+        console.log('Modal encontrado:', !!this.modal);
+        console.log('Form encontrado:', !!this.form);
+    }
+
+    configurarEventListeners() {
+        // ⭐ INTERCEPTAR FORMULARIO - ESTO ES LO MÁS IMPORTANTE
+        if (this.form) {
+            // Remover cualquier listener previo
+            this.form.removeEventListener('submit', this.handleFormSubmit);
+            
+            // Agregar nuevo listener
+            this.form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+            console.log('✅ Event listener agregado al formulario');
+        } else {
+            console.error('❌ No se encontró el formulario formTransferencia');
+        }
+
+        // Eventos globales
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.modal && this.modal.style.display === 'flex') {
+                this.cerrarModal();
+            }
+        });
+
+        // Cerrar modal al hacer clic fuera
+        if (this.modal) {
+            this.modal.addEventListener('click', (e) => {
+                if (e.target === this.modal) {
+                    this.cerrarModal();
+                }
+            });
+        }
+    }
+
+    // ⭐ FUNCIÓN PRINCIPAL PARA MANEJAR EL ENVÍO DEL FORMULARIO
+    async handleFormSubmit(e) {
+        e.preventDefault(); // ⭐ PREVENIR ENVÍO NORMAL
+        e.stopPropagation();
+        
+        console.log('🎯 Formulario interceptado correctamente');
+        
+        // Validar datos
+        const cantidad = parseInt(document.getElementById('cantidad_modal').value);
+        const almacenDestino = document.getElementById('almacen_destino_modal').value;
+        const productoNombre = document.getElementById('producto_nombre_modal').textContent;
+        
+        if (!almacenDestino) {
+            this.mostrarNotificacion('Debe seleccionar un almacén de destino', 'error');
+            return false;
+        }
+        
+        if (cantidad < 1 || cantidad > this.maxStock) {
+            this.mostrarNotificacion('La cantidad no es válida', 'error');
+            return false;
+        }
+
+        // Confirmar acción
+        const confirmado = await this.confirmarAccion(
+            `¿Confirma la transferencia de ${cantidad} unidades de "${productoNombre}" al almacén seleccionado?`,
+            'Confirmar Transferencia',
+            'warning'
+        );
+        
+        if (!confirmado) {
+            return false;
+        }
+
+        // Procesar transferencia
+        await this.procesarTransferencia();
+        return false; // ⭐ IMPORTANTE: Siempre retornar false
+    }
+
+    async procesarTransferencia() {
+        const submitButton = this.form.querySelector('.btn-confirm');
+        const originalText = submitButton.innerHTML;
+        
+        // Mostrar estado de carga
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transfiriendo...';
+        submitButton.disabled = true;
+        
+        this.mostrarNotificacion('Procesando transferencia...', 'info', 2000);
+
+        try {
+            const formData = new FormData(this.form);
+            
+            console.log('📤 Enviando datos por AJAX...');
+            
+            const response = await fetch('procesar_formulario.php', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest' // Identificar como AJAX
+                }
+            });
+
+            console.log('📥 Respuesta recibida:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Datos procesados:', data);
+
+            if (data.success) {
+                // ✅ ÉXITO
+                this.mostrarNotificacion('¡Transferencia solicitada exitosamente!', 'exito');
+                this.cerrarModal();
+                
+                // Recargar página después de 2 segundos
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                // ❌ ERROR DEL SERVIDOR
+                this.mostrarNotificacion(data.message || 'Error al procesar la transferencia', 'error');
+            }
+        } catch (error) {
+            // ❌ ERROR DE CONEXIÓN
+            console.error('Error en la transferencia:', error);
+            this.mostrarNotificacion('Error de conexión. Por favor, inténtelo de nuevo.', 'error');
+        } finally {
+            // Restaurar botón
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+        }
     }
 
     configurarSidebar() {
@@ -29,8 +163,7 @@ class ProductosVer {
         const mainContent = document.getElementById('main-content');
         const submenuContainers = document.querySelectorAll('.submenu-container');
 
-        // Toggle del menú móvil
-        if (menuToggle) {
+        if (menuToggle && sidebar) {
             menuToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('active');
                 if (mainContent) {
@@ -41,16 +174,14 @@ class ProductosVer {
                 if (sidebar.classList.contains('active')) {
                     icon.classList.remove('fa-bars');
                     icon.classList.add('fa-times');
-                    menuToggle.setAttribute('aria-label', 'Cerrar menú de navegación');
                 } else {
                     icon.classList.remove('fa-times');
                     icon.classList.add('fa-bars');
-                    menuToggle.setAttribute('aria-label', 'Abrir menú de navegación');
                 }
             });
         }
 
-        // Funcionalidad de submenús
+        // Submenús
         submenuContainers.forEach(container => {
             const link = container.querySelector('a');
             const submenu = container.querySelector('.submenu');
@@ -60,41 +191,33 @@ class ProductosVer {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     
-                    // Cerrar otros submenús
                     submenuContainers.forEach(otherContainer => {
                         if (otherContainer !== container) {
                             const otherSubmenu = otherContainer.querySelector('.submenu');
                             const otherChevron = otherContainer.querySelector('.fa-chevron-down');
-                            const otherLink = otherContainer.querySelector('a');
                             
-                            if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
+                            if (otherSubmenu?.classList.contains('activo')) {
                                 otherSubmenu.classList.remove('activo');
                                 if (otherChevron) {
                                     otherChevron.style.transform = 'rotate(0deg)';
-                                }
-                                if (otherLink) {
-                                    otherLink.setAttribute('aria-expanded', 'false');
                                 }
                             }
                         }
                     });
                     
-                    // Toggle submenu actual
                     submenu.classList.toggle('activo');
                     const isExpanded = submenu.classList.contains('activo');
                     
                     if (chevron) {
                         chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
                     }
-                    
-                    link.setAttribute('aria-expanded', isExpanded.toString());
                 });
             }
         });
 
-        // Cerrar menú móvil al hacer clic fuera
+        // Cerrar menú móvil
         document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768) {
+            if (window.innerWidth <= 768 && sidebar && menuToggle) {
                 if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
                     sidebar.classList.remove('active');
                     if (mainContent) {
@@ -104,44 +227,20 @@ class ProductosVer {
                     const icon = menuToggle.querySelector('i');
                     icon.classList.remove('fa-times');
                     icon.classList.add('fa-bars');
-                    menuToggle.setAttribute('aria-label', 'Abrir menú de navegación');
                 }
             }
-        });
-
-        // Navegación por teclado
-        document.addEventListener('keydown', (e) => {
-            // Cerrar menú móvil con Escape
-            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-                sidebar.classList.remove('active');
-                if (mainContent) {
-                    mainContent.classList.remove('with-sidebar');
-                }
-                menuToggle.focus();
-            }
-            
-            // Indicador visual para navegación por teclado
-            if (e.key === 'Tab') {
-                document.body.classList.add('keyboard-navigation');
-            }
-        });
-        
-        document.addEventListener('mousedown', () => {
-            document.body.classList.remove('keyboard-navigation');
         });
     }
 
     configurarControlesStock() {
         const stockButtons = document.querySelectorAll('.stock-btn');
-        console.log('🔧 Configurando controles de stock - Botones encontrados:', stockButtons.length);
+        console.log('🔧 Configurando controles de stock:', stockButtons.length);
         
         stockButtons.forEach(button => {
             button.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const productId = button.dataset.id;
                 const accion = button.dataset.accion;
-                
-                console.log('🖱️ Click en botón stock:', productId, accion);
                 
                 if (productId && accion) {
                     await this.actualizarStock(productId, accion, button);
@@ -151,82 +250,57 @@ class ProductosVer {
     }
 
     async actualizarStock(productId, accion, button) {
-        console.log('🔄 Actualizando stock:', productId, accion);
-        
-        // Buscar el elemento de cantidad actual
         const stockElement = document.getElementById('cantidad-actual');
-        if (!stockElement) {
-            console.error('No se encontró el elemento cantidad-actual');
-            this.mostrarNotificacion('Error: No se pudo encontrar el elemento de cantidad', 'error');
-            return;
-        }
+        if (!stockElement) return;
         
         const currentStock = parseInt(stockElement.textContent.replace(/,/g, ''));
-        console.log('Stock actual:', currentStock);
         
-        // Validar acción
         if (accion === 'restar' && currentStock <= 0) {
             this.mostrarNotificacion('No se puede reducir más el stock', 'error');
             return;
         }
 
-        // Deshabilitar botón temporalmente
         button.disabled = true;
-        button.classList.add('loading');
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
             const formData = new FormData();
             formData.append('producto_id', productId);
             formData.append('accion', accion);
 
-            console.log('📤 Enviando petición a actualizar_cantidad.php');
-            
             const response = await fetch('actualizar_cantidad.php', {
                 method: 'POST',
                 body: formData
             });
-
-            console.log('📥 Respuesta recibida:', response.status);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
-            console.log('Datos recibidos:', data);
 
             if (data.success) {
-                // Actualizar valor en la interfaz
                 stockElement.textContent = parseInt(data.nueva_cantidad).toLocaleString();
-                
-                // Actualizar clases de color según el nuevo stock
                 this.actualizarClasesStock(stockElement, data.nueva_cantidad);
-                
-                // Actualizar botón de transferencia
                 this.actualizarBotonTransferencia(data.nueva_cantidad);
-                
-                // Mostrar notificación de éxito
                 this.mostrarNotificacion(`Stock actualizado: ${data.nueva_cantidad} unidades`, 'exito');
                 
-                // Animar el cambio
+                // Animación
                 stockElement.style.transform = 'scale(1.2)';
-                stockElement.style.transition = 'transform 0.2s ease';
                 setTimeout(() => {
                     stockElement.style.transform = 'scale(1)';
                 }, 200);
-                
             } else {
                 this.mostrarNotificacion(data.message || 'Error al actualizar el stock', 'error');
             }
         } catch (error) {
-            console.error('❌ Error:', error);
+            console.error('Error:', error);
             this.mostrarNotificacion('Error de conexión al actualizar el stock', 'error');
         } finally {
-            // Rehabilitar botón
             button.disabled = false;
-            button.classList.remove('loading');
+            button.innerHTML = originalHtml;
             
-            // Actualizar estado del botón de restar
             if (accion === 'restar') {
                 const newStock = parseInt(stockElement.textContent.replace(/,/g, ''));
                 const decreaseBtn = document.querySelector('.stock-btn[data-accion="restar"]');
@@ -249,12 +323,6 @@ class ProductosVer {
             } else {
                 stockValue.classList.add('stock-good');
             }
-            
-            // Agregar efecto visual de actualización
-            stockValue.classList.add('updating');
-            setTimeout(() => {
-                stockValue.classList.remove('updating');
-            }, 500);
         }
     }
 
@@ -265,45 +333,30 @@ class ProductosVer {
         if (cantidad > 0) {
             transferButton.disabled = false;
             transferButton.style.opacity = '1';
-            transferButton.style.cursor = 'pointer';
             transferButton.dataset.cantidad = cantidad;
         } else {
             transferButton.disabled = true;
             transferButton.style.opacity = '0.6';
-            transferButton.style.cursor = 'not-allowed';
         }
     }
 
     configurarModal() {
-        const modal = document.getElementById('modalTransferencia');
-        const form = document.getElementById('formTransferencia');
-        
-        if (!modal || !form) return;
+        if (!this.modal) return;
 
         // Configurar botones de cerrar
-        const closeButtons = modal.querySelectorAll('.modal-close, .btn-cancel');
+        const closeButtons = this.modal.querySelectorAll('.modal-close, .btn-cancel');
         closeButtons.forEach(button => {
             button.addEventListener('click', () => this.cerrarModal());
         });
-
-        // Cerrar modal al hacer clic fuera
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.cerrarModal();
-            }
-        });
-
-        // Configurar formulario
-        form.addEventListener('submit', (e) => this.enviarFormulario(e));
 
         // Configurar controles de cantidad
         this.configurarControlesCantidad();
     }
 
     configurarControlesCantidad() {
-        const minusBtn = document.querySelector('#modalTransferencia .qty-btn.minus');
-        const plusBtn = document.querySelector('#modalTransferencia .qty-btn.plus');
-        const quantityInput = document.querySelector('#modalTransferencia .qty-input');
+        const minusBtn = this.modal?.querySelector('.qty-btn.minus');
+        const plusBtn = this.modal?.querySelector('.qty-btn.plus');
+        const quantityInput = this.modal?.querySelector('.qty-input');
 
         if (minusBtn && plusBtn && quantityInput) {
             minusBtn.addEventListener('click', () => this.adjustQuantity(-1));
@@ -319,74 +372,76 @@ class ProductosVer {
         alertas.forEach(alerta => {
             setTimeout(() => {
                 alerta.style.animation = 'slideOutUp 0.5s ease-in-out';
-                setTimeout(() => {
-                    alerta.remove();
-                }, 500);
+                setTimeout(() => alerta.remove(), 500);
             }, 5000);
         });
     }
 
-    configurarEventListeners() {
-        // Configurar eventos globales
-        document.addEventListener('keydown', (e) => {
-            // Cerrar modal con Escape
-            if (e.key === 'Escape') {
-                const modal = document.getElementById('modalTransferencia');
-                if (modal && modal.style.display === 'block') {
-                    this.cerrarModal();
+    // ⭐ FUNCIÓN PARA ABRIR MODAL
+    abrirModal(datos) {
+        if (!this.modal) {
+            console.error('❌ Modal no encontrado');
+            return;
+        }
+
+        console.log('📱 Abriendo modal con datos:', datos);
+
+        // Llenar datos del modal
+        const elements = {
+            'producto_id_modal': datos.id,
+            'almacen_origen_modal': datos.almacen,
+            'producto_nombre_modal': datos.nombre,
+            'stock_disponible_modal': `${datos.cantidad} unidades`
+        };
+
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (element.tagName === 'INPUT') {
+                    element.value = value;
+                } else {
+                    element.textContent = value;
                 }
             }
         });
-
-        // Manejar cerrar sesión
-        const logoutLinks = document.querySelectorAll('a[onclick*="manejarCerrarSesion"]');
-        logoutLinks.forEach(link => {
-            link.addEventListener('click', (e) => this.manejarCerrarSesion(e));
-        });
-    }
-
-    abrirModal(datos) {
-        const modal = document.getElementById('modalTransferencia');
-        if (!modal) return;
-
-        console.log('Abriendo modal con datos:', datos);
-
-        document.getElementById('producto_id_modal').value = datos.id;
-        document.getElementById('almacen_origen_modal').value = datos.almacen;
-        document.getElementById('producto_nombre_modal').textContent = datos.nombre;
-        document.getElementById('stock_disponible_modal').textContent = `${datos.cantidad} unidades`;
         
         const quantityInput = document.getElementById('cantidad_modal');
-        quantityInput.value = 1;
-        quantityInput.max = datos.cantidad;
+        if (quantityInput) {
+            quantityInput.value = 1;
+            quantityInput.max = datos.cantidad;
+        }
         
-        document.getElementById('almacen_destino_modal').value = '';
+        const almacenSelect = document.getElementById('almacen_destino_modal');
+        if (almacenSelect) {
+            almacenSelect.value = '';
+        }
         
         this.maxStock = parseInt(datos.cantidad);
         
-        modal.style.display = 'flex';
-        modal.setAttribute('aria-hidden', 'false');
+        // Mostrar modal
+        this.modal.style.display = 'flex';
+        this.modal.setAttribute('aria-hidden', 'false');
         
+        // Focus en input
         setTimeout(() => {
-            quantityInput.focus();
+            if (quantityInput) quantityInput.focus();
         }, 100);
         
         document.body.style.overflow = 'hidden';
     }
 
     cerrarModal() {
-        const modal = document.getElementById('modalTransferencia');
-        if (!modal) return;
+        if (!this.modal) return;
 
-        modal.style.display = 'none';
-        modal.setAttribute('aria-hidden', 'true');
-        
+        this.modal.style.display = 'none';
+        this.modal.setAttribute('aria-hidden', 'true');
         document.body.style.overflow = '';
         
-        const form = document.getElementById('formTransferencia');
-        if (form) {
-            form.reset();
+        if (this.form) {
+            this.form.reset();
         }
+        
+        console.log('📱 Modal cerrado');
     }
 
     adjustQuantity(increment) {
@@ -407,7 +462,7 @@ class ProductosVer {
         if (!quantityInput) return;
 
         const value = parseInt(quantityInput.value);
-        const submitButton = document.querySelector('#formTransferencia .btn-confirm');
+        const submitButton = this.form?.querySelector('.btn-confirm');
         
         if (value < 1 || value > this.maxStock || isNaN(value)) {
             quantityInput.style.borderColor = '#dc3545';
@@ -425,61 +480,6 @@ class ProductosVer {
                 submitButton.disabled = false;
                 submitButton.style.opacity = '1';
             }
-        }
-    }
-
-    async enviarFormulario(e) {
-        e.preventDefault();
-        
-        const submitButton = e.target.querySelector('.btn-confirm');
-        const originalText = submitButton.innerHTML;
-        
-        const cantidad = parseInt(document.getElementById('cantidad_modal').value);
-        const almacenDestino = document.getElementById('almacen_destino_modal').value;
-        
-        if (!almacenDestino) {
-            this.mostrarNotificacion('Debe seleccionar un almacén de destino', 'error');
-            return;
-        }
-        
-        if (cantidad < 1 || cantidad > this.maxStock) {
-            this.mostrarNotificacion('La cantidad no es válida', 'error');
-            return;
-        }
-
-        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transfiriendo...';
-        submitButton.disabled = true;
-
-        try {
-            const formData = new FormData(e.target);
-            
-            const response = await fetch('procesar_formulario.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.mostrarNotificacion(data.message, 'exito');
-                this.cerrarModal();
-                
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            } else {
-                this.mostrarNotificacion(data.message || 'Error al solicitar transferencia', 'error');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            this.mostrarNotificacion('Error de conexión al solicitar transferencia', 'error');
-        } finally {
-            submitButton.innerHTML = originalText;
-            submitButton.disabled = false;
         }
     }
 
@@ -513,7 +513,6 @@ class ProductosVer {
         };
 
         const notificacion = document.createElement('div');
-        notificacion.className = `notificacion ${tipo}`;
         notificacion.style.cssText = `
             background: white;
             border-left: 5px solid ${colores[tipo] || colores.info};
@@ -521,7 +520,6 @@ class ProductosVer {
             margin-bottom: 10px;
             border-radius: 0 8px 8px 0;
             box-shadow: 0 4px 12px rgba(10, 37, 60, 0.15);
-            position: relative;
             animation: slideInRight 0.4s ease;
             display: flex;
             align-items: center;
@@ -531,7 +529,7 @@ class ProductosVer {
         notificacion.innerHTML = `
             <i class="fas ${iconos[tipo] || iconos.info}" style="font-size: 20px; color: ${colores[tipo] || colores.info};"></i>
             <span style="flex: 1; color: #0a253c; font-weight: 500;">${mensaje}</span>
-            <button class="cerrar" aria-label="Cerrar notificación" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666; padding: 0;">&times;</button>
+            <button class="cerrar" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666;">&times;</button>
         `;
 
         container.appendChild(notificacion);
@@ -552,13 +550,22 @@ class ProductosVer {
         }
     }
 
+    async confirmarAccion(mensaje, titulo = 'Confirmar', tipo = 'info') {
+        return new Promise((resolve) => {
+            if (confirm(`${titulo}\n\n${mensaje}`)) {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+    }
+
     async manejarCerrarSesion(event) {
         event.preventDefault();
         
         const confirmado = await this.confirmarAccion(
             '¿Estás seguro que deseas cerrar sesión?',
-            'Cerrar Sesión',
-            'warning'
+            'Cerrar Sesión'
         );
         
         if (confirmado) {
@@ -568,21 +575,9 @@ class ProductosVer {
             }, 1000);
         }
     }
-
-    async confirmarAccion(mensaje, titulo = 'Confirmar', tipo = 'info') {
-        return new Promise((resolve) => {
-            // Usar el sistema de confirmaciones universal si está disponible
-            if (typeof confirmarAccion === 'function') {
-                resolve(confirmarAccion(mensaje, titulo, tipo));
-            } else {
-                // Fallback a confirm nativo
-                resolve(confirm(mensaje));
-            }
-        });
-    }
 }
 
-// Funciones globales para compatibilidad
+// ===== FUNCIONES GLOBALES =====
 function abrirModalTransferencia(button) {
     const datos = {
         id: button.dataset.id,
@@ -591,15 +586,23 @@ function abrirModalTransferencia(button) {
         cantidad: button.dataset.cantidad
     };
     
-    window.productosVer.abrirModal(datos);
+    if (productosVer) {
+        productosVer.abrirModal(datos);
+    } else {
+        console.error('❌ productosVer no está inicializado');
+    }
 }
 
 function cerrarModal() {
-    window.productosVer.cerrarModal();
+    if (productosVer) {
+        productosVer.cerrarModal();
+    }
 }
 
 function adjustQuantity(increment) {
-    window.productosVer.adjustQuantity(increment);
+    if (productosVer) {
+        productosVer.adjustQuantity(increment);
+    }
 }
 
 function editarProducto(id) {
@@ -607,88 +610,85 @@ function editarProducto(id) {
 }
 
 async function eliminarProducto(id, nombre) {
-    const confirmado = await window.productosVer.confirmarAccion(
+    if (!productosVer) return;
+    
+    const confirmado = await productosVer.confirmarAccion(
         `¿Estás seguro que deseas eliminar el producto "${nombre}"? Esta acción no se puede deshacer.`,
-        'Eliminar Producto',
-        'danger'
+        'Eliminar Producto'
     );
     
     if (confirmado) {
-        window.productosVer.mostrarNotificacion('Eliminando producto...', 'info');
+        productosVer.mostrarNotificacion('Eliminando producto...', 'info');
         
         try {
             const response = await fetch('eliminar_producto.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
 
             const data = await response.json();
 
             if (data.success) {
-                window.productosVer.mostrarNotificacion('Producto eliminado correctamente', 'exito');
-                
-                setTimeout(() => {
-                    window.location.href = 'listar.php';
-                }, 2000);
+                productosVer.mostrarNotificacion('Producto eliminado correctamente', 'exito');
+                setTimeout(() => window.location.href = 'listar.php', 2000);
             } else {
-                window.productosVer.mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
+                productosVer.mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            window.productosVer.mostrarNotificacion('Error de conexión al eliminar el producto', 'error');
+            productosVer.mostrarNotificacion('Error de conexión al eliminar el producto', 'error');
         }
     }
 }
 
 function manejarCerrarSesion(event) {
-    window.productosVer.manejarCerrarSesion(event);
+    if (productosVer) {
+        productosVer.manejarCerrarSesion(event);
+    }
 }
 
-// Agregar estilos CSS adicionales
-const additionalStyles = `
-    @keyframes slideInRight {
-        from { opacity: 0; transform: translateX(30px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes slideOutRight {
-        from { opacity: 1; transform: translateX(0); }
-        to { opacity: 0; transform: translateX(30px); }
-    }
-    @keyframes slideOutUp {
-        from { opacity: 1; transform: translateY(0); }
-        to { opacity: 0; transform: translateY(-20px); }
-    }
-    
-    /* Animación de actualización de stock */
-    .stock-value.updating {
-        animation: pulse 0.5s ease-in-out;
-    }
-    
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); background: var(--accent-color); color: white; }
-        100% { transform: scale(1); }
-    }
-`;
-
-// Inyectar estilos adicionales si no existen
+// ===== ESTILOS CSS =====
 if (!document.getElementById('productos-ver-animations')) {
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'productos-ver-animations';
-    styleSheet.textContent = additionalStyles;
-    document.head.appendChild(styleSheet);
+    const styles = document.createElement('style');
+    styles.id = 'productos-ver-animations';
+    styles.textContent = `
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideOutRight {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(30px); }
+        }
+        @keyframes slideOutUp {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+        .stock-value {
+            transition: transform 0.2s ease;
+        }
+    `;
+    document.head.appendChild(styles);
 }
 
-// Inicializar cuando el DOM esté listo
+// ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Inicializando ProductosVer...');
-    window.productosVer = new ProductosVer();
-    console.log('✅ ProductosVer inicializado correctamente');
+    console.log('🚀 Iniciando ProductosVer...');
+    productosVer = new ProductosVer();
+    
+    // Hacer disponible globalmente
+    window.productosVer = productosVer;
+    
+    console.log('✅ ProductosVer disponible globalmente');
 });
+
+// ===== DEBUG =====
+window.debugProductosVer = function() {
+    console.log('🔍 Estado de ProductosVer:', {
+        instancia: !!productosVer,
+        modal: !!productosVer?.modal,
+        form: !!productosVer?.form,
+        maxStock: productosVer?.maxStock
+    });
+};
