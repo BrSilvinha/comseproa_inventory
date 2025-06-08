@@ -241,6 +241,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
     <!-- CSS específico y limpio -->
     <link rel="stylesheet" href="../assets/css/productos-tabla.css">
     
+    
     <!-- Prefetch de páginas -->
     <?php if ($pagina_actual < $total_paginas): ?>
     <link rel="prefetch" href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>">
@@ -249,6 +250,40 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
     <link rel="prefetch" href="<?php echo buildUrl(['pagina' => $pagina_actual - 1]); ?>">
     <?php endif; ?>
 </head>
+<style>
+/* Corrección inmediata para notificaciones */
+#notificaciones-container {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    z-index: 9999 !important;
+    max-width: 400px !important;
+    pointer-events: none !important;
+}
+
+.notificacion {
+    position: relative !important;
+    pointer-events: auto !important;
+    z-index: 10000 !important;
+    animation: slideInFromTop 0.4s ease !important;
+}
+
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Asegurar que otros elementos no interfieran */
+.carrito-entrega { z-index: 1000 !important; }
+.modal, .modal-entrega { z-index: 9998 !important; }
+.sidebar { z-index: 999 !important; }
+</style>
 <body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" 
       data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
       data-user-id="<?php echo htmlspecialchars($_SESSION['user_id']); ?>"

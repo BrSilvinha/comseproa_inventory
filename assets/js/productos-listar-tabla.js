@@ -28,6 +28,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ⭐ AJUSTAR TAMAÑO INICIAL
     ajustarTamañoCarrito();
+    
+    // ⭐ CONFIGURAR CONTROLES DE STOCK CORREGIDOS
+    setTimeout(() => {
+        configurarControlesStock();
+    }, 100);
 });
 
 // ===== PERSISTENCIA DEL CARRITO =====
@@ -172,13 +177,6 @@ function configurarEventListeners() {
     if (btnEntregarPersonal) {
         btnEntregarPersonal.addEventListener('click', toggleModoSeleccion);
     }
-    
-    // Botones de stock (solo para admin)
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.stock-btn')) {
-            manejarCambioStock(e.target.closest('.stock-btn'));
-        }
-    });
     
     // Checkboxes de selección
     document.addEventListener('click', function(e) {
@@ -825,53 +823,215 @@ function adjustQuantity(change) {
     }
 }
 
-// ===== MANEJO DE STOCK =====
-function manejarCambioStock(button) {
+// ===== MANEJO DE STOCK CORREGIDO =====
+async function manejarCambioStock(button) {
     const productoId = button.dataset.id;
     const accion = button.dataset.accion;
     const stockElement = document.getElementById(`cantidad-${productoId}`);
+    
+    if (!stockElement) {
+        console.error('No se encontró el elemento de stock para el producto:', productoId);
+        mostrarNotificacion('Error: No se encontró el elemento de stock', 'error');
+        return;
+    }
+    
     const currentStock = parseInt(stockElement.textContent.replace(/,/g, ''));
     
-    // Deshabilitar botón temporalmente
+    // Validaciones previas
+    if (accion === 'restar' && currentStock <= 0) {
+        mostrarNotificacion('No se puede reducir más el stock. Ya está en 0.', 'warning');
+        return;
+    }
+    
+    // Deshabilitar botón y mostrar loading
     button.disabled = true;
+    const originalHtml = button.innerHTML;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     
-    // Simular llamada al servidor
-    setTimeout(() => {
-        let newStock = currentStock;
+    console.log(`🔄 Actualizando stock del producto ${productoId}: ${accion}`);
+    
+    try {
+        // ⭐ LLAMADA REAL AL SERVIDOR
+        const formData = new FormData();
+        formData.append('producto_id', productoId);
+        formData.append('accion', accion);
         
-        if (accion === 'sumar') {
-            newStock += 1;
-        } else if (accion === 'restar' && currentStock > 0) {
-            newStock -= 1;
+        console.log('📤 Enviando petición al servidor...');
+        
+        const response = await fetch('actualizar_cantidad.php', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        console.log('📥 Respuesta del servidor:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
         }
         
-        // Actualizar visualmente
-        stockElement.textContent = newStock.toLocaleString();
-        actualizarClaseStock(stockElement, newStock);
+        const data = await response.json();
+        console.log('📊 Datos recibidos:', data);
         
-        // Restaurar botón
+        if (data.success) {
+            // ✅ ACTUALIZACIÓN EXITOSA
+            const nuevaCantidad = parseInt(data.nueva_cantidad);
+            
+            // Actualizar el stock visualmente
+            stockElement.textContent = nuevaCantidad.toLocaleString();
+            
+            // Actualizar clases de stock (crítico, warning, bueno)
+            actualizarClaseStock(stockElement, nuevaCantidad);
+            
+            // Animación visual de éxito
+            stockElement.style.transform = 'scale(1.15)';
+            stockElement.style.color = '#28a745';
+            stockElement.style.fontWeight = 'bold';
+            
+            setTimeout(() => {
+                stockElement.style.transform = 'scale(1)';
+                stockElement.style.color = '';
+                stockElement.style.fontWeight = '';
+            }, 400);
+            
+            // Actualizar estado de botones
+            const allDecreaseButtons = document.querySelectorAll(`.stock-btn[data-id="${productoId}"][data-accion="restar"]`);
+            const allIncreaseButtons = document.querySelectorAll(`.stock-btn[data-id="${productoId}"][data-accion="sumar"]`);
+            
+            // Deshabilitar botón de restar si llegó a 0
+            allDecreaseButtons.forEach(btn => {
+                btn.disabled = nuevaCantidad <= 0;
+            });
+            
+            // Habilitar botón de sumar si estaba deshabilitado
+            allIncreaseButtons.forEach(btn => {
+                btn.disabled = false;
+            });
+            
+            // Actualizar botón de transferencia si existe
+            const transferButton = document.querySelector(`.btn-transfer[data-id="${productoId}"]`);
+            if (transferButton) {
+                if (nuevaCantidad > 0) {
+                    transferButton.disabled = false;
+                    transferButton.classList.remove('disabled');
+                    transferButton.dataset.cantidad = nuevaCantidad;
+                    transferButton.title = 'Transferir producto';
+                    transferButton.querySelector('i').className = 'fas fa-paper-plane';
+                } else {
+                    transferButton.disabled = true;
+                    transferButton.classList.add('disabled');
+                    transferButton.title = 'Sin stock disponible';
+                    transferButton.querySelector('i').className = 'fas fa-times';
+                }
+            }
+            
+            // Mostrar notificación de éxito
+            const accionTexto = accion === 'sumar' ? 'aumentado' : 'reducido';
+            mostrarNotificacion(
+                `✅ Stock ${accionTexto} correctamente. Nuevo stock: ${nuevaCantidad.toLocaleString()} unidades`, 
+                'exito',
+                3000
+            );
+            
+            console.log(`✅ Stock actualizado exitosamente: ${currentStock} → ${nuevaCantidad}`);
+            
+        } else {
+            // ❌ ERROR REPORTADO POR EL SERVIDOR
+            console.error('❌ Error del servidor:', data.message);
+            mostrarNotificacion(data.message || 'Error al actualizar el stock', 'error');
+        }
+        
+    } catch (error) {
+        // ❌ ERROR DE CONEXIÓN O PROCESAMIENTO
+        console.error('❌ Error en la petición:', error);
+        
+        let mensajeError = 'Error de conexión. No se pudo actualizar el stock.';
+        
+        if (error.message.includes('HTTP')) {
+            mensajeError = 'Error del servidor. Inténtelo más tarde.';
+        } else if (error.message.includes('JSON')) {
+            mensajeError = 'Error en la respuesta del servidor.';
+        } else if (error.message.includes('Network')) {
+            mensajeError = 'Error de red. Verifique su conexión.';
+        }
+        
+        mostrarNotificacion(mensajeError, 'error');
+        
+    } finally {
+        // Restaurar botón siempre
         button.disabled = false;
-        button.innerHTML = accion === 'sumar' ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
+        button.innerHTML = originalHtml;
         
-        // Deshabilitar botón restar si llegó a 0
-        if (accion === 'restar' && newStock === 0) {
-            button.disabled = true;
-        }
-        
-        mostrarNotificacion(`Stock ${accion === 'sumar' ? 'aumentado' : 'reducido'} correctamente.`, 'success');
-    }, 800);
+        console.log('🔄 Proceso de actualización finalizado');
+    }
 }
 
+// ===== FUNCIÓN AUXILIAR PARA ACTUALIZAR CLASES DE STOCK =====
 function actualizarClaseStock(element, cantidad) {
-    element.classList.remove('stock-critical', 'stock-warning', 'stock-good');
+    // Buscar el contenedor de valor de stock
+    const stockValue = element.closest('.stock-value') || element;
     
-    if (cantidad < 5) {
-        element.classList.add('stock-critical');
+    // Remover todas las clases de estado
+    stockValue.classList.remove('stock-critical', 'stock-warning', 'stock-good', 'stock-empty');
+    
+    // Aplicar nueva clase según la cantidad
+    if (cantidad === 0) {
+        stockValue.classList.add('stock-empty');
+    } else if (cantidad < 5) {
+        stockValue.classList.add('stock-critical');
     } else if (cantidad < 10) {
-        element.classList.add('stock-warning');
+        stockValue.classList.add('stock-warning');
     } else {
-        element.classList.add('stock-good');
+        stockValue.classList.add('stock-good');
+    }
+    
+    console.log(`🎨 Clase de stock actualizada: ${cantidad} unidades`);
+}
+
+// ===== CONFIGURACIÓN DE CONTROLES DE STOCK MEJORADA =====
+function configurarControlesStock() {
+    const stockButtons = document.querySelectorAll('.stock-btn');
+    console.log('🔧 Configurando controles de stock:', stockButtons.length, 'botones encontrados');
+    
+    if (stockButtons.length === 0) {
+        console.warn('⚠️ No se encontraron botones de stock en la página');
+        return;
+    }
+    
+    stockButtons.forEach((button, index) => {
+        const productId = button.dataset.id;
+        const accion = button.dataset.accion;
+        
+        console.log(`🔘 Configurando botón ${index + 1}: Producto ${productId}, Acción: ${accion}`);
+        
+        // Remover listeners anteriores para evitar duplicados
+        button.removeEventListener('click', handleStockClick);
+        
+        // Agregar nuevo listener
+        button.addEventListener('click', handleStockClick);
+    });
+    
+    console.log('✅ Controles de stock configurados correctamente');
+}
+
+// Función manejadora separada para mejor control
+async function handleStockClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const button = e.currentTarget;
+    const productId = button.dataset.id;
+    const accion = button.dataset.accion;
+    
+    console.log(`🖱️ Click en botón de stock: Producto ${productId}, Acción: ${accion}`);
+    
+    if (productId && accion) {
+        await manejarCambioStock(button);
+    } else {
+        console.error('❌ Datos de botón incompletos:', { productId, accion });
+        mostrarNotificacion('Error: Datos del botón incompletos', 'error');
     }
 }
 
@@ -995,21 +1155,37 @@ function configurarTeclasRapidas() {
     });
 }
 
-// ===== FUNCIÓN PARA AJUSTAR POSICIÓN DE NOTIFICACIONES =====
+// ===== FUNCIÓN PARA AJUSTAR POSICIÓN SEGÚN CARRITO =====
 function ajustarPosicionNotificaciones() {
     const container = document.getElementById('notificaciones-container');
     if (!container) return;
     
-    // Si el carrito está visible, ajustar la posición de las notificaciones
-    const carritoVisible = document.getElementById('carritoEntrega').classList.contains('show');
+    const carritoElement = document.getElementById('carritoEntrega');
+    const carritoVisible = carritoElement && carritoElement.classList.contains('show');
+    const carritoMinimizado = carritoElement && carritoElement.classList.contains('minimized');
+    
     if (carritoVisible && !carritoMinimizado) {
-        container.style.right = '360px'; // Espacio para el carrito de 320px + margen
+        // Si el carrito está visible y no minimizado, mover notificaciones más a la izquierda
+        const carritoWidth = window.innerWidth <= 768 ? 280 : 340; // Ancho responsivo del carrito
+        container.style.right = `${carritoWidth + 20}px`;
+        console.log('📍 Notificaciones reposicionadas para evitar carrito');
     } else {
+        // Posición normal
         container.style.right = '20px';
+    }
+    
+    // Ajustar según tamaño de pantalla
+    if (window.innerWidth <= 480) {
+        container.style.right = '10px';
+        container.style.left = '10px';
+        container.style.maxWidth = 'calc(100% - 20px)';
+    } else {
+        container.style.left = 'auto';
+        container.style.maxWidth = '380px';
     }
 }
 
-// ===== SISTEMA DE NOTIFICACIONES MEJORADO =====
+// ===== SISTEMA DE NOTIFICACIONES MEJORADO - ARRIBA DERECHA =====
 function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
     let container = document.getElementById('notificaciones-container');
     
@@ -1019,19 +1195,22 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
         container.id = 'notificaciones-container';
         container.style.cssText = `
             position: fixed;
-            top: 20px;
+            top: 80px;
             right: 20px;
-            z-index: 10000;
-            max-width: 350px;
+            z-index: 99999;
+            max-width: 380px;
+            pointer-events: none;
         `;
         document.body.appendChild(container);
+        console.log('📍 Container de notificaciones creado arriba-derecha');
     }
     
-    // Ajustar posición para no solaparse con carrito
+    // Ajustar posición para no solaparse con carrito (solo si está visible)
     ajustarPosicionNotificaciones();
     
     const iconos = {
         success: 'fa-check-circle',
+        exito: 'fa-check-circle',
         error: 'fa-exclamation-circle',
         warning: 'fa-exclamation-triangle',
         info: 'fa-info-circle'
@@ -1039,6 +1218,7 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
     
     const colores = {
         success: '#28a745',
+        exito: '#28a745',
         error: '#dc3545',
         warning: '#ffc107', 
         info: '#0a253c'
@@ -1048,91 +1228,283 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4000) {
     notificacion.className = `notificacion notificacion-${tipo}`;
     
     notificacion.innerHTML = `
-        <i class="fas ${iconos[tipo]}"></i>
-        <span>${mensaje}</span>
-        <button class="notificacion-close" onclick="this.parentElement.remove()">
+        <div class="notificacion-icon">
+            <i class="fas ${iconos[tipo]}"></i>
+        </div>
+        <div class="notificacion-content">
+            <span class="notificacion-text">${mensaje}</span>
+        </div>
+        <button class="notificacion-close" onclick="this.parentElement.remove()" aria-label="Cerrar notificación">
             <i class="fas fa-times"></i>
         </button>
     `;
     
-    // Estilos inline para la notificación
+    // Estilos mejorados para notificaciones arriba-derecha
     notificacion.style.cssText = `
         background: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        border-left: 4px solid ${colores[tipo] || colores.info};
-        z-index: 10000;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-left: 5px solid ${colores[tipo] || colores.info};
         display: flex;
         align-items: center;
-        gap: 10px;
-        animation: slideInRight 0.3s ease;
-        margin-bottom: 10px;
-        max-width: 100%;
+        gap: 12px;
+        min-width: 300px;
+        max-width: 380px;
+        position: relative;
+        transform: translateX(400px);
+        opacity: 0;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: all;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
     `;
     
+    // Agregar al container
     container.appendChild(notificacion);
+    
+    // Animar entrada
+    setTimeout(() => {
+        notificacion.style.transform = 'translateX(0)';
+        notificacion.style.opacity = '1';
+    }, 50);
+    
+    // Configurar botón de cerrar
+    const cerrarBtn = notificacion.querySelector('.notificacion-close');
+    cerrarBtn.style.cssText = `
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 4px;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+    `;
+    
+    cerrarBtn.addEventListener('mouseenter', () => {
+        cerrarBtn.style.background = 'rgba(0, 0, 0, 0.1)';
+        cerrarBtn.style.color = '#333';
+    });
+    
+    cerrarBtn.addEventListener('mouseleave', () => {
+        cerrarBtn.style.background = 'none';
+        cerrarBtn.style.color = '#666';
+    });
+    
+    cerrarBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removerNotificacion(notificacion);
+    });
+    
+    // Estilizar icono
+    const iconElement = notificacion.querySelector('.notificacion-icon i');
+    iconElement.style.cssText = `
+        font-size: 20px;
+        color: ${colores[tipo] || colores.info};
+        flex-shrink: 0;
+    `;
+    
+    // Estilizar contenido
+    const contentElement = notificacion.querySelector('.notificacion-content');
+    contentElement.style.cssText = `
+        flex: 1;
+        min-width: 0;
+    `;
+    
+    const textElement = notificacion.querySelector('.notificacion-text');
+    textElement.style.cssText = `
+        color: #2c3e50;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.4;
+        word-wrap: break-word;
+        margin: 0;
+    `;
     
     // Auto-remover después de la duración especificada
     if (duracion > 0) {
         setTimeout(() => {
-            if (notificacion.parentElement) {
-                notificacion.style.animation = 'slideOutRight 0.3s ease';
-                setTimeout(() => notificacion.remove(), 300);
-            }
+            removerNotificacion(notificacion);
         }, duracion);
+    }
+    
+    // Limpiar notificaciones antiguas
+    limpiarNotificacionesAntiguas();
+    
+    console.log(`📬 Notificación ${tipo} mostrada: ${mensaje.substring(0, 50)}...`);
+}
+
+// ===== FUNCIÓN PARA REMOVER NOTIFICACIONES CON ANIMACIÓN =====
+function removerNotificacion(notificacion) {
+    if (!notificacion || !notificacion.parentElement) return;
+    
+    // Animar salida
+    notificacion.style.transform = 'translateX(400px)';
+    notificacion.style.opacity = '0';
+    
+    setTimeout(() => {
+        if (notificacion.parentElement) {
+            notificacion.remove();
+        }
+    }, 400);
+}
+
+// ===== FUNCIÓN PARA LIMPIAR NOTIFICACIONES ANTIGUAS =====
+function limpiarNotificacionesAntiguas() {
+    const container = document.getElementById('notificaciones-container');
+    if (!container) return;
+    
+    const notificaciones = container.querySelectorAll('.notificacion');
+    if (notificaciones.length > 5) { // Máximo 5 notificaciones visible
+        // Remover las más antiguas
+        for (let i = 0; i < notificaciones.length - 5; i++) {
+            removerNotificacion(notificaciones[i]);
+        }
     }
 }
 
-// ===== ESTILOS CSS ADICIONALES INYECTADOS =====
-const estilosAdicionales = `
-    @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+// ===== ESTILOS CSS MEJORADOS PARA NOTIFICACIONES =====
+const estilosNotificacionesMejorados = `
+    /* Animaciones para notificaciones */
+    @keyframes slideInFromRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
     }
     
-    @keyframes slideOutRight {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
+    @keyframes slideOutToRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
     }
     
-    @keyframes slideUpRight {
+    @keyframes fadeInUp {
         from {
             opacity: 0;
-            transform: translateX(20px) translateY(20px);
+            transform: translateY(20px);
         }
         to {
             opacity: 1;
-            transform: translateX(0) translateY(0);
+            transform: translateY(0);
         }
     }
     
-    .notificacion-close {
-        background: none;
-        border: none;
-        color: inherit;
-        cursor: pointer;
-        font-size: 16px;
-        font-weight: bold;
-        padding: 2px 6px;
-        border-radius: 4px;
-        transition: background 0.2s;
-        opacity: 0.7;
+    /* Contenedor de notificaciones */
+    #notificaciones-container {
+        font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     
-    .notificacion-close:hover {
-        background: rgba(0,0,0,0.1);
-        opacity: 1;
+    /* Efectos hover para notificaciones */
+    .notificacion {
+        cursor: default;
+        user-select: none;
+    }
+    
+    .notificacion:hover {
+        transform: translateX(0) scale(1.02) !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+    }
+    
+    /* Responsive para móviles */
+    @media (max-width: 480px) {
+        .notificacion {
+            min-width: auto !important;
+            width: 100% !important;
+            font-size: 13px !important;
+        }
+        
+        .notificacion-text {
+            font-size: 13px !important;
+        }
+        
+        .notificacion-icon i {
+            font-size: 18px !important;
+        }
+    }
+    
+    /* Ajustes para diferentes tipos */
+    .notificacion-exito .notificacion-icon i,
+    .notificacion-success .notificacion-icon i {
+        color: #28a745 !important;
+    }
+    
+    .notificacion-error .notificacion-icon i {
+        color: #dc3545 !important;
+    }
+    
+    .notificacion-warning .notificacion-icon i {
+        color: #ffc107 !important;
+    }
+    
+    .notificacion-info .notificacion-icon i {
+        color: #0a253c !important;
     }
 `;
 
-// Inyectar estilos
-if (!document.getElementById('carrito-animations')) {
+// Inyectar estilos mejorados
+if (!document.getElementById('notificaciones-mejoradas-styles')) {
     const styleSheet = document.createElement('style');
-    styleSheet.id = 'carrito-animations';
-    styleSheet.textContent = estilosAdicionales;
+    styleSheet.id = 'notificaciones-mejoradas-styles';
+    styleSheet.textContent = estilosNotificacionesMejorados;
     document.head.appendChild(styleSheet);
 }
+
+// ===== ESCUCHAR CAMBIOS DE TAMAÑO PARA REPOSICIONAR =====
+window.addEventListener('resize', () => {
+    setTimeout(ajustarPosicionNotificaciones, 100);
+});
+
+// ===== FUNCIÓN DE UTILIDAD PARA MOSTRAR NOTIFICACIONES ESPECÍFICAS =====
+window.notificarExito = function(mensaje, duracion = 4000) {
+    mostrarNotificacion(mensaje, 'exito', duracion);
+};
+
+window.notificarError = function(mensaje, duracion = 6000) {
+    mostrarNotificacion(mensaje, 'error', duracion);
+};
+
+window.notificarInfo = function(mensaje, duracion = 4000) {
+    mostrarNotificacion(mensaje, 'info', duracion);
+};
+
+window.notificarWarning = function(mensaje, duracion = 5000) {
+    mostrarNotificacion(mensaje, 'warning', duracion);
+};
+
+// ===== FUNCIÓN DE DEBUG PARA TESTEAR =====
+window.debugStock = function(productoId) {
+    console.log('🔍 Debug de stock para producto:', productoId);
+    
+    const stockElement = document.getElementById(`cantidad-${productoId}`);
+    const buttons = document.querySelectorAll(`.stock-btn[data-id="${productoId}"]`);
+    
+    console.log('Stock element:', stockElement);
+    console.log('Stock buttons:', buttons);
+    console.log('Cantidad actual:', stockElement ? stockElement.textContent : 'No encontrado');
+    
+    return {
+        element: stockElement,
+        buttons: Array.from(buttons),
+        currentStock: stockElement ? parseInt(stockElement.textContent.replace(/,/g, '')) : null
+    };
+};
 
 // ===== FUNCIONES EXPUESTAS GLOBALMENTE =====
 window.toggleModoSeleccion = toggleModoSeleccion;
@@ -1154,4 +1526,4 @@ window.minimizarCarrito = minimizarCarrito;
 window.expandirCarrito = expandirCarrito;
 window.ajustarTamañoCarrito = ajustarTamañoCarrito;
 
-console.log('🚀 Sistema de carrito de entrega completamente inicializado con todas las mejoras');
+console.log('🚀 Sistema de carrito de entrega completamente inicializado con notificaciones arriba-derecha');
