@@ -596,6 +596,84 @@ try {
 <!-- JavaScript -->
 <script src="../assets/js/universal-confirmation-system.js"></script>
 <script>
+// ===== VALIDACIÓN DE FORTALEZA DE CONTRASEÑA - CORREGIDA =====
+function validarFortalezaPassword(password) {
+    const strengthContainer = document.getElementById('passwordStrength');
+    const strengthFill = document.getElementById('strengthFill');
+    const strengthScore = document.getElementById('strengthScore');
+    
+    if (password.length === 0) {
+        // CORRECCIÓN: Resetear completamente la barra de fortaleza
+        strengthScore.textContent = 'Sin evaluar';
+        strengthScore.className = 'password-strength-score'; // Remover todas las clases de nivel
+        
+        // Limpiar todas las clases de nivel de la barra
+        strengthFill.className = 'password-strength-fill';
+        strengthFill.classList.remove('weak', 'medium', 'strong');
+        
+        // Forzar el width a 0 con !important via style
+        strengthFill.style.cssText = 'width: 0% !important;';
+        
+        // Resetear todos los requisitos
+        ['req-length', 'req-upper', 'req-lower', 'req-number', 'req-special'].forEach(reqId => {
+            updateRequirement(reqId, false);
+        });
+        
+        updateSubmitButton();
+        return;
+    }
+    
+    let score = 0;
+    const requirements = {
+        length: password.length >= 8,
+        upper: /[A-Z]/.test(password),
+        lower: /[a-z]/.test(password),
+        number: /[0-9]/.test(password),
+        special: /[^A-Za-z0-9]/.test(password)
+    };
+    
+    // Calcular puntuación
+    Object.values(requirements).forEach(met => {
+        if (met) score += 20;
+    });
+    
+    // Actualizar indicadores visuales
+    updateRequirement('req-length', requirements.length);
+    updateRequirement('req-upper', requirements.upper);
+    updateRequirement('req-lower', requirements.lower);
+    updateRequirement('req-number', requirements.number);
+    updateRequirement('req-special', requirements.special);
+    
+    // Actualizar barra de fortaleza
+    let nivel = 'weak';
+    let texto = 'Débil';
+    
+    if (score >= 60) {
+        nivel = 'medium';
+        texto = 'Medio';
+    }
+    if (score >= 100) {
+        nivel = 'strong';
+        texto = 'Fuerte';
+    }
+    
+    // CORRECCIÓN: Limpiar estilos inline antes de aplicar clases
+    strengthFill.style.cssText = '';
+    
+    // Remover todas las clases de nivel anteriores
+    strengthFill.classList.remove('weak', 'medium', 'strong');
+    
+    // Aplicar la nueva clase
+    strengthFill.classList.add(nivel);
+    
+    // Actualizar texto del score
+    strengthScore.className = `password-strength-score ${nivel}`;
+    strengthScore.textContent = texto;
+    
+    updateSubmitButton();
+}
+
+// ===== CÓDIGO JAVASCRIPT COMPLETO CORREGIDO =====
 document.addEventListener('DOMContentLoaded', function() {
     // ===== ELEMENTOS DEL DOM =====
     const menuToggle = document.getElementById('menuToggle');
@@ -698,6 +776,12 @@ document.addEventListener('DOMContentLoaded', function() {
             validarFortalezaPassword(password);
             validarConfirmacionPassword();
         });
+        
+        // También validar cuando el campo pierde el foco
+        passwordNueva.addEventListener('blur', function() {
+            const password = this.value;
+            validarFortalezaPassword(password);
+        });
     }
     
     // ===== VALIDACIÓN DE CONFIRMACIÓN DE CONTRASEÑA =====
@@ -714,71 +798,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // ===== FUNCIÓN PARA VALIDAR FORTALEZA =====
-    function validarFortalezaPassword(password) {
-        const strengthContainer = document.getElementById('passwordStrength');
-        const strengthFill = document.getElementById('strengthFill');
-        const strengthScore = document.getElementById('strengthScore');
-        
-        if (password.length === 0) {
-            strengthScore.textContent = 'Sin evaluar';
-            strengthScore.className = 'password-strength-score';
-            strengthFill.className = 'password-strength-fill';
-            strengthFill.style.width = '0%';
-            
-            // Resetear todos los requisitos
-            ['req-length', 'req-upper', 'req-lower', 'req-number', 'req-special'].forEach(reqId => {
-                updateRequirement(reqId, false);
-            });
-            
-            updateSubmitButton();
-            return;
-        }
-        
-        let score = 0;
-        const requirements = {
-            length: password.length >= 8,
-            upper: /[A-Z]/.test(password),
-            lower: /[a-z]/.test(password),
-            number: /[0-9]/.test(password),
-            special: /[^A-Za-z0-9]/.test(password)
-        };
-        
-        // Calcular puntuación
-        Object.values(requirements).forEach(met => {
-            if (met) score += 20;
-        });
-        
-        // Actualizar indicadores visuales
-        updateRequirement('req-length', requirements.length);
-        updateRequirement('req-upper', requirements.upper);
-        updateRequirement('req-lower', requirements.lower);
-        updateRequirement('req-number', requirements.number);
-        updateRequirement('req-special', requirements.special);
-        
-        // Actualizar barra de fortaleza
-        let nivel = 'weak';
-        let texto = 'Débil';
-        
-        if (score >= 60) {
-            nivel = 'medium';
-            texto = 'Medio';
-        }
-        if (score >= 100) {
-            nivel = 'strong';
-            texto = 'Fuerte';
-        }
-        
-        strengthFill.className = `password-strength-fill ${nivel}`;
-        strengthScore.className = `password-strength-score ${nivel}`;
-        strengthScore.textContent = texto;
-        
-        updateSubmitButton();
-    }
-    
     // ===== FUNCIÓN PARA ACTUALIZAR REQUISITOS =====
     function updateRequirement(reqId, met) {
         const element = document.getElementById(reqId);
+        if (!element) return;
+        
         const icon = element.querySelector('.password-requirement-icon i');
         
         if (met) {
@@ -822,11 +846,11 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSubmitButton();
     }
     
-    // ===== FUNCIÓN PARA ACTUALIZAR BOTÓN DE ENVÍO - CORREGIDA =====
+    // ===== FUNCIÓN PARA ACTUALIZAR BOTÓN DE ENVÍO =====
     function updateSubmitButton() {
-        const passwordActualValue = passwordActual.value.trim();
-        const passwordValue = passwordNueva.value.trim();
-        const confirmValue = passwordConfirmar.value.trim();
+        const passwordActualValue = passwordActual ? passwordActual.value.trim() : '';
+        const passwordValue = passwordNueva ? passwordNueva.value.trim() : '';
+        const confirmValue = passwordConfirmar ? passwordConfirmar.value.trim() : '';
         
         // Verificar campos básicos
         const hasCurrentPassword = passwordActualValue.length > 0;
@@ -835,16 +859,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Si no hay contraseñas, deshabilitar
         if (!hasCurrentPassword || !hasNewPassword || !hasConfirmPassword) {
-            submitBtn.disabled = true;
-            submitBtn.classList.add('disabled');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('disabled');
+            }
             return;
         }
         
         // Verificar que las contraseñas coincidan
         const passwordsMatch = passwordValue === confirmValue;
         if (!passwordsMatch) {
-            submitBtn.disabled = true;
-            submitBtn.classList.add('disabled');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('disabled');
+            }
             return;
         }
         
@@ -860,30 +888,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const allRequirementsMet = Object.values(requirements).every(met => met);
         
         // Habilitar botón solo si todo está correcto
-        if (allRequirementsMet) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('disabled');
-        } else {
-            submitBtn.disabled = true;
-            submitBtn.classList.add('disabled');
+        if (submitBtn) {
+            if (allRequirementsMet) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('disabled');
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('disabled');
+            }
         }
     }
     
     // ===== ENVÍO DEL FORMULARIO =====
     if (passwordForm) {
         passwordForm.addEventListener('submit', function(e) {
-            // No prevenir el envío - dejar que se procese normalmente
-            if (submitBtn.disabled) {
+            if (submitBtn && submitBtn.disabled) {
                 e.preventDefault();
                 mostrarNotificacion('Por favor, completa todos los campos correctamente', 'error', 3000);
                 return false;
             }
             
             // Mostrar estado de carga
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+            }
             
-            // El formulario se enviará normalmente
             return true;
         });
     }
@@ -891,12 +921,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== NAVEGACIÓN POR TECLADO =====
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            if (sidebar.classList.contains('active')) {
+            if (sidebar && sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
                 if (mainContent) {
                     mainContent.classList.remove('with-sidebar');
                 }
-                menuToggle.focus();
+                if (menuToggle) menuToggle.focus();
             }
         }
         
@@ -912,14 +942,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== CERRAR MENÚ AL HACER CLIC FUERA =====
     document.addEventListener('click', function(e) {
         if (window.innerWidth <= 768) {
-            if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            if (sidebar && menuToggle && !sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
                 sidebar.classList.remove('active');
                 if (mainContent) {
                     mainContent.classList.remove('with-sidebar');
                 }
                 const icon = menuToggle.querySelector('i');
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
+                if (icon) {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
             }
         }
     });
@@ -927,9 +959,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar estado del botón
     updateSubmitButton();
     
+    // Hacer las funciones globales para que estén disponibles
+    window.validarFortalezaPassword = validarFortalezaPassword;
+    window.updateRequirement = updateRequirement;
+    window.validarConfirmacionPassword = validarConfirmacionPassword;
+    window.updateSubmitButton = updateSubmitButton;
+    
     // Mostrar mensaje de bienvenida
     setTimeout(() => {
-        mostrarNotificacion('Formulario de cambio de contraseña cargado correctamente.', 'info', 3000);
+        if (typeof mostrarNotificacion === 'function') {
+            mostrarNotificacion('Formulario de cambio de contraseña cargado correctamente.', 'info', 3000);
+        }
     }, 1000);
 });
 
