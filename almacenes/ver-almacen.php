@@ -17,14 +17,16 @@ $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario
 
 require_once "../config/database.php";
 
-// Validar el ID del almacén
-if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
-    $_SESSION['error'] = "ID de almacén no válido";
+// MODIFICACIÓN DE SEGURIDAD: Obtener ID del almacén usando sesión
+if (isset($_SESSION['view_almacen_id'])) {
+    $almacen_id = (int) $_SESSION['view_almacen_id'];
+    // Limpiar la sesión después de obtener el ID
+    unset($_SESSION['view_almacen_id']);
+} else {
+    $_SESSION['error'] = "Acceso no válido";
     header("Location: listar.php");
     exit();
 }
-
-$almacen_id = $_GET['id'];
 
 // Si el usuario no es admin, verificar que solo pueda acceder a su almacén asignado
 if ($usuario_rol != 'admin' && $usuario_almacen_id != $almacen_id) {
@@ -647,6 +649,24 @@ async function manejarCerrarSesion(event) {
     }
 }
 
+// FUNCIÓN SEGURA PARA EDITAR ALMACÉN
+function editarAlmacen(almacenId) {
+    // Crear formulario oculto para navegación segura
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'editar_redirect.php';
+    form.style.display = 'none';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'edit_almacen_id';
+    input.value = almacenId;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+}
+
 // Función para eliminar almacén
 async function eliminarAlmacen(id, nombre) {
     const confirmado = await confirmarEliminacion('Almacén', nombre);
@@ -676,19 +696,6 @@ async function eliminarAlmacen(id, nombre) {
             console.error('Error:', error);
             mostrarNotificacion('Error de conexión al eliminar el almacén', 'error');
         });
-    }
-}
-
-// Función para editar almacén
-async function editarAlmacen(id) {
-    const confirmado = await confirmarAccion(
-        '¿Deseas editar la información de este almacén?',
-        'Editar Almacén',
-        'info'
-    );
-    
-    if (confirmado) {
-        window.location.href = `editar.php?id=${id}`;
     }
 }
 

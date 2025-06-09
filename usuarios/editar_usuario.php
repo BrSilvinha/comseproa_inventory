@@ -30,9 +30,12 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     $total_pendientes = $row_pendientes['total'];
 }
 
-// Obtener datos del usuario a editar
-if (isset($_GET["id"])) {
-    $id = (int) $_GET["id"];
+// MODIFICACIÓN DE SEGURIDAD: Obtener datos del usuario a editar usando sesión
+if (isset($_SESSION['edit_user_id'])) {
+    $id = (int) $_SESSION['edit_user_id'];
+    // Limpiar la sesión después de obtener el ID
+    unset($_SESSION['edit_user_id']);
+    
     $stmt = $conn->prepare("SELECT nombre, apellidos, dni, correo, rol, estado, almacen_id FROM usuarios WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
@@ -41,10 +44,14 @@ if (isset($_GET["id"])) {
     $stmt->close();
 
     if (!$usuario) {
-        die("Usuario no encontrado.");
+        $_SESSION['mensaje_error'] = "Usuario no encontrado.";
+        header("Location: listar.php");
+        exit();
     }
 } else {
-    die("ID de usuario no válido.");
+    $_SESSION['mensaje_error'] = "Acceso no válido.";
+    header("Location: listar.php");
+    exit();
 }
 
 // Obtener lista de almacenes
@@ -57,8 +64,10 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Guardar cambios
+// MODIFICACIÓN DE SEGURIDAD: Guardar cambios usando ID del formulario hidden
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    // Reobtener el ID del formulario hidden
+    $id = (int) $_POST["user_id"];
     $nombre = trim($_POST["nombre"]);
     $apellidos = trim($_POST["apellidos"]);
     $dni = trim($_POST["dni"]);
@@ -88,7 +97,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit();
     } else {
         $_SESSION['mensaje_error'] = "Error al actualizar usuario.";
-        header("Location: editar_usuario.php?id=" . $id);
+        header("Location: listar.php");
         exit();
     }
     $stmt->close();
@@ -255,6 +264,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <?php endif; ?>
         
         <form method="post" novalidate id="formEditarUsuario">
+            <!-- CAMPO HIDDEN PARA SEGURIDAD -->
+            <input type="hidden" name="user_id" value="<?= $id ?>">
+            
             <div class="form-group">
                 <input type="text" name="nombre" placeholder="Nombre" value="<?= htmlspecialchars($usuario['nombre']) ?>" required aria-label="Nombre del usuario">
                 <input type="text" name="apellidos" placeholder="Apellidos" value="<?= htmlspecialchars($usuario['apellidos']) ?>" required aria-label="Apellidos del usuario">

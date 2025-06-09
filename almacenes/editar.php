@@ -10,10 +10,10 @@ session_regenerate_id(true);
 
 require_once "../config/database.php";
 
-
 $user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
 $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
 $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
+
 // Contar solicitudes pendientes para el badge
 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
 if ($usuario_rol != 'admin') {
@@ -38,14 +38,16 @@ if ($usuario_rol !== 'admin') {
     exit();
 }
 
-// Validar el ID del almacén
-if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
-    $_SESSION['error'] = "ID de almacén no válido.";
+// MODIFICACIÓN DE SEGURIDAD: Obtener ID del almacén usando sesión
+if (isset($_SESSION['edit_almacen_id'])) {
+    $almacen_id = (int) $_SESSION['edit_almacen_id'];
+    // Limpiar la sesión después de obtener el ID
+    unset($_SESSION['edit_almacen_id']);
+} else {
+    $_SESSION['error'] = "Acceso no válido.";
     header("Location: listar.php");
     exit();
 }
-
-$almacen_id = $_GET['id'];
 
 // Obtener información del almacén
 $sql = "SELECT * FROM almacenes WHERE id = ?";
@@ -67,8 +69,11 @@ $error = "";
 $nombre = $almacen['nombre'];
 $ubicacion = $almacen['ubicacion'];
 
-// Procesar formulario
+// MODIFICACIÓN DE SEGURIDAD: Procesar formulario con ID en campo hidden
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Reobtener el ID del formulario hidden
+    $almacen_id = (int) $_POST["almacen_id"];
+    
     if (!empty($_POST["nombre"]) && !empty($_POST["ubicacion"])) {
         $nuevo_nombre = trim($_POST["nombre"]);
         $nueva_ubicacion = trim($_POST["ubicacion"]);
@@ -101,7 +106,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $stmt_log->close();
                     
                     $_SESSION['success'] = "✅ Almacén actualizado con éxito.";
-                    header("Location: ver-almacen.php?id=" . $almacen_id);
+                    // Redirigir de forma segura usando sesión
+                    $_SESSION['view_almacen_id'] = $almacen_id;
+                    header("Location: ver-almacen.php");
                     exit();
                 } else {
                     $error = "❌ Error al actualizar el almacén: " . $stmt_update->error;
@@ -274,7 +281,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <span><i class="fas fa-chevron-right"></i></span>
             <a href="listar.php">Almacenes</a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <a href="ver-almacen.php?id=<?php echo $almacen_id; ?>"><?php echo htmlspecialchars($almacen['nombre']); ?></a>
+            <button onclick="volverVerAlmacen()" class="breadcrumb-btn"><?php echo htmlspecialchars($almacen['nombre']); ?></button>
             <span><i class="fas fa-chevron-right"></i></span>
             <span class="current">Editar</span>
         </nav>
@@ -290,6 +297,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
 
         <form id="formEditarAlmacen" action="" method="POST" autocomplete="off">
+            <!-- CAMPO HIDDEN PARA SEGURIDAD -->
+            <input type="hidden" name="almacen_id" value="<?= $almacen_id ?>">
+            
             <div class="form-group">
                 <label for="nombre" class="form-label">
                     <i class="fas fa-building"></i>
@@ -340,22 +350,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     Guardar Cambios
                 </button>
                 
-                <a href="ver-almacen.php?id=<?php echo $almacen_id; ?>" class="btn-cancel">
+                <button type="button" onclick="volverVerAlmacen()" class="btn-cancel">
                     <i class="fas fa-times"></i>
                     Cancelar
-                </a>
+                </button>
             </div>
         </form>
 
         <div class="additional-actions">
             <div class="action-item">
-                <a href="ver-almacen.php?id=<?php echo $almacen_id; ?>" class="action-link">
+                <button onclick="volverVerAlmacen()" class="action-link">
                     <i class="fas fa-eye"></i>
                     <div>
                         <strong>Ver Detalle del Almacén</strong>
                         <small>Volver a la vista detallada del almacén</small>
                     </div>
-                </a>
+                </button>
             </div>
             
             <div class="action-item">
@@ -609,6 +619,24 @@ function validarCampo(input, minLength, mensaje) {
     }
 }
 
+// FUNCIÓN SEGURA PARA VOLVER A VER ALMACÉN
+function volverVerAlmacen() {
+    // Crear formulario oculto para navegación segura
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'ver_redirect.php';
+    form.style.display = 'none';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'view_almacen_id';
+    input.value = '<?php echo $almacen_id; ?>';
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+}
+
 // Función para cerrar sesión con confirmación
 async function manejarCerrarSesion(event) {
     event.preventDefault();
@@ -665,7 +693,7 @@ document.addEventListener('keydown', function(e) {
     
     // Esc para cancelar
     if (e.key === 'Escape') {
-        window.location.href = 'ver-almacen.php?id=<?php echo $almacen_id; ?>';
+        volverVerAlmacen();
     }
 });
 
@@ -751,6 +779,19 @@ input.invalid {
 
 .action-link.danger i {
     color: var(--list-danger);
+}
+
+.breadcrumb-btn {
+    background: none;
+    border: none;
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+}
+
+.breadcrumb-btn:hover {
+    color: #0056b3;
 }
 </style>
 </body>

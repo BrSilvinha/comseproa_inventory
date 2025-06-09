@@ -575,14 +575,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 
-// Funciones específicas para gestión de usuarios con confirmaciones
+// FUNCIÓN MODIFICADA PARA MAYOR SEGURIDAD
 function editUser(userId) {
     const userRow = document.getElementById('user-' + userId);
     userRow.style.background = 'rgba(23, 162, 184, 0.1)';
     userRow.style.transform = 'scale(1.02)';
     
+    // Crear formulario oculto para enviar por POST
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'editar_redirect.php';
+    form.style.display = 'none';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'edit_user_id';
+    input.value = userId;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    
     setTimeout(() => {
-        window.location.href = "editar_usuario.php?id=" + userId;
+        form.submit();
     }, 200);
 }
 
