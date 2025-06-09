@@ -212,16 +212,19 @@ try {
         $estado_stock = 'bajo';
     }
     
-    // Respuesta exitosa con información adicional
-    sendJsonResponse(true, 'Cantidad actualizada correctamente', [
+    // ⭐ RESPUESTA EXITOSA CON URLs LIMPIAS OPCIONALES
+    $response_data = [
         'nueva_cantidad' => $nueva_cantidad,
         'cantidad_anterior' => $cantidad_actual,
         'cambio' => $accion === 'sumar' ? '+1' : '-1',
         'estado_stock' => $estado_stock,
         'producto_nombre' => $producto['nombre'],
         'almacen_nombre' => $producto['almacen_nombre'] ?? 'Sin almacén',
-        'puede_restar' => $nueva_cantidad > 0
-    ]);
+        'puede_restar' => $nueva_cantidad > 0,
+        'producto_id' => $producto_id
+    ];
+    
+    sendJsonResponse(true, 'Cantidad actualizada correctamente', $response_data);
 
 } catch (mysqli_sql_exception $e) {
     // Log del error para debugging

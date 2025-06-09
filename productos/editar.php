@@ -23,7 +23,7 @@ if ($usuario_rol !== 'admin') {
     exit();
 }
 
-// Validar el ID del producto
+// ⭐ MANTENER LA LÓGICA ORIGINAL - Validar el ID del producto
 if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
     $_SESSION['error'] = "ID de producto no válido.";
     header("Location: listar.php");
@@ -32,7 +32,7 @@ if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
 
 $producto_id = $_GET['id'];
 
-// ⭐ OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
+// ⭐ MANTENER LA LÓGICA ORIGINAL - OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
 $context_params = isset($_GET['from']) ? $_GET['from'] : '';
 parse_str($context_params, $context_array);
 
@@ -154,7 +154,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 if ($stmt_update->execute()) {
                     $_SESSION['success'] = "✅ Producto actualizado con éxito.";
                     
-                    // ⭐ REDIRIGIR MANTENIENDO EL CONTEXTO
+                    // ⭐ REDIRIGIR MANTENIENDO EL CONTEXTO ORIGINAL
                     $redirect_url = "ver-producto.php?id=" . $producto_id;
                     if ($context_params) {
                         $redirect_url .= '&from=' . urlencode($context_params);
@@ -575,7 +575,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     Guardar Cambios
                 </button>
                 
-                <!-- ⭐ BOTÓN CANCELAR CON CONTEXTO -->
+                <!-- ⭐ BOTÓN CANCELAR CON CONTEXTO ORIGINAL -->
                 <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>" class="btn-cancel">
                     <i class="fas fa-times"></i>
                     Cancelar
@@ -585,7 +585,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 
         <div class="additional-actions">
             <div class="action-item">
-                <!-- ⭐ ENLACE VER PRODUCTO CON CONTEXTO -->
+                <!-- ⭐ ENLACE VER PRODUCTO CON CONTEXTO ORIGINAL -->
                 <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>" class="action-link">
                     <i class="fas fa-eye"></i>
                     <div>
@@ -622,7 +622,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- ⭐ JAVASCRIPT CON CONTEXTO -->
+<!-- ⭐ JAVASCRIPT CON LÓGICA ORIGINAL -->
 <script>
 // Variables para el contexto
 const CONTEXT_PARAMS = '<?php echo urlencode($context_params); ?>';
@@ -630,6 +630,23 @@ const RETURN_URL = '<?php echo $return_url; ?>';
 const PRODUCT_ID = <?php echo $producto_id; ?>;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // ⭐ LIMPIAR URL DESPUÉS DE CARGAR (SIN CAMBIAR LA FUNCIONALIDAD)
+    if (window.location.search && window.history.replaceState) {
+        // Crear una URL limpia para mostrar
+        const cleanUrl = window.location.pathname;
+        const pageTitle = 'Editar Producto - <?php echo htmlspecialchars($producto['nombre']); ?> - GRUPO SEAL';
+        
+        // Reemplazar la URL en el historial sin recargar la página
+        window.history.replaceState(
+            { 
+                productId: PRODUCT_ID, 
+                context: CONTEXT_PARAMS 
+            }, 
+            pageTitle, 
+            cleanUrl
+        );
+    }
+    
     // Elementos principales
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');

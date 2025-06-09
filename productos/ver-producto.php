@@ -16,7 +16,7 @@ $user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
 $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
 $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
 
-// Validar el ID del producto
+// ⭐ MANTENER LA LÓGICA ORIGINAL - Validar el ID del producto
 if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
     $_SESSION['error'] = "ID de producto no válido";
     header("Location: listar.php");
@@ -25,7 +25,7 @@ if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
 
 $producto_id = $_GET['id'];
 
-// ⭐ OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
+// ⭐ MANTENER LA LÓGICA ORIGINAL - OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
 $context_params = isset($_GET['from']) ? $_GET['from'] : '';
 parse_str($context_params, $context_array);
 
@@ -178,10 +178,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ver Producto - <?php echo htmlspecialchars($producto['nombre']); ?> - COMSEPROA</title>
+    <title>Ver Producto - <?php echo htmlspecialchars($producto['nombre']); ?> - GRUPO SEAL</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Detalle del producto <?php echo htmlspecialchars($producto['nombre']); ?> - Sistema COMSEPROA">
+    <meta name="description" content="Detalle del producto <?php echo htmlspecialchars($producto['nombre']); ?> - Sistema GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -193,7 +193,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS específico para ver producto - USAR ESTE EN LUGAR DEL ORIGINAL -->
+    <!-- CSS específico para ver producto -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/productos/productos-ver.css">
 </head>
@@ -356,7 +356,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             
             <div class="header-actions">
                 <?php if ($usuario_rol == 'admin'): ?>
-                <!-- ⭐ BOTÓN EDITAR CON CONTEXTO -->
+                <!-- ⭐ BOTÓN EDITAR CON LÓGICA ORIGINAL -->
                 <button class="btn-action btn-edit" onclick="editarProductoConContexto(<?php echo $producto_id; ?>)" title="Editar producto">
                     <i class="fas fa-edit"></i>
                     <span>Editar</span>
@@ -779,13 +779,13 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- ⭐ JAVASCRIPT CON FUNCIONES DE CONTEXTO -->
+<!-- ⭐ JAVASCRIPT CON LÓGICA ORIGINAL + URLs LIMPIAS -->
 <script>
 // Variables para el contexto
 const CONTEXT_PARAMS = '<?php echo urlencode($context_params); ?>';
 const PRODUCT_ID = <?php echo $producto_id; ?>;
 
-// ⭐ FUNCIÓN PARA EDITAR CON CONTEXTO
+// ⭐ LÓGICA ORIGINAL MANTENIDA - Función para editar con contexto
 function editarProductoConContexto(productoId) {
     const baseUrl = 'editar.php?id=' + productoId;
     const fullUrl = CONTEXT_PARAMS ? baseUrl + '&from=' + CONTEXT_PARAMS : baseUrl;
@@ -823,10 +823,6 @@ function adjustQuantity(increment) {
     }
 }
 
-function editarProducto(id) {
-    editarProductoConContexto(id);
-}
-
 async function eliminarProducto(id, nombre) {
     if (window.productosVer) {
         // Usar el sistema de confirmación del objeto
@@ -858,7 +854,9 @@ async function eliminarProducto(id, nombre) {
                     window.productosVer.mostrarNotificacion('Producto eliminado correctamente', 'exito');
                     
                     setTimeout(() => {
-                        window.location.href = '<?php echo $return_url; ?>';
+                        // ⭐ REDIRIGIR CON CONTEXTO ORIGINAL
+                        const returnUrl = '<?php echo $return_url; ?>';
+                        window.location.href = returnUrl;
                     }, 2000);
                 } else {
                     window.productosVer.mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
@@ -886,6 +884,26 @@ function manejarCerrarSesion(event) {
         }
     }
 }
+
+// ⭐ LIMPIAR URL DESPUÉS DE CARGAR (SIN CAMBIAR LA FUNCIONALIDAD)
+document.addEventListener('DOMContentLoaded', function() {
+    // Solo limpiar la URL si tiene parámetros, pero manteniendo la funcionalidad
+    if (window.location.search && window.history.replaceState) {
+        // Crear una URL limpia para mostrar
+        const cleanUrl = window.location.pathname;
+        const pageTitle = 'Ver Producto - <?php echo htmlspecialchars($producto['nombre']); ?> - GRUPO SEAL';
+        
+        // Reemplazar la URL en el historial sin recargar la página
+        window.history.replaceState(
+            { 
+                productId: PRODUCT_ID, 
+                context: CONTEXT_PARAMS 
+            }, 
+            pageTitle, 
+            cleanUrl
+        );
+    }
+});
 </script>
 
 <!-- JavaScript principal -->

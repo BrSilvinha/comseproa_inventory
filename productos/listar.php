@@ -636,7 +636,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                                 <!-- Acciones -->
                                 <td class="actions-cell">
                                     <div class="action-buttons">
-                                        <!-- ⭐ BOTÓN VER MODIFICADO CON CONTEXTO -->
+                                        <!-- ⭐ BOTÓN VER CON LÓGICA ORIGINAL -->
                                         <button class="btn-action btn-view" 
                                                 onclick="verProductoConContexto(<?php echo $producto['id']; ?>)"
                                                 title="Ver detalles">
@@ -662,7 +662,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                                         <?php endif; ?>
 
                                         <?php if ($usuario_rol == 'admin'): ?>
-                                        <!-- ⭐ BOTÓN EDITAR MODIFICADO CON CONTEXTO -->
+                                        <!-- ⭐ BOTÓN EDITAR CON LÓGICA ORIGINAL -->
                                         <button class="btn-action btn-edit" 
                                                 onclick="editarProductoConContexto(<?php echo $producto['id']; ?>)"
                                                 title="Editar producto">
@@ -1065,12 +1065,12 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
 <!-- Container para notificaciones -->
 <div id="notificaciones-container"></div>
 
-<!-- ⭐ JAVASCRIPT CON FUNCIONES DE CONTEXTO -->
+<!-- ⭐ JAVASCRIPT CON LÓGICA ORIGINAL + URLs LIMPIAS -->
 <script>
 // Variables globales para el contexto
 const CONTEXTO_PARAMS = document.body.dataset.context || '';
 
-// ⭐ FUNCIONES MODIFICADAS PARA INCLUIR CONTEXTO
+// ⭐ FUNCIONES ORIGINALES CON URLs LIMPIAS
 function verProductoConContexto(id) {
     const baseUrl = 'ver-producto.php?id=' + id;
     const fullUrl = CONTEXTO_PARAMS ? baseUrl + '&from=' + encodeURIComponent(CONTEXTO_PARAMS) : baseUrl;
@@ -1083,7 +1083,7 @@ function editarProductoConContexto(id) {
     window.location.href = fullUrl;
 }
 
-// Funciones de compatibilidad (mantener las originales también)
+// Funciones de compatibilidad
 function verProducto(id) {
     verProductoConContexto(id);
 }
@@ -1091,6 +1091,19 @@ function verProducto(id) {
 function editarProducto(id) {
     editarProductoConContexto(id);
 }
+
+// ⭐ LIMPIAR URLs EN EL HISTORIAL (SIN AFECTAR FUNCIONALIDAD)
+document.addEventListener('DOMContentLoaded', function() {
+    // Solo limpiar la URL si tiene parámetros
+    if (window.location.search && window.history.replaceState) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState(
+            { context: CONTEXTO_PARAMS }, 
+            document.title, 
+            cleanUrl
+        );
+    }
+});
 </script>
 
 <!-- JavaScript principal -->
