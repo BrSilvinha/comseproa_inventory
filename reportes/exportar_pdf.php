@@ -26,7 +26,7 @@ if ($tipo_reporte == 'usuarios' && $usuario_rol != 'admin') {
     exit('No tienes permisos para generar este reporte');
 }
 
-// Preparar datos según el tipo de reporte
+// CORREGIDO: Preparar datos según el tipo de reporte
 $datos_reporte = [];
 $titulo_reporte = '';
 
@@ -36,7 +36,10 @@ switch($tipo_reporte) {
         $titulo_reporte = 'Reporte de Inventario';
         break;
     case 'movimientos':
-        $datos_reporte = obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limite_registros);
+        // CORREGIDO: No pasar límite si se quiere exportar todo
+        $exportar_todo = isset($_GET['exportar_todo']) && $_GET['exportar_todo'] == '1';
+        $limite_a_usar = $exportar_todo ? null : $limite_registros;
+        $datos_reporte = obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limite_a_usar);
         $titulo_reporte = 'Reporte de Movimientos';
         break;
     case 'usuarios':
@@ -190,64 +193,102 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limi
     $fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-01');
     $fecha_fin = $_GET['fecha_fin'] ?? date('Y-m-t');
     $filtro_almacen = $_GET['almacen'] ?? '';
-    $filtro_tipo = $_GET['tipo'] ?? '';
+    $filtro_tipo = $_GET['tipo_movimiento'] ?? '';
+    
+    // CORREGIDO: Parámetros para manejar exportación
+    $solo_pagina_actual = isset($_GET['solo_pagina_actual']) && $_GET['solo_pagina_actual'] == '1';
+    $exportar_todo = isset($_GET['exportar_todo']) && $_GET['exportar_todo'] == '1';
+    $pagina_actual = isset($_GET['pagina_actual']) ? (int)$_GET['pagina_actual'] : 1;
+    $registros_por_pagina = isset($_GET['registros_por_pagina']) ? (int)$_GET['registros_por_pagina'] : 15;
+    
+    // CORREGIDO: Determinar límites según el tipo de exportación
+    if ($exportar_todo) {
+        // EXPORTAR TODO: Sin límites ni offset
+        $limite_final = null;
+        $offset = 0;
+        $usar_limit = false;
+    } elseif ($solo_pagina_actual) {
+        // EXPORTAR PÁGINA ACTUAL: Usar paginación exacta
+        $limite_final = $registros_por_pagina;
+        $offset = ($pagina_actual - 1) * $registros_por_pagina;
+        $usar_limit = true;
+    } else {
+        // EXPORTAR CON LÍMITE GENERAL (modo legacy)
+        $limite_final = $limite_registros;
+        $offset = 0;
+        $usar_limit = true;
+    }
     
     $datos = [
         'fecha_inicio' => $fecha_inicio, 
         'fecha_fin' => $fecha_fin, 
         'stats' => [], 
         'movimientos' => [],
-        'limite_aplicado' => $limite_registros,
-        'filtros_aplicados' => []
+        'limite_aplicado' => $exportar_todo ? 'SIN LÍMITE' : $limite_final,
+        'filtros_aplicados' => [],
+        'pagina_actual' => $solo_pagina_actual ? $pagina_actual : null,
+        'total_paginas' => null,
+        'solo_pagina_actual' => $solo_pagina_actual,
+        'exportar_todo' => $exportar_todo
     ];
 
     // Registrar filtros aplicados
     if ($filtro_almacen) $datos['filtros_aplicados'][] = "Almacén ID: $filtro_almacen";
     if ($filtro_tipo) $datos['filtros_aplicados'][] = "Tipo: $filtro_tipo";
+    if ($solo_pagina_actual) {
+        $datos['filtros_aplicados'][] = "Página: $pagina_actual (mostrando $registros_por_pagina registros)";
+    } elseif ($exportar_todo) {
+        $datos['filtros_aplicados'][] = "EXPORTACIÓN COMPLETA (todos los registros)";
+    }
 
-    // Estadísticas
+    // Parámetros de fecha
     $param_fecha_inicio = $fecha_inicio . ' 00:00:00';
     $param_fecha_fin = $fecha_fin . ' 23:59:59';
     
-    $sql_stats = "SELECT COUNT(*) as total_movimientos,
-                  COALESCE(SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END), 0) as completados,
-                  COALESCE(SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END), 0) as pendientes,
-                  COALESCE(SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END), 0) as rechazados
-                  FROM movimientos WHERE fecha BETWEEN ? AND ?";
-    
+    // CORREGIDO: Construir filtros WHERE exactamente igual que en movimientos.php
     $where_conditions = "";
-    $params_stats = [$param_fecha_inicio, $param_fecha_fin];
-    $types_stats = "ss";
+    $params_base = [$param_fecha_inicio, $param_fecha_fin];
+    $types_base = "ss";
 
-    // Aplicar filtros a estadísticas
-    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
-        $where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
-        $params_stats[] = $usuario_almacen_id;
-        $params_stats[] = $usuario_almacen_id;
-        $types_stats .= "ii";
-    }
-
+    // CORREGIDO: Aplicar filtros en el MISMO ORDEN que movimientos.php
     if (!empty($filtro_almacen) && $usuario_rol == 'admin') {
         $where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
-        $params_stats[] = $filtro_almacen;
-        $params_stats[] = $filtro_almacen;
-        $types_stats .= "ii";
+        $params_base[] = $filtro_almacen;
+        $params_base[] = $filtro_almacen;
+        $types_base .= "ii";
+    } elseif ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
+        $params_base[] = $usuario_almacen_id;
+        $params_base[] = $usuario_almacen_id;
+        $types_base .= "ii";
     }
 
     if (!empty($filtro_tipo) && in_array($filtro_tipo, ['entrada', 'salida', 'transferencia', 'ajuste'])) {
         $where_conditions .= " AND tipo = ?";
-        $params_stats[] = $filtro_tipo;
-        $types_stats .= "s";
+        $params_base[] = $filtro_tipo;
+        $types_base .= "s";
     }
 
-    $sql_stats .= $where_conditions;
+    // Estadísticas (del total)
+    $sql_stats = "SELECT COUNT(*) as total_movimientos,
+                  COALESCE(SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END), 0) as completados,
+                  COALESCE(SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END), 0) as pendientes,
+                  COALESCE(SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END), 0) as rechazados
+                  FROM movimientos WHERE fecha BETWEEN ? AND ?" . $where_conditions;
+
     $stmt = $conn->prepare($sql_stats);
-    $stmt->bind_param($types_stats, ...$params_stats);
+    $stmt->bind_param($types_base, ...$params_base);
     $stmt->execute();
     $datos['stats'] = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    // Detalle de movimientos con los mismos filtros
+    // Calcular total de páginas si es página específica
+    if ($solo_pagina_actual) {
+        $total_registros = $datos['stats']['total_movimientos'];
+        $datos['total_paginas'] = ceil($total_registros / $registros_por_pagina);
+    }
+
+    // CORREGIDO: Query de movimientos con EXACTAMENTE los mismos filtros
     $sql_movimientos = "SELECT m.id, m.fecha, m.cantidad, m.estado, m.tipo as tipo_movimiento,
                         p.nombre as producto_nombre, CONCAT('PROD-', LPAD(p.id, 4, '0')) as producto_codigo,
                         ao.nombre as almacen_origen, ad.nombre as almacen_destino, u.nombre as usuario_nombre
@@ -256,14 +297,18 @@ function obtenerDatosMovimientos($conn, $usuario_rol, $usuario_almacen_id, $limi
                         LEFT JOIN almacenes ao ON m.almacen_origen = ao.id
                         LEFT JOIN almacenes ad ON m.almacen_destino = ad.id
                         LEFT JOIN usuarios u ON m.usuario_id = u.id
-                        WHERE m.fecha BETWEEN ? AND ?";
+                        WHERE m.fecha BETWEEN ? AND ?" . $where_conditions . " ORDER BY m.fecha DESC";
 
-    $sql_movimientos .= $where_conditions;
-    $sql_movimientos .= " ORDER BY m.fecha DESC LIMIT ?";
+    $params_mov = $params_base;
+    $types_mov = $types_base;
     
-    $params_mov = $params_stats;
-    $params_mov[] = $limite_registros;
-    $types_mov = $types_stats . "i";
+    // CORREGIDO: Solo agregar LIMIT si es necesario
+    if ($usar_limit && $limite_final !== null) {
+        $sql_movimientos .= " LIMIT ? OFFSET ?";
+        $params_mov[] = $limite_final;
+        $params_mov[] = $offset;
+        $types_mov .= "ii";
+    }
     
     $stmt = $conn->prepare($sql_movimientos);
     $stmt->bind_param($types_mov, ...$params_mov);
@@ -629,6 +674,26 @@ if (!$hay_datos) {
             font-size: 10px;
             color: #856404;
         }
+
+        .pagina-info {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            padding: 8px 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #0d47a1;
+        }
+
+        .exportar-todo-info {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 8px 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #2e7d32;
+        }
     </style>
 </head>
 <body>
@@ -662,12 +727,31 @@ if (!$hay_datos) {
     </div>
     <?php endif; ?>
 
-    <!-- Información de límite de registros -->
+    <!-- CORREGIDO: Información de límite de registros según el tipo de exportación -->
     <?php if (isset($datos_reporte['limite_aplicado'])): ?>
-    <div class="limite-info">
-        <strong>📄 Nota:</strong> Este reporte muestra un máximo de <?php echo number_format($datos_reporte['limite_aplicado']); ?> registros. 
-        Para ver todos los registros, utilice la vista web con paginación.
-    </div>
+        <?php if (isset($datos_reporte['exportar_todo']) && $datos_reporte['exportar_todo']): ?>
+            <div class="exportar-todo-info">
+                <strong>📋 EXPORTACIÓN COMPLETA:</strong> Este reporte incluye <strong>TODOS</strong> los registros que cumplen con los filtros aplicados
+                (<?php echo count($datos_reporte['movimientos']); ?> registros en total). 
+                No se aplicaron límites de paginación. ¡Exportación completa realizada con éxito!
+            </div>
+        <?php elseif (isset($datos_reporte['solo_pagina_actual']) && $datos_reporte['solo_pagina_actual']): ?>
+            <div class="pagina-info">
+                <strong>📄 Página Específica:</strong> Este reporte muestra solo los registros de la 
+                <strong>página <?php echo $datos_reporte['pagina_actual']; ?></strong> 
+                <?php if ($datos_reporte['total_paginas']): ?>
+                de <?php echo $datos_reporte['total_paginas']; ?> páginas totales
+                <?php endif; ?>
+                (<?php echo is_numeric($datos_reporte['limite_aplicado']) ? number_format($datos_reporte['limite_aplicado']) : $datos_reporte['limite_aplicado']; ?> registros por página).
+                Mostrando exactamente <?php echo count($datos_reporte['movimientos']); ?> registros de esta página.
+                Para ver todos los registros, use la opción "Exportar TODO" en la página web.
+            </div>
+        <?php else: ?>
+            <div class="limite-info">
+                <strong>📄 Nota:</strong> Este reporte muestra un máximo de <?php echo is_numeric($datos_reporte['limite_aplicado']) ? number_format($datos_reporte['limite_aplicado']) : $datos_reporte['limite_aplicado']; ?> registros. 
+                Para ver todos los registros, utilice la vista web con paginación.
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($tipo_reporte == 'inventario'): ?>
@@ -779,7 +863,17 @@ if (!$hay_datos) {
         </div>
 
         <div class="section">
-            <div class="section-title">📋 Detalle de Movimientos (Últimos <?php echo count($datos_reporte['movimientos']); ?> registros)</div>
+            <div class="section-title">
+                📋 Detalle de Movimientos 
+                <?php if (isset($datos_reporte['exportar_todo']) && $datos_reporte['exportar_todo']): ?>
+                    - EXPORTACIÓN COMPLETA (<?php echo count($datos_reporte['movimientos']); ?> registros)
+                <?php elseif (isset($datos_reporte['solo_pagina_actual']) && $datos_reporte['solo_pagina_actual']): ?>
+                    - Página <?php echo $datos_reporte['pagina_actual']; ?> 
+                    (<?php echo count($datos_reporte['movimientos']); ?> registros)
+                <?php else: ?>
+                    (Últimos <?php echo count($datos_reporte['movimientos']); ?> registros)
+                <?php endif; ?>
+            </div>
             <?php if (!empty($datos_reporte['movimientos'])): ?>
             <table>
                 <thead>

@@ -15,8 +15,9 @@ $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario
 // Require database connection
 require_once "../config/database.php";
 
-// ===== CONFIGURACIÓN DE PAGINACIÓN =====
-$registros_por_pagina = 15; // Número de registros por página
+// ===== CONFIGURACIÓN DE PAGINACIÓN CORREGIDA =====
+// CORREGIDO: Obtener registros por página de la URL, no hardcodeado
+$registros_por_pagina = isset($_GET['registros_por_pagina']) ? max(5, intval($_GET['registros_por_pagina'])) : 15;
 $pagina_actual = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
 $offset = ($pagina_actual - 1) * $registros_por_pagina;
 
@@ -43,7 +44,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 $filtro_fecha_inicio = isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : date('Y-m-01');
 $filtro_fecha_fin = isset($_GET['fecha_fin']) ? $_GET['fecha_fin'] : date('Y-m-t');
 $filtro_almacen = isset($_GET['almacen']) ? $_GET['almacen'] : '';
-$filtro_tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
+$filtro_tipo = isset($_GET['tipo_movimiento']) ? $_GET['tipo_movimiento'] : '';
 
 // Construir parámetros dinámicamente
 $param_fecha_inicio = $filtro_fecha_inicio . ' 00:00:00';
@@ -149,7 +150,7 @@ if (!empty($params_data)) {
 $stmt_movimientos->execute();
 $result_movimientos = $stmt_movimientos->get_result();
 
-// Estadísticas - USANDO LA TABLA CORRECTA
+// Estadísticas (para las tarjetas de arriba - estas sí deben ser del total, no de la página)
 $sql_stats = "
     SELECT 
         COUNT(*) as total_movimientos,
@@ -160,15 +161,32 @@ $sql_stats = "
     WHERE fecha BETWEEN ? AND ?
 ";
 
-if ($usuario_rol != 'admin') {
-    $sql_stats .= " AND (almacen_origen = ? OR almacen_destino = ?)";
-    $stmt_stats = $conn->prepare($sql_stats);
-    $stmt_stats->bind_param("ssii", $param_fecha_inicio, $param_fecha_fin, $usuario_almacen_id, $usuario_almacen_id);
-} else {
-    $stmt_stats = $conn->prepare($sql_stats);
-    $stmt_stats->bind_param("ss", $param_fecha_inicio, $param_fecha_fin);
+// CORREGIDO: Aplicar los mismos filtros a las estadísticas
+$stats_where_conditions = "";
+$params_stats = [$param_fecha_inicio, $param_fecha_fin];
+$types_stats = "ss";
+
+if (!empty($filtro_almacen) && $usuario_rol == 'admin') {
+    $stats_where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
+    $params_stats[] = $filtro_almacen;
+    $params_stats[] = $filtro_almacen;
+    $types_stats .= "ii";
+} elseif ($usuario_rol != 'admin') {
+    $stats_where_conditions .= " AND (almacen_origen = ? OR almacen_destino = ?)";
+    $params_stats[] = $usuario_almacen_id;
+    $params_stats[] = $usuario_almacen_id;
+    $types_stats .= "ii";
 }
 
+if (!empty($filtro_tipo)) {
+    $stats_where_conditions .= " AND tipo = ?";
+    $params_stats[] = $filtro_tipo;
+    $types_stats .= "s";
+}
+
+$sql_stats .= $stats_where_conditions;
+$stmt_stats = $conn->prepare($sql_stats);
+$stmt_stats->bind_param($types_stats, ...$params_stats);
 $stmt_stats->execute();
 $result_stats = $stmt_stats->get_result();
 $stats = $result_stats->fetch_assoc();
@@ -360,6 +378,63 @@ function construirURL($pagina) {
         opacity: 0.5;
         pointer-events: none;
     }
+
+    /* Estilos para botones de exportación */
+    .header-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn-export, .btn-export-all {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+    }
+
+    .btn-export:hover, .btn-export-all:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+    }
+
+    .btn-export-all {
+        background: #28a745;
+        box-shadow: 0 2px 4px rgba(40,167,69,0.2);
+    }
+
+    .btn-export-all:hover {
+        background: #1e7e34;
+        box-shadow: 0 4px 8px rgba(40,167,69,0.3);
+    }
+
+    @media (max-width: 768px) {
+        .header-content {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .header-actions {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .btn-export, .btn-export-all {
+            flex: 1;
+            justify-content: center;
+            min-width: 120px;
+        }
+    }
     </style>
 </head>
 <body>
@@ -459,7 +534,6 @@ function construirURL($pagina) {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                
                 <li><a href="../perfil/cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
@@ -475,7 +549,7 @@ function construirURL($pagina) {
 
 <!-- Main Content -->
 <main class="content" id="main-content" role="main">
-    <!-- Header -->
+    <!-- Header con botones de exportación modificados -->
     <header class="movimientos-header">
         <div class="header-content">
             <div class="header-info">
@@ -483,8 +557,14 @@ function construirURL($pagina) {
                 <p>Análisis detallado de transferencias y movimientos de inventario</p>
             </div>
             <div class="header-actions">
-                <button class="btn-export" onclick="exportarMovimientosPDF()">
-                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                <!-- Botón principal: Exportar página actual -->
+                <button class="btn-export" onclick="exportarMovimientosPDF()" title="Exportar solo los registros de esta página">
+                    <i class="fas fa-file-pdf"></i> Exportar Página Actual
+                </button>
+                
+                <!-- Botón secundario: Exportar todo -->
+                <button class="btn-export-all" onclick="exportarTodosMovimientosPDF()" title="Exportar TODOS los registros que cumplen con los filtros">
+                    <i class="fas fa-file-export"></i> Exportar TODO
                 </button>
             </div>
         </div>
@@ -525,6 +605,7 @@ function construirURL($pagina) {
         
         <form class="filters-form" method="GET" id="filtrosForm">
             <input type="hidden" name="pagina" value="1">
+            <input type="hidden" name="registros_por_pagina" value="<?php echo $registros_por_pagina; ?>">
             
             <div class="filter-group">
                 <label class="filter-label">Fecha Inicio</label>
@@ -552,11 +633,12 @@ function construirURL($pagina) {
             
             <div class="filter-group">
                 <label class="filter-label">Tipo</label>
-                <select name="tipo" class="filter-control">
+                <select name="tipo_movimiento" class="filter-control">
                     <option value="">Todos los tipos</option>
                     <option value="entrada" <?php echo ($filtro_tipo == 'entrada') ? 'selected' : ''; ?>>Entrada</option>
                     <option value="salida" <?php echo ($filtro_tipo == 'salida') ? 'selected' : ''; ?>>Salida</option>
                     <option value="transferencia" <?php echo ($filtro_tipo == 'transferencia') ? 'selected' : ''; ?>>Transferencia</option>
+                    <option value="ajuste" <?php echo ($filtro_tipo == 'ajuste') ? 'selected' : ''; ?>>Ajuste</option>
                 </select>
             </div>
             
@@ -578,6 +660,11 @@ function construirURL($pagina) {
                     echo number_format($inicio) . '-' . number_format($fin) . ' de ' . number_format($total_registros) . ' movimientos';
                     ?>
                 </strong>
+                <small style="display: block; color: #6b7280; margin-top: 4px;">
+                    Página <?php echo $pagina_actual; ?> de <?php echo $total_paginas; ?> 
+                    • Mostrando <?php echo $registros_por_pagina; ?> registros por página
+                    • El botón "Exportar Página Actual" descargará solo estos <?php echo ($fin - $inicio + 1); ?> registros
+                </small>
             </div>
             
             <div class="pagination-controls">
@@ -646,7 +733,9 @@ function construirURL($pagina) {
             <div class="records-per-page">
                 <label for="registrosPorPagina">Mostrar:</label>
                 <select id="registrosPorPagina" onchange="cambiarRegistrosPorPagina(this.value)">
+                    <option value="5" <?php echo ($registros_por_pagina == 5) ? 'selected' : ''; ?>>5</option>
                     <option value="10" <?php echo ($registros_por_pagina == 10) ? 'selected' : ''; ?>>10</option>
+                    <option value="15" <?php echo ($registros_por_pagina == 15) ? 'selected' : ''; ?>>15</option>
                     <option value="25" <?php echo ($registros_por_pagina == 25) ? 'selected' : ''; ?>>25</option>
                     <option value="50" <?php echo ($registros_por_pagina == 50) ? 'selected' : ''; ?>>50</option>
                     <option value="100" <?php echo ($registros_por_pagina == 100) ? 'selected' : ''; ?>>100</option>
@@ -836,7 +925,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Función para cambiar registros por página
+// CORREGIDO: Función para cambiar registros por página
 function cambiarRegistrosPorPagina(nuevaCantidad) {
     const url = new URL(window.location);
     url.searchParams.set('registros_por_pagina', nuevaCantidad);
@@ -852,21 +941,51 @@ function cambiarRegistrosPorPagina(nuevaCantidad) {
     }, 300);
 }
 
-// Función para exportar movimientos a PDF
+// Función para exportar movimientos a PDF - PÁGINA ACTUAL
 function exportarMovimientosPDF() {
-    mostrarNotificacion('Generando reporte PDF de movimientos...', 'info');
+    mostrarNotificacion('Generando reporte PDF de la página actual...', 'info');
     
     // Obtener filtros actuales de la página
     const fechaInicio = document.querySelector('input[name="fecha_inicio"]')?.value || '';
     const fechaFin = document.querySelector('input[name="fecha_fin"]')?.value || '';
     const almacen = document.querySelector('select[name="almacen"]')?.value || '';
-    const tipo = document.querySelector('select[name="tipo"]')?.value || '';
+    const tipoMovimiento = document.querySelector('select[name="tipo_movimiento"]')?.value || '';
+    
+    // Obtener datos de paginación actual
+    const paginaActual = new URLSearchParams(window.location.search).get('pagina') || '1';
+    const registrosPorPagina = new URLSearchParams(window.location.search).get('registros_por_pagina') || '15';
     
     let url = '../reportes/exportar_pdf.php?tipo=movimientos';
     if (fechaInicio) url += '&fecha_inicio=' + fechaInicio;
     if (fechaFin) url += '&fecha_fin=' + fechaFin;
     if (almacen) url += '&almacen=' + almacen;
-    if (tipo) url += '&tipo=' + tipo;
+    if (tipoMovimiento) url += '&tipo_movimiento=' + tipoMovimiento;
+    
+    // Agregar parámetros de paginación
+    url += '&pagina_actual=' + paginaActual;
+    url += '&registros_por_pagina=' + registrosPorPagina;
+    url += '&solo_pagina_actual=1'; // Indicador para exportar solo página actual
+    url += '&auto_print=1';
+    
+    window.open(url, '_blank');
+}
+
+// CORREGIDO: Función para exportar TODOS los datos (sin límites)
+function exportarTodosMovimientosPDF() {
+    mostrarNotificacion('Generando reporte PDF de TODOS los registros...', 'info');
+    
+    // Obtener filtros actuales de la página
+    const fechaInicio = document.querySelector('input[name="fecha_inicio"]')?.value || '';
+    const fechaFin = document.querySelector('input[name="fecha_fin"]')?.value || '';
+    const almacen = document.querySelector('select[name="almacen"]')?.value || '';
+    const tipoMovimiento = document.querySelector('select[name="tipo_movimiento"]')?.value || '';
+    
+    let url = '../reportes/exportar_pdf.php?tipo=movimientos';
+    if (fechaInicio) url += '&fecha_inicio=' + fechaInicio;
+    if (fechaFin) url += '&fecha_fin=' + fechaFin;
+    if (almacen) url += '&almacen=' + almacen;
+    if (tipoMovimiento) url += '&tipo_movimiento=' + tipoMovimiento;
+    url += '&exportar_todo=1'; // NUEVO: Indicador para exportar TODO sin límites
     url += '&auto_print=1';
     
     window.open(url, '_blank');
