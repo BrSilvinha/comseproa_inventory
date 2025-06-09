@@ -354,7 +354,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             required
                             autocomplete="off"
                             maxlength="100"
-                            value="<?php echo isset($_POST['nombre']) ? htmlspecialchars($_POST['nombre']) : ''; ?>"
                         >
                         <div class="field-hint">
                             <i class="fas fa-info-circle"></i>
@@ -374,7 +373,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Ej: XL-500, Pro-2024..."
                             autocomplete="off"
                             maxlength="50"
-                            value="<?php echo isset($_POST['modelo']) ? htmlspecialchars($_POST['modelo']) : ''; ?>"
                         >
                     </div>
 
@@ -390,7 +388,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Ej: Negro, Azul marino, Verde..."
                             autocomplete="off"
                             maxlength="30"
-                            value="<?php echo isset($_POST['color']) ? htmlspecialchars($_POST['color']) : ''; ?>"
                         >
                     </div>
 
@@ -406,7 +403,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Ej: XL, 42, 30x25x10 cm..."
                             autocomplete="off"
                             maxlength="50"
-                            value="<?php echo isset($_POST['talla_dimensiones']) ? htmlspecialchars($_POST['talla_dimensiones']) : ''; ?>"
                         >
                     </div>
 
@@ -424,7 +420,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <option value="">Seleccione un almacén</option>
                             <?php while ($almacen = $result_almacenes->fetch_assoc()): ?>
                                 <option value="<?php echo $almacen['id']; ?>" 
-                                    <?php echo ($almacen_preseleccionado == $almacen['id'] || (isset($_POST['almacen_id']) && $_POST['almacen_id'] == $almacen['id'])) ? 'selected' : ''; ?>>
+                                    <?php echo ($almacen_preseleccionado == $almacen['id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($almacen['nombre']); ?>
                                 </option>
                             <?php endwhile; ?>
@@ -444,7 +440,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <option value="">Seleccione una categoría</option>
                             <?php while ($categoria = $result_categorias->fetch_assoc()): ?>
                                 <option value="<?php echo $categoria['id']; ?>" 
-                                    <?php echo ($categoria_preseleccionada == $categoria['id'] || (isset($_POST['categoria_id']) && $_POST['categoria_id'] == $categoria['id'])) ? 'selected' : ''; ?>>
+                                    <?php echo ($categoria_preseleccionada == $categoria['id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($categoria['nombre']); ?>
                                 </option>
                             <?php endwhile; ?>
@@ -474,7 +470,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 id="cantidad" 
                                 name="cantidad" 
                                 min="1" 
-                                value="<?php echo isset($_POST['cantidad']) ? (int)$_POST['cantidad'] : 1; ?>"
+                                value="1"
                                 required
                                 class="qty-input"
                             >
@@ -495,14 +491,14 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         </label>
                         <select id="unidad_medida" name="unidad_medida" required class="form-select">
                             <option value="">Seleccione una unidad</option>
-                            <option value="Unidad" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Unidad') ? 'selected' : ''; ?>>Unidad</option>
-                            <option value="Par" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Par') ? 'selected' : ''; ?>>Par</option>
-                            <option value="Set" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Set') ? 'selected' : ''; ?>>Set</option>
-                            <option value="Caja" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Caja') ? 'selected' : ''; ?>>Caja</option>
-                            <option value="Paquete" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Paquete') ? 'selected' : ''; ?>>Paquete</option>
-                            <option value="Kilogramo" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Kilogramo') ? 'selected' : ''; ?>>Kilogramo</option>
-                            <option value="Metro" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Metro') ? 'selected' : ''; ?>>Metro</option>
-                            <option value="Litro" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Litro') ? 'selected' : ''; ?>>Litro</option>
+                            <option value="Unidad">Unidad</option>
+                            <option value="Par">Par</option>
+                            <option value="Set">Set</option>
+                            <option value="Caja">Caja</option>
+                            <option value="Paquete">Paquete</option>
+                            <option value="Kilogramo">Kilogramo</option>
+                            <option value="Metro">Metro</option>
+                            <option value="Litro">Litro</option>
                         </select>
                     </div>
 
@@ -513,10 +509,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         </label>
                         <select id="estado" name="estado" required class="form-select">
                             <option value="">Seleccione el estado</option>
-                            <option value="Nuevo" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Nuevo') ? 'selected' : ''; ?>>Nuevo</option>
-                            <option value="Usado" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Usado') ? 'selected' : ''; ?>>Usado</option>
-                            <option value="Renovado" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Renovado') ? 'selected' : ''; ?>>Renovado</option>
-                            <option value="Dañado" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Dañado') ? 'selected' : ''; ?>>Dañado</option>
+                            <option value="Nuevo">Nuevo</option>
+                            <option value="Usado">Usado</option>
+                            <option value="Renovado">Renovado</option>
+                            <option value="Dañado">Dañado</option>
                         </select>
                     </div>
 
@@ -537,7 +533,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Información adicional sobre el producto (características especiales, instrucciones, etc.)"
                             maxlength="500"
                             class="form-textarea"
-                        ><?php echo isset($_POST['observaciones']) ? htmlspecialchars($_POST['observaciones']) : ''; ?></textarea>
+                        ></textarea>
                         <div class="character-counter">
                             <span id="charCount">0</span>/500 caracteres
                         </div>
