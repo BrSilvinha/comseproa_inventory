@@ -361,7 +361,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     Categorías en este almacén
                 </h2>
                 <?php if ($usuario_rol == 'admin'): ?>
-                <a href="../productos/registrar.php?almacen_id=<?php echo $almacen_id; ?>" class="btn-add-product">
+                <a href="javascript:void(0)" onclick="navegarAgregarProducto()" class="btn-add-product">
                     <i class="fas fa-plus"></i>
                     Agregar Producto
                 </a>
@@ -399,14 +399,14 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 
                             <div class="categoria-actions">
                                 <?php if ($usuario_rol == 'admin'): ?>
-                                <button class="btn-categoria btn-registrar" onclick="location.href='../productos/registrar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
+                                <button class="btn-categoria btn-registrar" onclick="navegarAgregarProductoCategoria(<?php echo $categoria['id']; ?>)">
                                     <i class="fas fa-plus"></i>
                                     <?php echo ($categoria['total_productos'] == 0) ? 'Primer Producto' : 'Registrar Producto'; ?>
                                 </button>
                                 <?php endif; ?>
                                 
                                 <?php if ($categoria['total_productos'] > 0): ?>
-                                <button class="btn-categoria btn-lista" onclick="location.href='../productos/listar.php?almacen_id=<?php echo $almacen_id; ?>&categoria_id=<?php echo $categoria['id']; ?>'">
+                                <button class="btn-categoria btn-lista" onclick="navegarProductosCategoria(<?php echo $categoria['id']; ?>)">
                                     <i class="fas fa-list"></i>
                                     Ver Productos
                                 </button>
@@ -512,7 +512,40 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- JavaScript -->
 <script src="../assets/js/universal-confirmation-system.js"></script>
 <script>
+// Variables globales para el contexto del almacén
+const ALMACEN_ID = <?php echo $almacen_id; ?>;
+const ALMACEN_NOMBRE = '<?php echo htmlspecialchars($almacen['nombre'], ENT_QUOTES, 'UTF-8'); ?>';
+
+// Guardar contexto en sessionStorage para navegación
+function guardarContextoAlmacen() {
+    sessionStorage.setItem('almacen_context', JSON.stringify({
+        almacen_id: ALMACEN_ID,
+        almacen_nombre: ALMACEN_NOMBRE,
+        page: 'ver-almacen',
+        timestamp: Date.now()
+    }));
+}
+
+// Funciones de navegación que mantienen el contexto
+function navegarAgregarProducto() {
+    guardarContextoAlmacen();
+    window.location.href = `../productos/registrar.php?almacen_id=${ALMACEN_ID}`;
+}
+
+function navegarAgregarProductoCategoria(categoriaId) {
+    guardarContextoAlmacen();
+    window.location.href = `../productos/registrar.php?almacen_id=${ALMACEN_ID}&categoria_id=${categoriaId}`;
+}
+
+function navegarProductosCategoria(categoriaId) {
+    guardarContextoAlmacen();
+    window.location.href = `../productos/listar.php?almacen_id=${ALMACEN_ID}&categoria_id=${categoriaId}`;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Guardar contexto inicial
+    guardarContextoAlmacen();
+    
     // Elementos principales
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
@@ -632,6 +665,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert.remove();
             }, 500);
         }, 5000);
+    });
+    
+    // Manejar navegación del navegador (botón atrás)
+    window.addEventListener('popstate', function(event) {
+        // Si hay un contexto guardado, redirigir al almacén correcto
+        const context = sessionStorage.getItem('almacen_context');
+        if (context) {
+            const contextData = JSON.parse(context);
+            if (contextData.almacen_id === ALMACEN_ID) {
+                // Ya estamos en el almacén correcto
+                return;
+            }
+        }
     });
 });
 

@@ -78,6 +78,22 @@ function getContextDescription($context_array, $producto) {
     return 'Lista de Productos';
 }
 
+// Función para determinar URL de ver producto
+function buildVerProductoUrl($producto_id, $context_params) {
+    $base_url = 'ver-producto.php?id=' . $producto_id;
+    return $context_params ? $base_url . '&from=' . urlencode($context_params) : $base_url;
+}
+
+// Función para determinar si el retorno debe ser al almacén
+function shouldReturnToWarehouse($context_array) {
+    // Si no hay contexto específico de lista, volver al almacén
+    if (empty($context_array) || 
+        (!isset($context_array['categoria_id']) && !isset($context_array['busqueda']) && !isset($context_array['pagina']))) {
+        return true;
+    }
+    return false;
+}
+
 // Obtener información del producto
 $sql = "SELECT p.*, c.nombre as categoria_nombre, a.nombre as almacen_nombre 
         FROM productos p 
@@ -100,6 +116,11 @@ if (!$producto) {
 // ⭐ CONSTRUIR URLs DE NAVEGACIÓN CON CONTEXTO
 $return_url = buildReturnUrl($context_array, $producto);
 $return_text = getContextDescription($context_array, $producto);
+$ver_producto_url = buildVerProductoUrl($producto_id, $context_params);
+$should_return_to_warehouse = shouldReturnToWarehouse($context_array);
+
+// URL para retorno al almacén
+$warehouse_return_url = "../almacenes/ver_redirect.php?id=" . $producto['almacen_id'];
 
 // Obtener lista de categorías
 $sql_categorias = "SELECT id, nombre FROM categorias ORDER BY nombre";
@@ -154,12 +175,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 if ($stmt_update->execute()) {
                     $_SESSION['success'] = "✅ Producto actualizado con éxito.";
                     
-                    // ⭐ REDIRIGIR MANTENIENDO EL CONTEXTO ORIGINAL
-                    $redirect_url = "ver-producto.php?id=" . $producto_id;
-                    if ($context_params) {
-                        $redirect_url .= '&from=' . urlencode($context_params);
-                    }
-                    header("Location: " . $redirect_url);
+                    // ⭐ REDIRIGIR A VER PRODUCTO MANTENIENDO EL CONTEXTO ORIGINAL
+                    header("Location: " . $ver_producto_url);
                     exit();
                 } else {
                     $error = "❌ Error al actualizar el producto: " . $stmt_update->error;
@@ -219,7 +236,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
     <link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
 </head>
-<body>
+<body data-almacen-id="<?php echo $producto['almacen_id']; ?>" data-producto-id="<?php echo $producto_id; ?>">
 
 <!-- Botón de hamburguesa para dispositivos móviles -->
 <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
@@ -350,14 +367,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             Modifica la información del producto "<?php echo htmlspecialchars($producto['nombre']); ?>"
         </p>
         
-        <!-- ⭐ BREADCRUMB CON CONTEXTO -->
-        <div class="breadcrumb">
+        <!-- ⭐ BREADCRUMB DINÁMICO -->
+        <div class="breadcrumb" id="breadcrumbContainer">
             <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <a href="<?php echo $return_url; ?>"><?php echo $return_text; ?></a>
-            <span><i class="fas fa-chevron-right"></i></span>
-            <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>"><?php echo htmlspecialchars($producto['nombre']); ?></a>
-            <span><i class="fas fa-chevron-right"></i></span>
+            <!-- Se completará dinámicamente -->
             <span class="current">Editar</span>
         </div>
     </div>
@@ -639,10 +653,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 Guardar Cambios
                             </button>
                             
-                            <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>" class="btn-cancel">
+                            <button type="button" class="btn-cancel" onclick="navegarRetorno()">
                                 <i class="fas fa-times"></i>
                                 Cancelar
-                            </a>
+                            </button>
                         </div>
                     </div>
                 </form>
@@ -658,7 +672,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 </div>
                 
                 <div class="action-item">
-                    <a href="ver-producto.php?id=<?php echo $producto_id; ?><?php echo $context_params ? '&from=' . urlencode($context_params) : ''; ?>" class="action-link">
+                    <a href="<?php echo $ver_producto_url; ?>" class="action-link">
                         <i class="fas fa-eye"></i>
                         <div>
                             <strong>Ver Detalles</strong>
@@ -668,11 +682,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 </div>
                 
                 <div class="action-item">
-                    <a href="<?php echo $return_url; ?>" class="action-link">
+                    <a href="javascript:void(0)" onclick="navegarRetorno()" class="action-link">
                         <i class="fas fa-list"></i>
                         <div>
-                            <strong>Volver a Lista</strong>
-                            <small><?php echo $return_text; ?></small>
+                            <strong id="textoRetorno">Volver a Lista</strong>
+                            <small id="subtextoRetorno"><?php echo $return_text; ?></small>
                         </div>
                     </a>
                 </div>
@@ -694,30 +708,104 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- ⭐ JAVASCRIPT CON LÓGICA ORIGINAL -->
 <script>
 // Variables para el contexto
 const CONTEXT_PARAMS = '<?php echo urlencode($context_params); ?>';
-const RETURN_URL = '<?php echo $return_url; ?>';
 const PRODUCT_ID = <?php echo $producto_id; ?>;
+const ALMACEN_ID = <?php echo $producto['almacen_id']; ?>;
+const RETURN_URL = '<?php echo $return_url; ?>';
+const RETURN_TEXT = '<?php echo addslashes($return_text); ?>';
+const VER_PRODUCTO_URL = '<?php echo $ver_producto_url; ?>';
+const SHOULD_RETURN_TO_WAREHOUSE = <?php echo $should_return_to_warehouse ? 'true' : 'false'; ?>;
+const WAREHOUSE_RETURN_URL = '<?php echo $warehouse_return_url; ?>';
+
+// Función para configurar la interfaz según el contexto
+function configurarInterfazContexto() {
+    const textoRetorno = document.getElementById('textoRetorno');
+    const subtextoRetorno = document.getElementById('subtextoRetorno');
+    const breadcrumbContainer = document.getElementById('breadcrumbContainer');
+    
+    if (SHOULD_RETURN_TO_WAREHOUSE) {
+        // Configurar para retorno al almacén
+        textoRetorno.textContent = 'Volver al Almacén';
+        subtextoRetorno.textContent = 'Ver almacén completo';
+        
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="../almacenes/listar.php">Almacenes</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarAlAlmacen()">Almacén</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="${VER_PRODUCTO_URL}"><?php echo htmlspecialchars($producto['nombre']); ?></a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Editar</span>
+        `;
+    } else {
+        // Configurar para retorno a lista de productos
+        if (RETURN_TEXT.includes('Categoría:')) {
+            textoRetorno.textContent = 'Volver a Categoría';
+        } else if (RETURN_TEXT.includes('Almacén:')) {
+            textoRetorno.textContent = 'Volver al Almacén';
+        } else {
+            textoRetorno.textContent = 'Volver a Lista';
+        }
+        
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">${RETURN_TEXT}</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="${VER_PRODUCTO_URL}"><?php echo htmlspecialchars($producto['nombre']); ?></a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Editar</span>
+        `;
+    }
+}
+
+// Función para navegar de retorno
+function navegarRetorno() {
+    if (SHOULD_RETURN_TO_WAREHOUSE) {
+        navegarAlAlmacen();
+    } else {
+        // Verificar si hay contexto de productos guardado
+        const productosContext = sessionStorage.getItem('productos_context');
+        
+        if (productosContext) {
+            const context = JSON.parse(productosContext);
+            if (context.filtro_almacen_id === ALMACEN_ID) {
+                // El contexto coincide, usar la URL de retorno
+                window.location.href = RETURN_URL;
+                return;
+            }
+        }
+        
+        // Usar URL de retorno por defecto
+        window.location.href = RETURN_URL;
+    }
+}
+
+// Función para navegar al almacén
+function navegarAlAlmacen() {
+    // Crear formulario para navegar de forma segura al almacén
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '../almacenes/ver_redirect.php';
+    form.style.display = 'none';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'view_almacen_id';
+    input.value = ALMACEN_ID;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+}
 
 document.addEventListener('DOMContentLoaded', function() {
-    // ⭐ LIMPIAR URL DESPUÉS DE CARGAR (SIN CAMBIAR LA FUNCIONALIDAD)
-    if (window.location.search && window.history.replaceState) {
-        // Crear una URL limpia para mostrar
-        const cleanUrl = window.location.pathname;
-        const pageTitle = 'Editar Producto - <?php echo htmlspecialchars($producto['nombre']); ?> - GRUPO SEAL';
-        
-        // Reemplazar la URL en el historial sin recargar la página
-        window.history.replaceState(
-            { 
-                productId: PRODUCT_ID, 
-                context: CONTEXT_PARAMS 
-            }, 
-            pageTitle, 
-            cleanUrl
-        );
-    }
+    // Configurar la interfaz según el contexto
+    configurarInterfazContexto();
     
     // Elementos principales
     const menuToggle = document.getElementById('menuToggle');
@@ -725,6 +813,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const mainContent = document.getElementById('main-content');
     const submenuContainers = document.querySelectorAll('.submenu-container');
     const form = document.getElementById('formEditarProducto');
+    
+    // Valores originales para detectar cambios
+    const valoresOriginales = {
+        nombre: document.getElementById('nombre').value,
+        modelo: document.getElementById('modelo').value,
+        color: document.getElementById('color').value,
+        talla_dimensiones: document.getElementById('talla_dimensiones').value,
+        cantidad: document.getElementById('cantidad').value,
+        unidad_medida: document.getElementById('unidad_medida').value,
+        estado: document.getElementById('estado').value,
+        observaciones: document.getElementById('observaciones').value,
+        categoria_id: document.getElementById('categoria_id').value,
+        almacen_id: document.getElementById('almacen_id').value
+    };
     
     // Toggle del menú móvil
     if (menuToggle) {
@@ -734,7 +836,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 mainContent.classList.toggle('with-sidebar');
             }
             
-            // Cambiar icono del botón
             const icon = this.querySelector('i');
             if (sidebar.classList.contains('active')) {
                 icon.classList.remove('fa-bars');
@@ -758,7 +859,6 @@ document.addEventListener('DOMContentLoaded', function() {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 
-                // Cerrar otros submenús
                 submenuContainers.forEach(otherContainer => {
                     if (otherContainer !== container) {
                         const otherSubmenu = otherContainer.querySelector('.submenu');
@@ -777,7 +877,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                // Toggle del submenú actual
                 submenu.classList.toggle('activo');
                 const isExpanded = submenu.classList.contains('activo');
                 
@@ -828,72 +927,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.remove('keyboard-navigation');
     });
     
-    // Validación del formulario
-    if (form) {
-        const inputs = form.querySelectorAll('input[required], select[required]');
-        const submitBtn = document.getElementById('btnGuardar');
-        
-        function validateForm() {
-            let isValid = true;
-            
-            inputs.forEach(input => {
-                if (!input.value.trim()) {
-                    isValid = false;
-                    input.classList.add('error');
-                    input.closest('.form-group').classList.add('error');
-                } else {
-                    input.classList.remove('error');
-                    input.classList.add('success');
-                    input.closest('.form-group').classList.remove('error');
-                    input.closest('.form-group').classList.add('success');
-                }
-            });
-            
-            if (submitBtn) {
-                if (isValid) {
-                    submitBtn.classList.add('has-changes');
-                } else {
-                    submitBtn.classList.remove('has-changes');
-                }
-            }
-            
-            return isValid;
-        }
-        
-        inputs.forEach(input => {
-            input.addEventListener('blur', validateForm);
-            input.addEventListener('input', function() {
-                validateForm();
-                // Marcar como modificado
-                this.classList.add('modified');
-            });
-        });
-        
-        form.addEventListener('submit', function(e) {
-            if (!validateForm()) {
-                e.preventDefault();
-                mostrarNotificacion('Por favor, complete todos los campos obligatorios.', 'error');
-            } else {
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
-                submitBtn.disabled = true;
-                submitBtn.classList.add('loading');
-            }
-        });
-    }
-    
     // Detección de cambios en el formulario
-    const originalValues = {};
-    const inputs = form.querySelectorAll('input, select, textarea');
-    
-    inputs.forEach(input => {
-        originalValues[input.name] = input.value;
-    });
-    
-    function checkForChanges() {
+    function detectarCambios() {
+        const inputs = form.querySelectorAll('input, select, textarea');
         let hasChanges = false;
         
         inputs.forEach(input => {
-            if (input.value !== originalValues[input.name]) {
+            if (input.value !== valoresOriginales[input.name]) {
                 hasChanges = true;
                 input.classList.add('modified');
             } else {
@@ -909,11 +949,60 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.classList.remove('has-changes');
             }
         }
+        
+        return hasChanges;
     }
     
-    inputs.forEach(input => {
-        input.addEventListener('input', checkForChanges);
-        input.addEventListener('change', checkForChanges);
+    // Validación y envío del formulario con confirmación
+    if (form) {
+        const inputs = form.querySelectorAll('input, select, textarea');
+        
+        inputs.forEach(input => {
+            input.addEventListener('input', detectarCambios);
+            input.addEventListener('change', detectarCambios);
+        });
+        
+        form.addEventListener('submit', function(e) {
+            const nombre = document.getElementById('nombre').value.trim();
+            const cantidad = document.getElementById('cantidad').value;
+            const unidad_medida = document.getElementById('unidad_medida').value.trim();
+            const estado = document.getElementById('estado').value;
+            const categoria_id = document.getElementById('categoria_id').value;
+            const almacen_id = document.getElementById('almacen_id').value;
+            
+            // Validaciones básicas
+            if (!nombre || !unidad_medida || !estado || !categoria_id || !almacen_id) {
+                e.preventDefault();
+                mostrarNotificacion('Todos los campos obligatorios deben estar completos', 'error');
+                return;
+            }
+            
+            if (parseInt(cantidad) < 0) {
+                e.preventDefault();
+                mostrarNotificacion('La cantidad no puede ser negativa', 'error');
+                return;
+            }
+            
+            // Verificar si hay cambios
+            if (!detectarCambios()) {
+                e.preventDefault();
+                mostrarNotificacion('No se han realizado cambios', 'warning');
+                return;
+            }
+            
+            const btnSubmit = document.getElementById('btnGuardar');
+            const originalText = btnSubmit.innerHTML;
+            
+            // Mostrar estado de carga
+            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            btnSubmit.disabled = true;
+        });
+    }
+    
+    // Manejar navegación del navegador (botón atrás)
+    window.addEventListener('popstate', function(event) {
+        // Navegar según el contexto
+        navegarRetorno();
     });
 });
 
@@ -953,7 +1042,7 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
     }
 }
 
-// ⭐ FUNCIÓN PARA ELIMINAR PRODUCTO CON REDIRECCIÓN CONTEXTUAL
+// Función para eliminar producto
 async function eliminarProducto(id, nombre) {
     if (confirm(`¿Está seguro de que desea eliminar el producto "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
         mostrarNotificacion('Eliminando producto...', 'info');
@@ -973,8 +1062,7 @@ async function eliminarProducto(id, nombre) {
                 mostrarNotificacion('Producto eliminado correctamente', 'exito');
                 
                 setTimeout(() => {
-                    // Redirigir a la lista con contexto
-                    window.location.href = RETURN_URL;
+                    navegarRetorno();
                 }, 2000);
             } else {
                 mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
@@ -992,7 +1080,6 @@ async function manejarCerrarSesion(event) {
     
     if (confirm('¿Está seguro de que desea cerrar sesión?')) {
         mostrarNotificacion('Cerrando sesión...', 'info', 2000);
-        
         setTimeout(() => {
             window.location.href = '../logout.php';
         }, 1000);
@@ -1004,17 +1091,6 @@ window.addEventListener('error', function(e) {
     console.error('Error detectado:', e.error);
     mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
 });
-
-// Mostrar notificaciones si hay mensajes de sesión
-<?php if (isset($_SESSION['success'])): ?>
-mostrarNotificacion('<?php echo $_SESSION['success']; ?>', 'exito');
-<?php unset($_SESSION['success']); ?>
-<?php endif; ?>
-
-<?php if (isset($_SESSION['error'])): ?>
-mostrarNotificacion('<?php echo $_SESSION['error']; ?>', 'error');
-<?php unset($_SESSION['error']); ?>
-<?php endif; ?>
 </script>
 </body>
 </html>

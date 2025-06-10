@@ -27,6 +27,22 @@ require_once "../config/database.php";
 $almacen_preseleccionado = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : null;
 $categoria_preseleccionada = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : null;
 
+// Determinar la URL de retorno basada en el contexto
+function determinarUrlRetorno($almacen_id, $categoria_id) {
+    if ($almacen_id && $categoria_id) {
+        // Si viene de una categoría específica del almacén
+        return "../productos/listar.php?almacen_id={$almacen_id}&categoria_id={$categoria_id}";
+    } elseif ($almacen_id) {
+        // Si viene del almacén general
+        return "../almacenes/ver-almacen.php?id={$almacen_id}";
+    } else {
+        // Lista general de productos
+        return "listar.php";
+    }
+}
+
+$url_retorno = determinarUrlRetorno($almacen_preseleccionado, $categoria_preseleccionada);
+
 $mensaje = "";
 $error = "";
 
@@ -97,14 +113,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     
                     $_SESSION['success'] = "✅ Producto registrado con éxito.";
                     
-                    // Redirigir según el contexto
-                    if ($almacen_preseleccionado && $categoria_preseleccionada) {
-                        header("Location: listar.php?almacen_id={$almacen_preseleccionado}&categoria_id={$categoria_preseleccionada}");
-                    } elseif ($almacen_preseleccionado) {
-                        header("Location: ../almacenes/ver-almacen.php?id={$almacen_preseleccionado}");
-                    } else {
-                        header("Location: listar.php");
-                    }
+                    // Redirigir según el contexto original
+                    $redirect_url = determinarUrlRetorno($almacen_id, $categoria_id);
+                    header("Location: " . $redirect_url);
                     exit();
                 } else {
                     $error = "❌ Error al registrar el producto: " . $stmt->error;
@@ -149,7 +160,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <!-- CSS específico para registrar productos -->
     <link rel="stylesheet" href="../assets/css/productos/productos-registrar.css">
 </head>
-<body>
+<body data-almacen-id="<?php echo $almacen_preseleccionado; ?>" data-categoria-id="<?php echo $categoria_preseleccionada; ?>">
 
 <!-- Botón de hamburguesa para dispositivos móviles -->
 <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
@@ -295,31 +306,20 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <span>Ver Productos</span>
                 </a>
                 
-                <?php if ($almacen_preseleccionado): ?>
-                <a href="../almacenes/ver-almacen.php?id=<?php echo $almacen_preseleccionado; ?>" class="btn-header btn-secondary">
+                <!-- Botón dinámico de retorno -->
+                <a href="javascript:void(0)" onclick="navegarRetorno()" class="btn-header btn-secondary" id="btnRetorno">
                     <i class="fas fa-arrow-left"></i>
-                    <span>Volver al Almacén</span>
+                    <span id="textoRetorno">Volver</span>
                 </a>
-                <?php endif; ?>
             </div>
         </div>
     </header>
 
-    <!-- Breadcrumb -->
-    <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <!-- Breadcrumb dinámico -->
+    <nav class="breadcrumb" aria-label="Ruta de navegación" id="breadcrumbContainer">
         <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
         <span><i class="fas fa-chevron-right"></i></span>
-        
-        <?php if ($almacen_preseleccionado): ?>
-            <a href="../almacenes/listar.php">Almacenes</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-            <a href="../almacenes/ver-almacen.php?id=<?php echo $almacen_preseleccionado; ?>">Almacén</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-        <?php else: ?>
-            <a href="listar.php">Productos</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-        <?php endif; ?>
-        
+        <!-- Se completará dinámicamente -->
         <span class="current">Registrar Producto</span>
     </nav>
 
@@ -551,10 +551,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         Limpiar Formulario
                     </button>
                     
-                    <a href="listar.php" class="btn-cancel">
+                    <button type="button" onclick="navegarRetorno()" class="btn-cancel">
                         <i class="fas fa-times"></i>
                         Cancelar
-                    </a>
+                    </button>
                 </div>
             </form>
         </div>
@@ -606,31 +606,95 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- ⭐ JAVASCRIPT CON LIMPIEZA DE URL Y FUNCIONALIDAD COMPLETA -->
 <script>
-// ⭐ VARIABLES PARA MANTENER LA FUNCIONALIDAD SIN MOSTRAR PARÁMETROS EN URL
-document.addEventListener('DOMContentLoaded', function() {
-    // Obtener parámetros actuales antes de limpiar
-    const urlParams = new URLSearchParams(window.location.search);
-    const almacenPreseleccionado = urlParams.get('almacen_id');
-    const categoriaPreseleccionada = urlParams.get('categoria_id');
+// Variables para el contexto de navegación
+const ALMACEN_PRESELECCIONADO = <?php echo $almacen_preseleccionado ? $almacen_preseleccionado : 'null'; ?>;
+const CATEGORIA_PRESELECCIONADA = <?php echo $categoria_preseleccionada ? $categoria_preseleccionada : 'null'; ?>;
+const URL_RETORNO = '<?php echo $url_retorno; ?>';
+
+// Función para determinar el contexto y navegar correctamente
+function navegarRetorno() {
+    // Verificar si hay contexto de sessionStorage (para navegación desde almacén)
+    const almacenContext = sessionStorage.getItem('almacen_context');
     
-    // ⭐ LIMPIAR URL DESPUÉS DE CARGAR (IGUAL QUE LOS OTROS ARCHIVOS)
-    if (window.location.search && window.history.replaceState) {
-        // Crear una URL limpia para mostrar
-        const cleanUrl = window.location.pathname;
-        const pageTitle = 'Registrar Producto - GRUPO SEAL';
-        
-        // Reemplazar la URL en el historial sin recargar la página
-        window.history.replaceState(
-            { 
-                almacen_preseleccionado: almacenPreseleccionado,
-                categoria_preseleccionada: categoriaPreseleccionada
-            }, 
-            pageTitle, 
-            cleanUrl
-        );
+    if (almacenContext) {
+        const context = JSON.parse(almacenContext);
+        // Si el almacén coincide con el preseleccionado, volver al almacén
+        if (context.almacen_id === ALMACEN_PRESELECCIONADO) {
+            // Crear formulario para navegar de forma segura al almacén
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '../almacenes/ver_redirect.php';
+            form.style.display = 'none';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'view_almacen_id';
+            input.value = context.almacen_id;
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+            return;
+        }
     }
+    
+    // Usar la URL de retorno determinada por PHP
+    window.location.href = URL_RETORNO;
+}
+
+// Función para configurar la interfaz basada en el contexto
+function configurarInterfazContexto() {
+    const btnRetorno = document.getElementById('btnRetorno');
+    const textoRetorno = document.getElementById('textoRetorno');
+    const breadcrumbContainer = document.getElementById('breadcrumbContainer');
+    
+    // Configurar texto y breadcrumb según el contexto
+    if (ALMACEN_PRESELECCIONADO && CATEGORIA_PRESELECCIONADA) {
+        textoRetorno.textContent = 'Volver a Categoría';
+        
+        // Breadcrumb para categoría específica
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="../almacenes/listar.php">Almacenes</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">Almacén</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">Categoría</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Registrar Producto</span>
+        `;
+    } else if (ALMACEN_PRESELECCIONADO) {
+        textoRetorno.textContent = 'Volver al Almacén';
+        
+        // Breadcrumb para almacén
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="../almacenes/listar.php">Almacenes</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">Almacén</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Registrar Producto</span>
+        `;
+    } else {
+        textoRetorno.textContent = 'Volver a Productos';
+        
+        // Breadcrumb general
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="listar.php">Productos</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Registrar Producto</span>
+        `;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar la interfaz según el contexto
+    configurarInterfazContexto();
     
     // ⭐ FUNCIONALIDAD EXISTENTE DEL FORMULARIO
     const menuToggle = document.getElementById('menuToggle');
@@ -752,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Escape' && !sidebar.classList.contains('active')) {
             // Confirmar antes de salir
             if (confirm('¿Desea cancelar el registro del producto?')) {
-                window.location.href = 'listar.php';
+                navegarRetorno();
             }
         }
     });
@@ -840,6 +904,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Manejar navegación del navegador (botón atrás)
+    window.addEventListener('popstate', function(event) {
+        // Si el usuario presiona atrás, llevarlo al contexto correcto
+        if (event.state && event.state.almacen_id) {
+            navegarRetorno();
+        }
+    });
 });
 
 // ⭐ FUNCIÓN PARA AJUSTAR CANTIDAD
@@ -883,21 +955,18 @@ function limpiarFormulario() {
                 charCount.parentElement.classList.remove('warning');
             }
             
-            // Restaurar valores preseleccionados si los había
-            const state = window.history.state;
-            if (state) {
-                if (state.almacen_preseleccionado) {
-                    const almacenSelect = document.getElementById('almacen_id');
-                    if (almacenSelect) {
-                        almacenSelect.value = state.almacen_preseleccionado;
-                    }
+            // Restaurar valores preseleccionados
+            if (ALMACEN_PRESELECCIONADO) {
+                const almacenSelect = document.getElementById('almacen_id');
+                if (almacenSelect) {
+                    almacenSelect.value = ALMACEN_PRESELECCIONADO;
                 }
-                
-                if (state.categoria_preseleccionada) {
-                    const categoriaSelect = document.getElementById('categoria_id');
-                    if (categoriaSelect) {
-                        categoriaSelect.value = state.categoria_preseleccionada;
-                    }
+            }
+            
+            if (CATEGORIA_PRESELECCIONADA) {
+                const categoriaSelect = document.getElementById('categoria_id');
+                if (categoriaSelect) {
+                    categoriaSelect.value = CATEGORIA_PRESELECCIONADA;
                 }
             }
             
