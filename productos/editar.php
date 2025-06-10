@@ -23,7 +23,7 @@ if ($usuario_rol !== 'admin') {
     exit();
 }
 
-// ⭐ MANTENER LA LÓGICA ORIGINAL - Validar el ID del producto
+// Validar el ID del producto
 if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
     $_SESSION['error'] = "ID de producto no válido.";
     header("Location: listar.php");
@@ -32,7 +32,7 @@ if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
 
 $producto_id = $_GET['id'];
 
-// ⭐ MANTENER LA LÓGICA ORIGINAL - OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
+// Obtener y procesar parámetros de contexto
 $context_params = isset($_GET['from']) ? $_GET['from'] : '';
 parse_str($context_params, $context_array);
 
@@ -113,7 +113,7 @@ if (!$producto) {
     exit();
 }
 
-// ⭐ CONSTRUIR URLs DE NAVEGACIÓN CON CONTEXTO
+// Construir URLs de navegación con contexto
 $return_url = buildReturnUrl($context_array, $producto);
 $return_text = getContextDescription($context_array, $producto);
 $ver_producto_url = buildVerProductoUrl($producto_id, $context_params);
@@ -175,7 +175,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 if ($stmt_update->execute()) {
                     $_SESSION['success'] = "✅ Producto actualizado con éxito.";
                     
-                    // ⭐ REDIRIGIR A VER PRODUCTO MANTENIENDO EL CONTEXTO ORIGINAL
+                    // Redirigir a ver producto manteniendo el contexto original
                     header("Location: " . $ver_producto_url);
                     exit();
                 } else {
@@ -229,7 +229,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS específico corregido -->
+    <!-- CSS específico mejorado -->
     <link rel="stylesheet" href="../assets/css/productos/productos-editar.css">
     
     <!-- Favicons -->
@@ -243,7 +243,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- ===== SIDEBAR Y NAVEGACIÓN UNIFICADO ===== -->
+<!-- Sidebar y navegación -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
     <h2>GRUPO SEAL</h2>
     <ul>
@@ -253,7 +253,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </a>
         </li>
 
-        <!-- Users Section - Only visible to administrators -->
+        <!-- Sección Usuarios - Solo visible para administradores -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
             <a href="#" aria-label="Menú Usuarios" aria-expanded="false" role="button" tabindex="0">
@@ -267,7 +267,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
         </li>
         <?php endif; ?>
 
-        <!-- Warehouses Section - Adjusted according to permissions -->
+        <!-- Sección Almacenes -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Almacenes" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-warehouse"></i> Almacenes</span>
@@ -281,19 +281,19 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </ul>
         </li>
         
-        <!-- Historial Section - Reemplaza la sección de Entregas -->
+        <!-- Sección Historial -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Historial" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-history"></i> Historial</span>
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                <li><a href="../entregas/historial.php"role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
+                <li><a href="../entregas/historial.php" role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
             </ul>
         </li>
         
-        <!-- Notifications Section - Con badge rojo de notificaciones -->
+        <!-- Sección Notificaciones -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Notificaciones" aria-expanded="false" role="button" tabindex="0">
                 <span>
@@ -313,7 +313,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </ul>
         </li>
 
-        <!-- Reports Section (Admin only) -->
+        <!-- Sección Reportes (Solo admin) -->
         <?php if ($usuario_rol == 'admin'): ?>
         <li class="submenu-container">
             <a href="#" aria-label="Menú Reportes" aria-expanded="false" role="button" tabindex="0">
@@ -328,7 +328,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
         </li>
         <?php endif; ?>
 
-        <!-- User Profile -->
+        <!-- Perfil de usuario -->
         <li class="submenu-container">
             <a href="#" aria-label="Menú Perfil" aria-expanded="false" role="button" tabindex="0">
                 <span><i class="fas fa-user-circle"></i> Mi Perfil</span>
@@ -339,7 +339,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </ul>
         </li>
 
-        <!-- Logout -->
+        <!-- Cerrar sesión -->
         <li>
             <a href="#" onclick="manejarCerrarSesion(event)" aria-label="Cerrar sesión">
                 <span><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</span>
@@ -364,10 +364,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             Editar Producto
         </h1>
         <p class="page-description">
-            Modifica la información del producto "<?php echo htmlspecialchars($producto['nombre']); ?>"
+            Modifica la información del producto "<strong><?php echo htmlspecialchars($producto['nombre']); ?></strong>" de manera organizada y eficiente
         </p>
         
-        <!-- ⭐ BREADCRUMB DINÁMICO -->
+        <!-- Breadcrumb dinámico -->
         <div class="breadcrumb" id="breadcrumbContainer">
             <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
             <span><i class="fas fa-chevron-right"></i></span>
@@ -376,9 +376,9 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
         </div>
     </div>
 
-    <!-- ===== LAYOUT DE DOS COLUMNAS ===== -->
+    <!-- Layout de dos columnas -->
     <div class="edit-layout">
-        <!-- ===== COLUMNA PRINCIPAL - FORMULARIO ===== -->
+        <!-- Columna principal - Formulario -->
         <div class="edit-main">
             <div class="edit-container">
                 <div class="form-header">
@@ -386,16 +386,16 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         <i class="fas fa-edit"></i>
                     </div>
                     <h2>Editar Información del Producto</h2>
-                    <p>Actualice los campos que desea modificar de manera organizada</p>
+                    <p>Complete los campos siguientes para actualizar la información del producto de manera organizada</p>
                 </div>
 
                 <form id="formEditarProducto" action="" method="POST" autocomplete="off">
                     
-                    <!-- ===== SECCIÓN 1: INFORMACIÓN BÁSICA ===== -->
+                    <!-- Sección 1: Información Básica -->
                     <div class="form-section-card">
                         <div class="form-section-header">
                             <h3><i class="fas fa-info-circle"></i> Información Básica</h3>
-                            <p class="form-section-subtitle">Datos principales del producto</p>
+                            <p class="form-section-subtitle">Datos principales e identificación del producto</p>
                         </div>
                         <div class="form-section-content">
                             <div class="form-grid two-columns">
@@ -413,11 +413,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                         required
                                         autocomplete="off"
                                         maxlength="100"
-                                        placeholder="Nombre descriptivo del producto"
+                                        placeholder="Ingrese el nombre descriptivo del producto"
                                     >
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Nombre descriptivo y único del producto
+                                        Nombre único y descriptivo que identifique claramente el producto
                                     </div>
                                 </div>
 
@@ -438,25 +438,26 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                     </select>
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Categoría a la que pertenece el producto
+                                        Categoría a la que pertenece este producto para su clasificación
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ===== SECCIÓN 2: CARACTERÍSTICAS DEL PRODUCTO ===== -->
+                    <!-- Sección 2: Características del Producto (MEJORADA) -->
                     <div class="form-section-card">
                         <div class="form-section-header">
                             <h3><i class="fas fa-cogs"></i> Características del Producto</h3>
-                            <p class="form-section-subtitle">Detalles específicos y propiedades físicas</p>
+                            <p class="form-section-subtitle">Detalles específicos y propiedades físicas del producto</p>
                         </div>
                         <div class="form-section-content">
-                            <div class="form-grid three-columns">
+                            <!-- Primera fila: Modelo y Color (2 columnas balanceadas) -->
+                            <div class="form-grid two-columns">
                                 <div class="form-group">
                                     <label for="modelo" class="form-label">
                                         <i class="fas fa-tag"></i>
-                                        Modelo
+                                        Modelo o Referencia
                                     </label>
                                     <input 
                                         type="text" 
@@ -465,18 +466,18 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                         value="<?php echo htmlspecialchars($producto['modelo']); ?>" 
                                         autocomplete="off"
                                         maxlength="50"
-                                        placeholder="Modelo o referencia"
+                                        placeholder="Ej: ABC-123, Modelo X, Ref-2024"
                                     >
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Modelo o referencia del fabricante
+                                        Modelo, referencia o código del fabricante
                                     </div>
                                 </div>
 
                                 <div class="form-group">
                                     <label for="color" class="form-label">
                                         <i class="fas fa-palette"></i>
-                                        Color
+                                        Color Principal
                                     </label>
                                     <input 
                                         type="text" 
@@ -485,14 +486,17 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                         value="<?php echo htmlspecialchars($producto['color']); ?>" 
                                         autocomplete="off"
                                         maxlength="30"
-                                        placeholder="Color principal"
+                                        placeholder="Ej: Negro, Azul marino, Multicolor"
                                     >
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Color predominante del producto
+                                        Color predominante o característica visual principal
                                     </div>
                                 </div>
+                            </div>
 
+                            <!-- Segunda fila: Talla/Dimensiones y Estado (2 columnas balanceadas) -->
+                            <div class="form-grid two-columns">
                                 <div class="form-group">
                                     <label for="talla_dimensiones" class="form-label">
                                         <i class="fas fa-ruler"></i>
@@ -505,16 +509,14 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                         value="<?php echo htmlspecialchars($producto['talla_dimensiones']); ?>" 
                                         autocomplete="off"
                                         maxlength="50"
-                                        placeholder="Ej: L, 10x5x3 cm"
+                                        placeholder="Ej: Talla L, 25x15x10 cm, Ø 5cm"
                                     >
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Talla o dimensiones físicas
+                                        Talla de ropa, dimensiones físicas o medidas relevantes
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="form-grid">
                                 <div class="form-group">
                                     <label for="estado" class="form-label">
                                         <i class="fas fa-shield-alt"></i>
@@ -527,26 +529,26 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                             🆕 Nuevo
                                         </option>
                                         <option value="Usado" <?php echo ($producto['estado'] === 'Usado') ? 'selected' : ''; ?>>
-                                            ♻️ Usado
+                                            ♻️ Usado - Buen Estado
                                         </option>
                                         <option value="Dañado" <?php echo ($producto['estado'] === 'Dañado') ? 'selected' : ''; ?>>
-                                            ⚠️ Dañado
+                                            ⚠️ Dañado - Requiere Atención
                                         </option>
                                     </select>
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Condición actual del producto
+                                        Condición física actual del producto
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ===== SECCIÓN 3: INVENTARIO Y UBICACIÓN ===== -->
+                    <!-- Sección 3: Inventario y Ubicación -->
                     <div class="form-section-card">
                         <div class="form-section-header">
                             <h3><i class="fas fa-warehouse"></i> Inventario y Ubicación</h3>
-                            <p class="form-section-subtitle">Control de stock y almacenamiento</p>
+                            <p class="form-section-subtitle">Control de stock, medidas y almacenamiento</p>
                         </div>
                         <div class="form-section-content">
                             <div class="form-grid three-columns">
@@ -568,7 +570,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                     >
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Cantidad actual en stock
+                                        Cantidad actual disponible en inventario
                                     </div>
                                 </div>
 
@@ -586,11 +588,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                         required
                                         autocomplete="off"
                                         maxlength="20"
-                                        placeholder="Ej: unidades, kg, litros"
+                                        placeholder="Ej: unidades, kg, litros, metros"
                                     >
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Forma de medir el producto
+                                        Unidad en la que se mide o cuenta este producto
                                     </div>
                                 </div>
 
@@ -611,18 +613,18 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                     </select>
                                     <div class="field-hint">
                                         <i class="fas fa-info-circle"></i>
-                                        Almacén donde se encuentra el producto
+                                        Ubicación física donde se almacena el producto
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ===== SECCIÓN 4: OBSERVACIONES ADICIONALES ===== -->
+                    <!-- Sección 4: Observaciones Adicionales -->
                     <div class="form-section-card">
                         <div class="form-section-header">
                             <h3><i class="fas fa-comment-alt"></i> Observaciones Adicionales</h3>
-                            <p class="form-section-subtitle">Información complementaria y notas importantes</p>
+                            <p class="form-section-subtitle">Información complementaria, notas especiales y comentarios</p>
                         </div>
                         <div class="form-section-content">
                             <div class="form-group full-width">
@@ -633,19 +635,19 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 <textarea 
                                     id="observaciones" 
                                     name="observaciones" 
-                                    rows="4"
+                                    rows="5"
                                     maxlength="500"
-                                    placeholder="Escriba aquí cualquier observación importante sobre el producto, su uso, mantenimiento, o características especiales..."
+                                    placeholder="Escriba aquí cualquier información adicional relevante sobre el producto:&#10;• Instrucciones especiales de manejo&#10;• Características técnicas importantes&#10;• Notas sobre su uso o aplicación&#10;• Información de mantenimiento&#10;• Observaciones de calidad"
                                 ><?php echo htmlspecialchars($producto['observaciones']); ?></textarea>
                                 <div class="field-hint">
                                     <i class="fas fa-info-circle"></i>
-                                    Información adicional que considere importante (opcional - máximo 500 caracteres)
+                                    Información complementaria que puede ser útil para el manejo, uso o identificación del producto (máximo 500 caracteres)
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ===== ACCIONES DEL FORMULARIO ===== -->
+                    <!-- Acciones del formulario -->
                     <div class="form-actions-card">
                         <div class="form-actions">
                             <button type="submit" class="btn-submit" id="btnGuardar">
@@ -663,20 +665,20 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </div>
         </div>
 
-        <!-- ===== BARRA LATERAL DERECHA - ACCIONES ADICIONALES ===== -->
+        <!-- Barra lateral derecha - Acciones adicionales -->
         <div class="edit-sidebar">
             <div class="additional-actions">
                 <div class="additional-actions-header">
                     <h3>Acciones Rápidas</h3>
-                    <p>Opciones relacionadas</p>
+                    <p>Navegación y opciones adicionales</p>
                 </div>
                 
                 <div class="action-item">
                     <a href="<?php echo $ver_producto_url; ?>" class="action-link">
                         <i class="fas fa-eye"></i>
                         <div>
-                            <strong>Ver Detalles</strong>
-                            <small>Vista completa del producto</small>
+                            <strong>Ver Detalles Completos</strong>
+                            <small>Vista completa del producto con toda la información</small>
                         </div>
                     </a>
                 </div>
@@ -692,11 +694,21 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 </div>
                 
                 <div class="action-item">
+                    <a href="../almacenes/ver_redirect.php?id=<?php echo $producto['almacen_id']; ?>" class="action-link">
+                        <i class="fas fa-warehouse"></i>
+                        <div>
+                            <strong>Ver Almacén</strong>
+                            <small>Ir al almacén: <?php echo htmlspecialchars($producto['almacen_nombre']); ?></small>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="action-item">
                     <a href="#" onclick="eliminarProducto(<?php echo $producto_id; ?>, '<?php echo htmlspecialchars($producto['nombre']); ?>')" class="action-link danger">
                         <i class="fas fa-trash-alt"></i>
                         <div>
-                            <strong>Eliminar</strong>
-                            <small>⚠️ Eliminar producto</small>
+                            <strong>Eliminar Producto</strong>
+                            <small>⚠️ Acción irreversible - Use con precaución</small>
                         </div>
                     </a>
                 </div>
@@ -705,11 +717,11 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     </div>
 </main>
 
-<!-- Container for dynamic notifications -->
+<!-- Container para notificaciones dinámicas -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
 <script>
-// Variables para el contexto
+// Variables globales para el contexto
 const CONTEXT_PARAMS = '<?php echo urlencode($context_params); ?>';
 const PRODUCT_ID = <?php echo $producto_id; ?>;
 const ALMACEN_ID = <?php echo $producto['almacen_id']; ?>;
@@ -999,6 +1011,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Contador de caracteres para textarea
+    const observacionesTextarea = document.getElementById('observaciones');
+    if (observacionesTextarea) {
+        const maxLength = observacionesTextarea.getAttribute('maxlength');
+        const hintElement = observacionesTextarea.nextElementSibling;
+        
+        function actualizarContador() {
+            const currentLength = observacionesTextarea.value.length;
+            const remaining = maxLength - currentLength;
+            
+            if (hintElement) {
+                const originalText = hintElement.textContent;
+                const baseText = originalText.split('(máximo')[0];
+                hintElement.textContent = `${baseText}(${remaining} caracteres restantes)`;
+                
+                if (remaining < 50) {
+                    hintElement.style.color = 'var(--warning-color)';
+                } else if (remaining < 20) {
+                    hintElement.style.color = 'var(--danger-color)';
+                } else {
+                    hintElement.style.color = '';
+                }
+            }
+        }
+        
+        observacionesTextarea.addEventListener('input', actualizarContador);
+        actualizarContador(); // Llamar al cargar la página
+    }
+    
     // Manejar navegación del navegador (botón atrás)
     window.addEventListener('popstate', function(event) {
         // Navegar según el contexto
@@ -1006,7 +1047,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Función para mostrar notificaciones
+// Función para mostrar notificaciones mejorada
 function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
     const container = document.getElementById('notificaciones-container');
     if (!container) return;
@@ -1024,7 +1065,7 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
     notificacion.innerHTML = `
         <i class="${iconos[tipo] || iconos['info']}"></i>
         <span>${mensaje}</span>
-        <button class="cerrar" onclick="this.parentElement.remove()">
+        <button class="cerrar" onclick="this.parentElement.remove()" aria-label="Cerrar notificación">
             <i class="fas fa-times"></i>
         </button>
     `;
@@ -1042,10 +1083,21 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
     }
 }
 
-// Función para eliminar producto
+// Función para eliminar producto con confirmación mejorada
 async function eliminarProducto(id, nombre) {
-    if (confirm(`¿Está seguro de que desea eliminar el producto "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
-        mostrarNotificacion('Eliminando producto...', 'info');
+    const confirmacion = confirm(
+        `⚠️ CONFIRMACIÓN DE ELIMINACIÓN\n\n` +
+        `¿Está completamente seguro de que desea eliminar el producto:\n` +
+        `"${nombre}"?\n\n` +
+        `Esta acción es IRREVERSIBLE y eliminará:\n` +
+        `• Toda la información del producto\n` +
+        `• Historial de movimientos\n` +
+        `• Referencias en reportes\n\n` +
+        `Haga clic en "Aceptar" solo si está seguro.`
+    );
+    
+    if (confirmacion) {
+        mostrarNotificacion('Eliminando producto, por favor espere...', 'info');
         
         try {
             const response = await fetch('eliminar_producto.php', {
@@ -1059,7 +1111,7 @@ async function eliminarProducto(id, nombre) {
             const data = await response.json();
 
             if (data.success) {
-                mostrarNotificacion('Producto eliminado correctamente', 'exito');
+                mostrarNotificacion('✅ Producto eliminado correctamente', 'exito');
                 
                 setTimeout(() => {
                     navegarRetorno();
@@ -1090,6 +1142,46 @@ async function manejarCerrarSesion(event) {
 window.addEventListener('error', function(e) {
     console.error('Error detectado:', e.error);
     mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
+});
+
+// Funciones adicionales para mejorar la experiencia de usuario
+function validarCampoEnTiempoReal(campo) {
+    const valor = campo.value.trim();
+    const grupo = campo.closest('.form-group');
+    
+    // Limpiar estados previos
+    grupo.classList.remove('success', 'error', 'warning');
+    
+    if (campo.hasAttribute('required') && !valor) {
+        grupo.classList.add('error');
+        return false;
+    }
+    
+    if (valor) {
+        grupo.classList.add('success');
+        return true;
+    }
+    
+    return true;
+}
+
+// Aplicar validación en tiempo real a todos los campos requeridos
+document.addEventListener('DOMContentLoaded', function() {
+    const camposRequeridos = document.querySelectorAll('input[required], select[required]');
+    
+    camposRequeridos.forEach(campo => {
+        campo.addEventListener('blur', function() {
+            validarCampoEnTiempoReal(this);
+        });
+        
+        campo.addEventListener('input', function() {
+            // Debounce para evitar demasiadas validaciones
+            clearTimeout(this.validationTimeout);
+            this.validationTimeout = setTimeout(() => {
+                validarCampoEnTiempoReal(this);
+            }, 500);
+        });
+    });
 });
 </script>
 </body>

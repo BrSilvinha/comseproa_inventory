@@ -279,6 +279,41 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
     $params[$tipo_pagina] = $pagina;
     return '?' . http_build_query($params);
 }
+
+// Función para formatear fechas
+function formatearFecha($fecha) {
+    if (!$fecha || $fecha == '1970-01-01 00:00:00') {
+        return 'Sin actividad';
+    }
+    return date('d/m/Y H:i', strtotime($fecha));
+}
+
+// Función para obtener el icono según el tipo de actividad
+function obtenerIconoActividad($estado) {
+    $estado_normalizado = $estado;
+    
+    // Normalizar estados diferentes entre tablas
+    if ($estado_normalizado == 'aprobada') $estado_normalizado = 'completado';
+    if ($estado_normalizado == 'rechazada') $estado_normalizado = 'rechazado';
+    
+    switch($estado_normalizado) {
+        case 'completado':
+            return 'fas fa-check-circle text-success';
+        case 'pendiente':
+            return 'fas fa-clock text-warning';
+        case 'rechazado':
+            return 'fas fa-times-circle text-danger';
+        default:
+            return 'fas fa-circle text-secondary';
+    }
+}
+
+// Función para normalizar estados
+function normalizarEstado($estado) {
+    if ($estado == 'aprobada') return 'completado';
+    if ($estado == 'rechazada') return 'rechazado';
+    return $estado;
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -305,193 +340,6 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
     
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
-    
-    <style>
-    /* Estilos para paginación */
-    .pagination-section {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        margin: 20px 0;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e0e7ff;
-    }
-
-    .pagination-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .pagination-stats {
-        color: #6b7280;
-        font-size: 14px;
-    }
-
-    .pagination-stats strong {
-        color: #1f2937;
-    }
-
-    .pagination-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .pagination-controls a,
-    .pagination-controls span {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px 12px;
-        border: 1px solid #d1d5db;
-        background: white;
-        color: #374151;
-        text-decoration: none;
-        border-radius: 6px;
-        font-size: 14px;
-        min-width: 36px;
-        transition: all 0.2s ease;
-    }
-
-    .pagination-controls a:hover {
-        background: #f3f4f6;
-        border-color: #9ca3af;
-        transform: translateY(-1px);
-    }
-
-    .pagination-controls .current {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-        font-weight: 600;
-    }
-
-    .pagination-controls .disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        pointer-events: none;
-    }
-
-    .pagination-controls .prev,
-    .pagination-controls .next {
-        font-weight: 500;
-        padding: 8px 16px;
-    }
-
-    .pagination-controls .prev:hover,
-    .pagination-controls .next:hover {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-    }
-
-    .records-per-page {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-left: auto;
-    }
-
-    .records-per-page select {
-        padding: 6px 10px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        background: white;
-        color: #374151;
-        font-size: 14px;
-        cursor: pointer;
-    }
-
-    .records-per-page select:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    /* Paginación para actividad reciente */
-    .activity-pagination {
-        margin-top: 20px;
-        padding-top: 15px;
-        border-top: 1px solid #e5e7eb;
-    }
-
-    .activity-pagination .pagination-controls {
-        justify-content: center;
-    }
-
-    /* Responsive para paginación */
-    @media (max-width: 768px) {
-        .pagination-info {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .pagination-controls {
-            justify-content: center;
-            width: 100%;
-        }
-
-        .records-per-page {
-            margin-left: 0;
-            width: 100%;
-            justify-content: center;
-        }
-    }
-
-    /* Grid responsive mejorado */
-    .content-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
-
-    @media (min-width: 1200px) {
-        .content-grid {
-            grid-template-columns: 2fr 1fr;
-        }
-    }
-
-    /* Animaciones */
-    .fade-in {
-        animation: fadeIn 0.5s ease-in-out forwards;
-    }
-
-    .slide-in {
-        animation: slideIn 0.5s ease-in-out forwards;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateX(-20px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-
-    /* Loading states */
-    .table-loading {
-        display: none;
-        text-align: center;
-        padding: 40px;
-        color: #6b7280;
-    }
-
-    .table-loading.active {
-        display: block;
-    }
-
-    .usuarios-table.loading {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    </style>
 </head>
 <body>
 
@@ -584,7 +432,6 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                
                 <li><a href="../perfil/cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
@@ -653,12 +500,12 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
             
             <div class="filter-group">
                 <label class="filter-label">Fecha Inicio</label>
-                <input type="date" name="fecha_inicio" value="<?php echo $filtro_fecha_inicio; ?>" class="filter-control">
+                <input type="date" name="fecha_inicio" value="<?php echo htmlspecialchars($filtro_fecha_inicio); ?>" class="filter-control">
             </div>
             
             <div class="filter-group">
                 <label class="filter-label">Fecha Fin</label>
-                <input type="date" name="fecha_fin" value="<?php echo $filtro_fecha_fin; ?>" class="filter-control">
+                <input type="date" name="fecha_fin" value="<?php echo htmlspecialchars($filtro_fecha_fin); ?>" class="filter-control">
             </div>
             
             <div class="filter-group">
@@ -778,7 +625,7 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
             <?php endif; ?>
 
             <div class="table-loading" id="tableLoading">
-                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <i class="fas fa-spinner fa-spin"></i>
                 <p>Cargando usuarios...</p>
             </div>
             
@@ -809,8 +656,8 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
                                 </td>
                                 <td class="user-email"><?php echo htmlspecialchars($usuario['usuario_email']); ?></td>
                                 <td class="user-role">
-                                    <span class="role-badge <?php echo $usuario['rol']; ?>">
-                                        <?php echo ucfirst($usuario['rol']); ?>
+                                    <span class="role-badge <?php echo htmlspecialchars($usuario['rol']); ?>">
+                                        <?php echo ucfirst(htmlspecialchars($usuario['rol'])); ?>
                                     </span>
                                 </td>
                                 <td class="user-almacen"><?php echo htmlspecialchars($usuario['almacen_nombre'] ?? 'N/A'); ?></td>
@@ -819,11 +666,7 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
                                 <td class="activity-pending"><?php echo number_format($usuario['pendientes']); ?></td>
                                 <td class="activity-rejected"><?php echo number_format($usuario['rechazadas']); ?></td>
                                 <td class="last-activity">
-                                    <?php 
-                                    echo ($usuario['ultima_actividad'] && $usuario['ultima_actividad'] != '1970-01-01 00:00:00') 
-                                        ? date('d/m/Y H:i', strtotime($usuario['ultima_actividad'])) 
-                                        : 'Sin actividad'; 
-                                    ?>
+                                    <?php echo formatearFecha($usuario['ultima_actividad']); ?>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -851,49 +694,29 @@ function construirURL($pagina, $tipo_pagina = 'pagina') {
                     <?php while ($actividad = $result_reciente->fetch_assoc()): ?>
                     <div class="activity-item">
                         <div class="activity-icon">
-                            <?php
-                            $icon_class = '';
-                            $estado_normalizado = $actividad['estado'];
-                            
-                            // Normalizar estados diferentes entre tablas
-                            if ($estado_normalizado == 'aprobada') $estado_normalizado = 'completado';
-                            if ($estado_normalizado == 'rechazada') $estado_normalizado = 'rechazado';
-                            
-                            switch($estado_normalizado) {
-                                case 'completado':
-                                    $icon_class = 'fas fa-check-circle text-success';
-                                    break;
-                                case 'pendiente':
-                                    $icon_class = 'fas fa-clock text-warning';
-                                    break;
-                                case 'rechazado':
-                                    $icon_class = 'fas fa-times-circle text-danger';
-                                    break;
-                            }
-                            ?>
-                            <i class="<?php echo $icon_class; ?>"></i>
+                            <i class="<?php echo obtenerIconoActividad($actividad['estado']); ?>"></i>
                         </div>
                         
                         <div class="activity-content">
                             <div class="activity-header">
                                 <strong><?php echo htmlspecialchars($actividad['usuario_nombre']); ?></strong>
-                                <span class="activity-time"><?php echo date('d/m/Y H:i', strtotime($actividad['fecha_actividad'])); ?></span>
+                                <span class="activity-time"><?php echo formatearFecha($actividad['fecha_actividad']); ?></span>
                             </div>
                             
                             <div class="activity-description">
-                                <?php echo ucfirst($actividad['tipo_actividad']); ?> de 
+                                <?php echo ucfirst(htmlspecialchars($actividad['tipo_actividad'])); ?> de 
                                 <strong><?php echo number_format($actividad['cantidad']); ?></strong> unidades de 
                                 <em><?php echo htmlspecialchars($actividad['producto_nombre']); ?></em>
                                 <?php if ($actividad['almacen_origen'] && $actividad['almacen_destino']): ?>
                                 desde <strong><?php echo htmlspecialchars($actividad['almacen_origen']); ?></strong> 
                                 hacia <strong><?php echo htmlspecialchars($actividad['almacen_destino']); ?></strong>
                                 <?php endif; ?>
-                                <small>(<?php echo ucfirst($actividad['tipo_registro']); ?>)</small>
+                                <small>(<?php echo ucfirst(htmlspecialchars($actividad['tipo_registro'])); ?>)</small>
                             </div>
                             
                             <div class="activity-status">
-                                <span class="status-badge <?php echo $estado_normalizado; ?>">
-                                    <?php echo ucfirst($actividad['estado']); ?>
+                                <span class="status-badge <?php echo normalizarEstado($actividad['estado']); ?>">
+                                    <?php echo ucfirst(htmlspecialchars($actividad['estado'])); ?>
                                 </span>
                             </div>
                         </div>
@@ -1058,32 +881,16 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 3000) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'notificaciones-container';
-        container.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            max-width: 400px;
-        `;
         document.body.appendChild(container);
     }
     
     // Crear notificación
     const notificacion = document.createElement('div');
-    notificacion.className = `notificacion notificacion-${tipo}`;
-    notificacion.style.cssText = `
-        background: ${tipo === 'success' ? '#d4edda' : tipo === 'error' ? '#f8d7da' : '#d1ecf1'};
-        color: ${tipo === 'success' ? '#155724' : tipo === 'error' ? '#721c24' : '#0c5460'};
-        border: 1px solid ${tipo === 'success' ? '#c3e6cb' : tipo === 'error' ? '#f5c6cb' : '#bee5eb'};
-        border-radius: 5px;
-        padding: 12px 16px;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        opacity: 0;
-        transform: translateX(100%);
-        transition: all 0.3s ease;
+    notificacion.className = `notificacion ${tipo}`;
+    notificacion.innerHTML = `
+        <i class="fas ${tipo === 'success' ? 'fa-check-circle' : tipo === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${mensaje}</span>
     `;
-    notificacion.textContent = mensaje;
     
     container.appendChild(notificacion);
     
@@ -1126,14 +933,57 @@ document.addEventListener('keydown', function(e) {
             case 'ArrowLeft':
                 e.preventDefault();
                 const prevBtn = document.querySelector('.pagination-controls .prev:not(.disabled)');
-                if (prevBtn) prevBtn.click();
+                if (prevBtn && prevBtn.href) window.location.href = prevBtn.href;
                 break;
             case 'ArrowRight':
                 e.preventDefault();
                 const nextBtn = document.querySelector('.pagination-controls .next:not(.disabled)');
-                if (nextBtn) nextBtn.click();
+                if (nextBtn && nextBtn.href) window.location.href = nextBtn.href;
                 break;
         }
+    }
+});
+
+// Función para buscar en tiempo real (opcional)
+function buscarUsuario(termino) {
+    const filas = document.querySelectorAll('.usuarios-table tbody tr');
+    
+    filas.forEach(fila => {
+        const textoFila = fila.textContent.toLowerCase();
+        const coincide = textoFila.includes(termino.toLowerCase());
+        
+        fila.style.display = coincide ? '' : 'none';
+    });
+}
+
+// Mejorar la experiencia del usuario con loading states
+function mostrarCargando() {
+    document.getElementById('tableLoading').classList.add('active');
+    document.getElementById('usuariosTable').classList.add('loading');
+}
+
+function ocultarCargando() {
+    document.getElementById('tableLoading').classList.remove('active');
+    document.getElementById('usuariosTable').classList.remove('loading');
+}
+
+// Auto-envío del formulario cuando cambian las fechas (opcional)
+document.addEventListener('DOMContentLoaded', function() {
+    const fechaInicio = document.querySelector('input[name="fecha_inicio"]');
+    const fechaFin = document.querySelector('input[name="fecha_fin"]');
+    
+    if (fechaInicio && fechaFin) {
+        let timeout;
+        
+        function enviarFormulario() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                document.getElementById('filtrosForm').submit();
+            }, 1000); // Esperar 1 segundo después del último cambio
+        }
+        
+        fechaInicio.addEventListener('change', enviarFormulario);
+        fechaFin.addEventListener('change', enviarFormulario);
     }
 });
 </script>
