@@ -8,6 +8,9 @@ if (!isset($_SESSION["user_id"])) {
 session_regenerate_id(true);
 require_once "../config/database.php";
 
+// NUEVO: Configurar zona horaria de Perú
+date_default_timezone_set('America/Lima');
+
 $user_name = $_SESSION["user_name"] ?? "Usuario";
 $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 $usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
@@ -54,42 +57,76 @@ if ($almacen_id) {
     $stmt = $conn->prepare($sql_stats);
     $stmt->bind_param("i", $almacen_id);
 } else {
-    // Estadísticas globales
-    $sql_stats = "SELECT 
-        COUNT(DISTINCT p.categoria_id) as total_categorias,
-        COUNT(p.id) as total_productos,
-        COALESCE(SUM(p.cantidad), 0) as total_stock,
-        COALESCE(AVG(p.cantidad), 0) as promedio_stock,
-        COALESCE(MIN(p.cantidad), 0) as stock_minimo,
-        COALESCE(MAX(p.cantidad), 0) as stock_maximo
-        FROM productos p";
-    $stmt = $conn->prepare($sql_stats);
+    // CORREGIDO: Verificar que haya productos válidos
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        // Para usuarios no admin, mostrar solo su almacén
+        $sql_stats = "SELECT 
+            COUNT(DISTINCT p.categoria_id) as total_categorias,
+            COUNT(p.id) as total_productos,
+            COALESCE(SUM(p.cantidad), 0) as total_stock,
+            COALESCE(AVG(p.cantidad), 0) as promedio_stock,
+            COALESCE(MIN(p.cantidad), 0) as stock_minimo,
+            COALESCE(MAX(p.cantidad), 0) as stock_maximo
+            FROM productos p 
+            WHERE p.almacen_id = ?";
+        $stmt = $conn->prepare($sql_stats);
+        $stmt->bind_param("i", $usuario_almacen_id);
+    } else {
+        // Para admin, estadísticas globales
+        $sql_stats = "SELECT 
+            COUNT(DISTINCT p.categoria_id) as total_categorias,
+            COUNT(p.id) as total_productos,
+            COALESCE(SUM(p.cantidad), 0) as total_stock,
+            COALESCE(AVG(p.cantidad), 0) as promedio_stock,
+            COALESCE(MIN(p.cantidad), 0) as stock_minimo,
+            COALESCE(MAX(p.cantidad), 0) as stock_maximo
+            FROM productos p";
+        $stmt = $conn->prepare($sql_stats);
+    }
 }
 
 $stmt->execute();
 $stats = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-// Productos por categoría
+// CORREGIDO: Productos por categoría con mejor lógica
 if ($almacen_id) {
+    // Para almacén específico
     $sql_categorias = "SELECT c.nombre, 
         COUNT(p.id) as total_productos,
         COALESCE(SUM(p.cantidad), 0) as total_stock
         FROM categorias c
         LEFT JOIN productos p ON c.id = p.categoria_id AND p.almacen_id = ?
         GROUP BY c.id, c.nombre
+        HAVING total_productos > 0 OR total_stock > 0
         ORDER BY total_stock DESC";
     $stmt = $conn->prepare($sql_categorias);
     $stmt->bind_param("i", $almacen_id);
 } else {
-    $sql_categorias = "SELECT c.nombre, 
-        COUNT(p.id) as total_productos,
-        COALESCE(SUM(p.cantidad), 0) as total_stock
-        FROM categorias c
-        LEFT JOIN productos p ON c.id = p.categoria_id
-        GROUP BY c.id, c.nombre
-        ORDER BY total_stock DESC";
-    $stmt = $conn->prepare($sql_categorias);
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        // Para usuarios no admin
+        $sql_categorias = "SELECT c.nombre, 
+            COUNT(p.id) as total_productos,
+            COALESCE(SUM(p.cantidad), 0) as total_stock
+            FROM categorias c
+            LEFT JOIN productos p ON c.id = p.categoria_id AND p.almacen_id = ?
+            GROUP BY c.id, c.nombre
+            HAVING total_productos > 0 OR total_stock > 0
+            ORDER BY total_stock DESC";
+        $stmt = $conn->prepare($sql_categorias);
+        $stmt->bind_param("i", $usuario_almacen_id);
+    } else {
+        // Para admin - todas las categorías con productos
+        $sql_categorias = "SELECT c.nombre, 
+            COUNT(p.id) as total_productos,
+            COALESCE(SUM(p.cantidad), 0) as total_stock
+            FROM categorias c
+            LEFT JOIN productos p ON c.id = p.categoria_id
+            GROUP BY c.id, c.nombre
+            HAVING total_productos > 0 OR total_stock > 0
+            ORDER BY total_stock DESC";
+        $stmt = $conn->prepare($sql_categorias);
+    }
 }
 
 $stmt->execute();
@@ -106,13 +143,23 @@ if ($almacen_id) {
     $stmt = $conn->prepare($sql_bajo_stock);
     $stmt->bind_param("i", $almacen_id);
 } else {
-    $sql_bajo_stock = "SELECT p.nombre, p.cantidad, c.nombre as categoria, a.nombre as almacen
-        FROM productos p
-        JOIN categorias c ON p.categoria_id = c.id
-        JOIN almacenes a ON p.almacen_id = a.id
-        WHERE p.cantidad < 10
-        ORDER BY p.cantidad ASC";
-    $stmt = $conn->prepare($sql_bajo_stock);
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $sql_bajo_stock = "SELECT p.nombre, p.cantidad, c.nombre as categoria
+            FROM productos p
+            JOIN categorias c ON p.categoria_id = c.id
+            WHERE p.almacen_id = ? AND p.cantidad < 10
+            ORDER BY p.cantidad ASC";
+        $stmt = $conn->prepare($sql_bajo_stock);
+        $stmt->bind_param("i", $usuario_almacen_id);
+    } else {
+        $sql_bajo_stock = "SELECT p.nombre, p.cantidad, c.nombre as categoria, a.nombre as almacen
+            FROM productos p
+            JOIN categorias c ON p.categoria_id = c.id
+            JOIN almacenes a ON p.almacen_id = a.id
+            WHERE p.cantidad < 10
+            ORDER BY p.cantidad ASC";
+        $stmt = $conn->prepare($sql_bajo_stock);
+    }
 }
 
 $stmt->execute();
@@ -130,13 +177,24 @@ if ($almacen_id) {
     $stmt = $conn->prepare($sql_alto_stock);
     $stmt->bind_param("i", $almacen_id);
 } else {
-    $sql_alto_stock = "SELECT p.nombre, p.cantidad, c.nombre as categoria, a.nombre as almacen
-        FROM productos p
-        JOIN categorias c ON p.categoria_id = c.id
-        JOIN almacenes a ON p.almacen_id = a.id
-        ORDER BY p.cantidad DESC
-        LIMIT 10";
-    $stmt = $conn->prepare($sql_alto_stock);
+    if ($usuario_rol != 'admin' && $usuario_almacen_id) {
+        $sql_alto_stock = "SELECT p.nombre, p.cantidad, c.nombre as categoria
+            FROM productos p
+            JOIN categorias c ON p.categoria_id = c.id
+            WHERE p.almacen_id = ?
+            ORDER BY p.cantidad DESC
+            LIMIT 10";
+        $stmt = $conn->prepare($sql_alto_stock);
+        $stmt->bind_param("i", $usuario_almacen_id);
+    } else {
+        $sql_alto_stock = "SELECT p.nombre, p.cantidad, c.nombre as categoria, a.nombre as almacen
+            FROM productos p
+            JOIN categorias c ON p.categoria_id = c.id
+            JOIN almacenes a ON p.almacen_id = a.id
+            ORDER BY p.cantidad DESC
+            LIMIT 10";
+        $stmt = $conn->prepare($sql_alto_stock);
+    }
 }
 
 $stmt->execute();
@@ -158,6 +216,11 @@ if ($usuario_rol != 'admin') {
 $total_pendientes = 0;
 if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     $total_pendientes = $row_pendientes['total'];
+}
+
+// NUEVO: Función para formatear fecha y hora en zona horaria de Perú
+function formatearFechaHora() {
+    return date('d/m/Y H:i:s');
 }
 ?>
 <!DOCTYPE html>
@@ -210,7 +273,8 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <h2><i class="fas fa-building"></i> Inventario General</h2>
                 <p>Reporte completo de todos los almacenes del sistema</p>
             <?php endif; ?>
-            <p><i class="fas fa-calendar-alt"></i> Generado el: <?php echo date('d/m/Y H:i:s'); ?></p>
+            <!-- CORREGIDO: Fecha y hora con zona horaria correcta -->
+            <p><i class="fas fa-calendar-alt"></i> Generado el: <?php echo formatearFechaHora(); ?></p>
             <p><i class="fas fa-user"></i> Por: <?php echo htmlspecialchars($user_name); ?></p>
         </div>
 
@@ -238,7 +302,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             </div>
         </div>
 
-        <!-- Distribución por Categorías -->
+        <!-- CORREGIDO: Distribución por Categorías con mejor manejo de datos vacíos -->
         <div class="report-section">
             <div class="section-header">
                 <h3><i class="fas fa-chart-pie"></i> Distribución por Categorías</h3>
@@ -259,21 +323,37 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         <tbody>
                             <?php 
                             $total_general = $stats['total_stock'];
-                            while ($cat = $categorias_stats->fetch_assoc()): 
-                                $porcentaje = $total_general > 0 ? ($cat['total_stock'] / $total_general) * 100 : 0;
-                            ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($cat['nombre']); ?></strong></td>
-                                <td><?php echo number_format($cat['total_productos']); ?></td>
-                                <td><?php echo number_format($cat['total_stock']); ?></td>
-                                <td><?php echo number_format($porcentaje, 1); ?>%</td>
-                                <td>
-                                    <div class="percentage-bar">
-                                        <div class="percentage-fill" style="width: <?php echo $porcentaje; ?>%"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
+                            $categorias_array = [];
+                            
+                            // Almacenar los datos en array para debug
+                            while ($cat = $categorias_stats->fetch_assoc()) {
+                                $categorias_array[] = $cat;
+                            }
+                            
+                            // Verificar si hay categorías
+                            if (empty($categorias_array)): ?>
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: #666; padding: 20px;">
+                                        <i class="fas fa-info-circle"></i> No hay categorías con productos en este momento
+                                    </td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($categorias_array as $cat): 
+                                    $porcentaje = $total_general > 0 ? ($cat['total_stock'] / $total_general) * 100 : 0;
+                                ?>
+                                <tr>
+                                    <td><strong><?php echo htmlspecialchars($cat['nombre']); ?></strong></td>
+                                    <td><?php echo number_format($cat['total_productos']); ?></td>
+                                    <td><?php echo number_format($cat['total_stock']); ?></td>
+                                    <td><?php echo number_format($porcentaje, 1); ?>%</td>
+                                    <td>
+                                        <div class="percentage-bar">
+                                            <div class="percentage-fill" style="width: <?php echo $porcentaje; ?>%"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -281,12 +361,16 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <div class="empty-message">
                     <i class="fas fa-inbox"></i>
                     <h4>No hay datos de categorías</h4>
-                    <p>No se encontraron categorías con productos.</p>
+                    <p>No se encontraron categorías con productos para mostrar.</p>
+                    <?php if ($usuario_rol == 'admin'): ?>
+                    <p><small>Verifique que existan productos registrados en las categorías.</small></p>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
 
+        <!-- Resto del código permanece igual -->
         <!-- Productos con Stock Crítico -->
         <div class="report-section">
             <div class="section-header">
@@ -300,7 +384,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <tr>
                                 <th>Producto</th>
                                 <th>Categoría</th>
-                                <?php if (!$almacen_id): ?><th>Almacén</th><?php endif; ?>
+                                <?php if (!$almacen_id && ($usuario_rol == 'admin' || !$usuario_almacen_id)): ?><th>Almacén</th><?php endif; ?>
                                 <th>Stock Actual</th>
                                 <th>Estado</th>
                                 <th>Prioridad</th>
@@ -314,7 +398,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <tr>
                                 <td><strong><?php echo htmlspecialchars($prod['nombre']); ?></strong></td>
                                 <td><?php echo htmlspecialchars($prod['categoria']); ?></td>
-                                <?php if (!$almacen_id): ?><td><?php echo htmlspecialchars($prod['almacen']); ?></td><?php endif; ?>
+                                <?php if (!$almacen_id && ($usuario_rol == 'admin' || !$usuario_almacen_id)): ?><td><?php echo htmlspecialchars($prod['almacen'] ?? 'N/A'); ?></td><?php endif; ?>
                                 <td>
                                     <span class="<?php echo $prod['cantidad'] < 5 ? 'stock-critical' : 'stock-warning'; ?>">
                                         <?php echo $prod['cantidad']; ?> unidades
@@ -365,7 +449,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 <th>Posición</th>
                                 <th>Producto</th>
                                 <th>Categoría</th>
-                                <?php if (!$almacen_id): ?><th>Almacén</th><?php endif; ?>
+                                <?php if (!$almacen_id && ($usuario_rol == 'admin' || !$usuario_almacen_id)): ?><th>Almacén</th><?php endif; ?>
                                 <th>Stock</th>
                                 <th>Estado</th>
                             </tr>
@@ -385,7 +469,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 </td>
                                 <td><strong><?php echo htmlspecialchars($prod['nombre']); ?></strong></td>
                                 <td><?php echo htmlspecialchars($prod['categoria']); ?></td>
-                                <?php if (!$almacen_id): ?><td><?php echo htmlspecialchars($prod['almacen']); ?></td><?php endif; ?>
+                                <?php if (!$almacen_id && ($usuario_rol == 'admin' || !$usuario_almacen_id)): ?><td><?php echo htmlspecialchars($prod['almacen'] ?? 'N/A'); ?></td><?php endif; ?>
                                 <td class="stock-good"><?php echo number_format($prod['cantidad']); ?> unidades</td>
                                 <td><span class="stock-good"><i class="fas fa-check-circle"></i> ÓPTIMO</span></td>
                             </tr>
