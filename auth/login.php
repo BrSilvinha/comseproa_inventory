@@ -7,7 +7,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST["password"];
 
     if (empty($correo) || empty($password)) {
-        $error = "Por favor, complete todos los campos.";
+        $error = "empty_fields";
+        header("Location: ../views/login_form.php?error=" . urlencode($error));
+        exit();
+    }
+
+    // Validar formato de email
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        $error = "invalid_email";
         header("Location: ../views/login_form.php?error=" . urlencode($error));
         exit();
     }
@@ -18,7 +25,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $stmt = $conn->prepare($sql);
     
     if (!$stmt) {
-        die("Error en la consulta: " . $conn->error);
+        error_log("Error en la consulta SQL: " . $conn->error);
+        $error = "system_error";
+        header("Location: ../views/login_form.php?error=" . urlencode($error));
+        exit();
     }
 
     $stmt->bind_param("s", $correo);
@@ -30,6 +40,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         // Verificar la contraseña
         if (password_verify($password, $user["contrasena"])) {
+            // Login exitoso - regenerar ID de sesión por seguridad
+            session_regenerate_id(true);
+            
             // Guardar sesión
             $_SESSION["user_id"] = $user["id"];
             $_SESSION["user_name"] = $user["nombre"] . " " . $user["apellidos"];
@@ -38,21 +51,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION["almacen_id"] = $user["almacen_id"];
             // Para mantener compatibilidad con el código existente
             $_SESSION["rol"] = $user["rol"];
+            
+            // Opcional: Registrar último acceso (agregar esta columna a la BD si es necesario)
+            /*
+            $update_sql = "UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?";
+            $update_stmt = $conn->prepare($update_sql);
+            if ($update_stmt) {
+                $update_stmt->bind_param("i", $user["id"]);
+                $update_stmt->execute();
+                $update_stmt->close();
+            }
+            */
 
             // Redirigir al dashboard
             header("Location: ../dashboard.php");
             exit();
         } else {
-            $error = "Correo o contraseña incorrectos.";
+            $error = "invalid_credentials";
         }
     } else {
-        $error = "Correo o contraseña incorrectos.";
+        $error = "invalid_credentials";
     }
 
     $stmt->close();
     $conn->close();
     
     header("Location: ../views/login_form.php?error=" . urlencode($error));
+    exit();
+} else {
+    // Si alguien accede directamente al archivo sin POST, redirigir al login
+    header("Location: ../views/login_form.php");
     exit();
 }
 ?>

@@ -131,10 +131,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Producto - COMSEPROA</title>
+    <title>Registrar Producto - GRUPO SEAL</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Registrar nuevo producto en el sistema COMSEPROA">
+    <meta name="description" content="Registrar nuevo producto en el sistema GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -606,7 +606,377 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript -->
-<script src="../assets/js/productos-registrar.js"></script>
+<!-- ⭐ JAVASCRIPT CON LIMPIEZA DE URL Y FUNCIONALIDAD COMPLETA -->
+<script>
+// ⭐ VARIABLES PARA MANTENER LA FUNCIONALIDAD SIN MOSTRAR PARÁMETROS EN URL
+document.addEventListener('DOMContentLoaded', function() {
+    // Obtener parámetros actuales antes de limpiar
+    const urlParams = new URLSearchParams(window.location.search);
+    const almacenPreseleccionado = urlParams.get('almacen_id');
+    const categoriaPreseleccionada = urlParams.get('categoria_id');
+    
+    // ⭐ LIMPIAR URL DESPUÉS DE CARGAR (IGUAL QUE LOS OTROS ARCHIVOS)
+    if (window.location.search && window.history.replaceState) {
+        // Crear una URL limpia para mostrar
+        const cleanUrl = window.location.pathname;
+        const pageTitle = 'Registrar Producto - GRUPO SEAL';
+        
+        // Reemplazar la URL en el historial sin recargar la página
+        window.history.replaceState(
+            { 
+                almacen_preseleccionado: almacenPreseleccionado,
+                categoria_preseleccionada: categoriaPreseleccionada
+            }, 
+            pageTitle, 
+            cleanUrl
+        );
+    }
+    
+    // ⭐ FUNCIONALIDAD EXISTENTE DEL FORMULARIO
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    const submenuContainers = document.querySelectorAll('.submenu-container');
+    
+    // Toggle del menú móvil
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            if (mainContent) {
+                mainContent.classList.toggle('with-sidebar');
+            }
+            
+            // Cambiar icono del botón
+            const icon = this.querySelector('i');
+            if (sidebar.classList.contains('active')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+                this.setAttribute('aria-label', 'Cerrar menú de navegación');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+                this.setAttribute('aria-label', 'Abrir menú de navegación');
+            }
+        });
+    }
+    
+    // Funcionalidad de submenús
+    submenuContainers.forEach(container => {
+        const link = container.querySelector('a');
+        const submenu = container.querySelector('.submenu');
+        const chevron = link.querySelector('.fa-chevron-down');
+        
+        if (link && submenu) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Cerrar otros submenús
+                submenuContainers.forEach(otherContainer => {
+                    if (otherContainer !== container) {
+                        const otherSubmenu = otherContainer.querySelector('.submenu');
+                        const otherChevron = otherContainer.querySelector('.fa-chevron-down');
+                        const otherLink = otherContainer.querySelector('a');
+                        
+                        if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
+                            otherSubmenu.classList.remove('activo');
+                            if (otherChevron) {
+                                otherChevron.style.transform = 'rotate(0deg)';
+                            }
+                            if (otherLink) {
+                                otherLink.setAttribute('aria-expanded', 'false');
+                            }
+                        }
+                    }
+                });
+                
+                // Toggle del submenú actual
+                submenu.classList.toggle('activo');
+                const isExpanded = submenu.classList.contains('activo');
+                
+                if (chevron) {
+                    chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+                
+                link.setAttribute('aria-expanded', isExpanded.toString());
+            });
+        }
+    });
+    
+    // Cerrar menú móvil al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+            if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+                if (mainContent) {
+                    mainContent.classList.remove('with-sidebar');
+                }
+                
+                const icon = menuToggle.querySelector('i');
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+                menuToggle.setAttribute('aria-label', 'Abrir menú de navegación');
+            }
+        }
+    });
+    
+    // Navegación por teclado
+    document.addEventListener('keydown', function(e) {
+        // Cerrar menú móvil con Escape
+        if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+            sidebar.classList.remove('active');
+            if (mainContent) {
+                mainContent.classList.remove('with-sidebar');
+            }
+            menuToggle.focus();
+        }
+        
+        // Indicador visual para navegación por teclado
+        if (e.key === 'Tab') {
+            document.body.classList.add('keyboard-navigation');
+        }
+        
+        // ⭐ ATAJOS DE TECLADO COMO EN LA AYUDA
+        if (e.ctrlKey) {
+            switch(e.key) {
+                case 's':
+                    e.preventDefault();
+                    document.getElementById('btnRegistrar').click();
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    limpiarFormulario();
+                    break;
+            }
+        }
+        
+        if (e.key === 'Escape' && !sidebar.classList.contains('active')) {
+            // Confirmar antes de salir
+            if (confirm('¿Desea cancelar el registro del producto?')) {
+                window.location.href = 'listar.php';
+            }
+        }
+    });
+    
+    document.addEventListener('mousedown', function() {
+        document.body.classList.remove('keyboard-navigation');
+    });
+    
+    // ⭐ VALIDACIÓN DEL FORMULARIO
+    const form = document.getElementById('formRegistrarProducto');
+    const submitBtn = document.getElementById('btnRegistrar');
+    
+    if (form) {
+        const requiredInputs = form.querySelectorAll('input[required], select[required]');
+        
+        function validateForm() {
+            let isValid = true;
+            
+            requiredInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    isValid = false;
+                    input.classList.add('error');
+                    input.closest('.form-group').classList.add('error');
+                } else {
+                    input.classList.remove('error');
+                    input.classList.add('success');
+                    input.closest('.form-group').classList.remove('error');
+                    input.closest('.form-group').classList.add('success');
+                }
+            });
+            
+            if (submitBtn) {
+                submitBtn.disabled = !isValid;
+                if (isValid) {
+                    submitBtn.classList.add('ready');
+                } else {
+                    submitBtn.classList.remove('ready');
+                }
+            }
+            
+            return isValid;
+        }
+        
+        // Validar en tiempo real
+        requiredInputs.forEach(input => {
+            input.addEventListener('blur', validateForm);
+            input.addEventListener('input', validateForm);
+        });
+        
+        // Validar al enviar
+        form.addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                mostrarNotificacion('Por favor, complete todos los campos obligatorios.', 'error');
+                
+                // Enfocar el primer campo con error
+                const firstError = form.querySelector('.error input, .error select');
+                if (firstError) {
+                    firstError.focus();
+                }
+            } else {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+                submitBtn.disabled = true;
+                submitBtn.classList.add('loading');
+            }
+        });
+        
+        // Validación inicial
+        setTimeout(validateForm, 100);
+    }
+    
+    // ⭐ CONTADOR DE CARACTERES PARA OBSERVACIONES
+    const observaciones = document.getElementById('observaciones');
+    const charCount = document.getElementById('charCount');
+    
+    if (observaciones && charCount) {
+        observaciones.addEventListener('input', function() {
+            const count = this.value.length;
+            charCount.textContent = count;
+            
+            if (count > 450) {
+                charCount.parentElement.classList.add('warning');
+            } else {
+                charCount.parentElement.classList.remove('warning');
+            }
+        });
+    }
+});
+
+// ⭐ FUNCIÓN PARA AJUSTAR CANTIDAD
+function adjustQuantity(increment) {
+    const cantidadInput = document.getElementById('cantidad');
+    if (cantidadInput) {
+        let currentValue = parseInt(cantidadInput.value) || 1;
+        let newValue = currentValue + increment;
+        
+        if (newValue < 1) newValue = 1;
+        if (newValue > 99999) newValue = 99999;
+        
+        cantidadInput.value = newValue;
+        
+        // Trigger validation
+        cantidadInput.dispatchEvent(new Event('input'));
+    }
+}
+
+// ⭐ FUNCIÓN PARA LIMPIAR FORMULARIO
+function limpiarFormulario() {
+    if (confirm('¿Está seguro de que desea limpiar todos los campos del formulario?')) {
+        const form = document.getElementById('formRegistrarProducto');
+        if (form) {
+            form.reset();
+            
+            // Limpiar clases de validación
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.classList.remove('error', 'success', 'modified');
+                const formGroup = input.closest('.form-group');
+                if (formGroup) {
+                    formGroup.classList.remove('error', 'success');
+                }
+            });
+            
+            // Resetear contador de caracteres
+            const charCount = document.getElementById('charCount');
+            if (charCount) {
+                charCount.textContent = '0';
+                charCount.parentElement.classList.remove('warning');
+            }
+            
+            // Restaurar valores preseleccionados si los había
+            const state = window.history.state;
+            if (state) {
+                if (state.almacen_preseleccionado) {
+                    const almacenSelect = document.getElementById('almacen_id');
+                    if (almacenSelect) {
+                        almacenSelect.value = state.almacen_preseleccionado;
+                    }
+                }
+                
+                if (state.categoria_preseleccionada) {
+                    const categoriaSelect = document.getElementById('categoria_id');
+                    if (categoriaSelect) {
+                        categoriaSelect.value = state.categoria_preseleccionada;
+                    }
+                }
+            }
+            
+            // Enfocar el primer campo
+            const primerCampo = form.querySelector('input[type="text"]');
+            if (primerCampo) {
+                primerCampo.focus();
+            }
+            
+            mostrarNotificacion('Formulario limpiado correctamente', 'info');
+        }
+    }
+}
+
+// ⭐ FUNCIÓN PARA MOSTRAR NOTIFICACIONES
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
+    const container = document.getElementById('notificaciones-container');
+    if (!container) return;
+    
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    
+    const iconos = {
+        'exito': 'fas fa-check-circle',
+        'error': 'fas fa-exclamation-circle', 
+        'info': 'fas fa-info-circle',
+        'warning': 'fas fa-exclamation-triangle'
+    };
+    
+    notificacion.innerHTML = `
+        <i class="${iconos[tipo] || iconos['info']}"></i>
+        <span>${mensaje}</span>
+        <button class="cerrar" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(notificacion);
+    
+    // Auto-remover después de la duración especificada
+    if (duracion > 0) {
+        setTimeout(() => {
+            if (notificacion.parentElement) {
+                notificacion.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => notificacion.remove(), 300);
+            }
+        }, duracion);
+    }
+}
+
+// ⭐ FUNCIÓN PARA CERRAR SESIÓN
+async function manejarCerrarSesion(event) {
+    event.preventDefault();
+    
+    if (confirm('¿Está seguro de que desea cerrar sesión?')) {
+        mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+        
+        setTimeout(() => {
+            window.location.href = '../logout.php';
+        }, 1000);
+    }
+}
+
+// ⭐ MOSTRAR NOTIFICACIONES DE SESIÓN PHP
+<?php if (isset($_SESSION['success'])): ?>
+mostrarNotificacion('<?php echo $_SESSION['success']; ?>', 'exito');
+<?php unset($_SESSION['success']); ?>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['error'])): ?>
+mostrarNotificacion('<?php echo $_SESSION['error']; ?>', 'error');
+<?php unset($_SESSION['error']); ?>
+<?php endif; ?>
+
+// Manejo de errores globales
+window.addEventListener('error', function(e) {
+    console.error('Error detectado:', e.error);
+    mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
+});
+</script>
 </body>
 </html>
