@@ -1,5 +1,8 @@
 <?php
 session_start();
+// ✅ CORRECCIÓN 1: Configurar zona horaria de Perú
+date_default_timezone_set('America/Lima');
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../views/login_form.php");
     exit();
@@ -112,7 +115,7 @@ function obtenerDatosInventario($conn, $almacen_id, $usuario_rol, $usuario_almac
     $datos['stats'] = $result->fetch_assoc();
     $stmt->close();
 
-    // Productos por categoría
+    // ✅ CORRECCIÓN 2: Productos por categoría - ARREGLADA
     if ($consultar_almacen_id) {
         $sql_categorias = "SELECT c.nombre, 
             COUNT(p.id) as total_productos,
@@ -120,6 +123,7 @@ function obtenerDatosInventario($conn, $almacen_id, $usuario_rol, $usuario_almac
             FROM categorias c
             LEFT JOIN productos p ON c.id = p.categoria_id AND p.almacen_id = ?
             GROUP BY c.id, c.nombre 
+            HAVING total_productos > 0 OR total_stock > 0
             ORDER BY total_stock DESC";
         $stmt = $conn->prepare($sql_categorias);
         $stmt->bind_param("i", $consultar_almacen_id);
@@ -130,6 +134,7 @@ function obtenerDatosInventario($conn, $almacen_id, $usuario_rol, $usuario_almac
             FROM categorias c
             LEFT JOIN productos p ON c.id = p.categoria_id
             GROUP BY c.id, c.nombre 
+            HAVING total_productos > 0 OR total_stock > 0
             ORDER BY total_stock DESC";
         $stmt = $conn->prepare($sql_categorias);
     }
@@ -437,10 +442,14 @@ if (isset($datos_reporte['error'])) {
     exit();
 }
 
-// Verificar si hay datos para mostrar
+// ✅ CORRECCIÓN 3: Verificar si hay datos para mostrar - MEJORADA
 $hay_datos = false;
 if ($tipo_reporte == 'inventario') {
-    $hay_datos = !empty($datos_reporte['stats']) && $datos_reporte['stats']['total_productos'] > 0;
+    $hay_datos = !empty($datos_reporte['stats']) && 
+                 ($datos_reporte['stats']['total_productos'] > 0 || 
+                  !empty($datos_reporte['categorias']) ||
+                  !empty($datos_reporte['productos_criticos']) ||
+                  !empty($datos_reporte['productos_alto_stock']));
 } else {
     $hay_datos = !empty($datos_reporte) && !empty($datos_reporte['stats']);
 }
@@ -694,6 +703,16 @@ if (!$hay_datos) {
             font-size: 10px;
             color: #2e7d32;
         }
+
+        .no-data-message {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -778,9 +797,10 @@ if (!$hay_datos) {
             </div>
         </div>
 
-        <!-- Distribución por Categorías -->
+        <!-- ✅ CORRECCIÓN 4: Distribución por Categorías - ARREGLADA -->
         <div class="section">
             <div class="section-title">📈 Distribución por Categorías</div>
+            <?php if (!empty($datos_reporte['categorias']) && count($datos_reporte['categorias']) > 0): ?>
             <table>
                 <thead>
                     <tr>
@@ -798,13 +818,19 @@ if (!$hay_datos) {
                     ?>
                     <tr>
                         <td><?php echo htmlspecialchars($cat['nombre']); ?></td>
-                        <td><?php echo number_format($cat['total_productos']); ?></td>
-                        <td><?php echo number_format($cat['total_stock']); ?></td>
-                        <td><?php echo number_format($porcentaje, 1); ?>%</td>
+                        <td style="text-align: center;"><?php echo number_format($cat['total_productos']); ?></td>
+                        <td style="text-align: right;"><?php echo number_format($cat['total_stock']); ?></td>
+                        <td style="text-align: right;"><?php echo number_format($porcentaje, 1); ?>%</td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            <?php else: ?>
+            <div class="no-data-message">
+                <p><strong>ℹ️ No se encontraron categorías con productos</strong></p>
+                <p>Esto puede deberse a que no hay productos registrados o no tienen categorías asignadas en este almacén.</p>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Productos con Stock Crítico -->
@@ -831,6 +857,33 @@ if (!$hay_datos) {
                             <?php echo $prod['cantidad']; ?> unidades
                         </td>
                         <td><?php echo $prod['cantidad'] < 5 ? 'CRÍTICO' : 'BAJO'; ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <!-- Top 10 Productos con Mayor Stock -->
+        <?php if (!empty($datos_reporte['productos_alto_stock'])): ?>
+        <div class="section">
+            <div class="section-title">🏆 Top 10 Productos con Mayor Stock</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <?php if (!$almacen_id): ?><th>Almacén</th><?php endif; ?>
+                        <th>Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($datos_reporte['productos_alto_stock'] as $prod): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($prod['nombre']); ?></td>
+                        <td><?php echo htmlspecialchars($prod['categoria']); ?></td>
+                        <?php if (!$almacen_id): ?><td><?php echo htmlspecialchars($prod['almacen']); ?></td><?php endif; ?>
+                        <td class="stock-good"><?php echo number_format($prod['cantidad']); ?> unidades</td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -895,7 +948,7 @@ if (!$hay_datos) {
                         <td>#<?php echo str_pad($mov['id'], 4, '0', STR_PAD_LEFT); ?></td>
                         <td><?php echo date('d/m/Y H:i', strtotime($mov['fecha'])); ?></td>
                         <td><?php echo htmlspecialchars($mov['producto_nombre']); ?></td>
-                        <td><?php echo number_format($mov['cantidad']); ?></td>
+                        <td style="text-align: center;"><?php echo number_format($mov['cantidad']); ?></td>
                         <td><?php echo htmlspecialchars($mov['almacen_origen'] ?? 'Sistema'); ?></td>
                         <td><?php echo htmlspecialchars($mov['almacen_destino'] ?? 'Sistema'); ?></td>
                         <td><?php echo htmlspecialchars($mov['usuario_nombre']); ?></td>
@@ -906,7 +959,10 @@ if (!$hay_datos) {
                 </tbody>
             </table>
             <?php else: ?>
-            <p style="text-align: center; padding: 20px; color: #666;">No se encontraron movimientos en el período seleccionado.</p>
+            <div class="no-data-message">
+                <p><strong>ℹ️ No se encontraron movimientos</strong></p>
+                <p>No hay movimientos registrados en el período seleccionado.</p>
+            </div>
             <?php endif; ?>
         </div>
 
@@ -936,6 +992,7 @@ if (!$hay_datos) {
 
         <div class="section">
             <div class="section-title">👥 Actividad por Usuario (Top <?php echo count($datos_reporte['usuarios']); ?>)</div>
+            <?php if (!empty($datos_reporte['usuarios'])): ?>
             <table>
                 <thead>
                     <tr>
@@ -953,13 +1010,25 @@ if (!$hay_datos) {
                         <td><?php echo htmlspecialchars($usuario['usuario_email']); ?></td>
                         <td><?php echo ucfirst($usuario['rol']); ?></td>
                         <td><?php echo htmlspecialchars($usuario['almacen_nombre'] ?? 'N/A'); ?></td>
-                        <td><?php echo number_format($usuario['total_actividades']); ?></td>
+                        <td style="text-align: center;"><?php echo number_format($usuario['total_actividades']); ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            <?php else: ?>
+            <div class="no-data-message">
+                <p><strong>ℹ️ No se encontraron usuarios con actividad</strong></p>
+                <p>No hay usuarios con actividad registrada en el período seleccionado.</p>
+            </div>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
+
+    <!-- Footer -->
+    <div style="margin-top: 30px; text-align: center; font-size: 8px; color: #666; border-top: 1px solid #ddd; padding-top: 10px;">
+        <p>Sistema de Inventario GRUPO SEAL - Reporte generado automáticamente</p>
+        <p>Fecha y hora: <?php echo date('d/m/Y H:i:s'); ?> (Hora de Perú - GMT-5)</p>
+    </div>
 
     <script>
         // Auto-abrir ventana de impresión si viene de un enlace directo
