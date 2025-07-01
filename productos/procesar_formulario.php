@@ -476,13 +476,15 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
         $conn->commit();
         
         // Respuesta exitosa
-        enviarRespuesta(true, 'Entrega registrada exitosamente', [
+        enviarRespuesta(true, '✅ Entrega registrada exitosamente', [
             'destinatario' => $destinatario_nombre,
             'dni' => $destinatario_dni,
             'productos_entregados' => count($productos_procesados),
             'total_unidades' => $total_unidades,
             'fecha_entrega' => date('Y-m-d H:i:s'),
-            'productos' => $productos_procesados
+            'productos' => $productos_procesados,
+            'preservar_contexto' => true,
+            'mensaje_detalle' => "Se entregaron {$total_unidades} unidades de " . count($productos_procesados) . " tipo(s) de productos a {$destinatario_nombre}"
         ]);
         
     } catch (Exception $e) {
