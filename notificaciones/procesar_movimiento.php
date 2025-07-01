@@ -40,7 +40,7 @@ if (isset($_GET['accion'])) {
     // Validar la acción
     if ($accion !== "aprobar" && $accion !== "rechazar") {
         $_SESSION['error'] = "Error: Acción no válida.";
-        header("Location: procesar_movimiento.php?id=" . $movimiento_id);
+        header("Location: imiento.php?id=" . $movimiento_id);
         exit();
     }
     
@@ -685,7 +685,7 @@ async function confirmarAccion(accion, movimientoId) {
             
             // Redirigir con la acción
             setTimeout(() => {
-                window.location.href = `procesar_movimiento.php?id=${movimientoId}&accion=${accion}`;
+                window.location.href = `imiento.php?id=${movimientoId}&accion=${accion}`;
             }, 1000);
         }
     } catch (error) {
@@ -693,7 +693,7 @@ async function confirmarAccion(accion, movimientoId) {
         // Fallback a confirm nativo
         const confirmNativo = confirm(`¿Está seguro de que desea ${accion} esta solicitud?`);
         if (confirmNativo) {
-            window.location.href = `procesar_movimiento.php?id=${movimientoId}&accion=${accion}`;
+            window.location.href = `imiento.php?id=${movimientoId}&accion=${accion}`;
         }
     }
 }

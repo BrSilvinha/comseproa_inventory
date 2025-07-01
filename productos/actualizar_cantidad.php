@@ -212,7 +212,7 @@ try {
         $estado_stock = 'bajo';
     }
     
-    // ⭐ RESPUESTA EXITOSA CON URLs LIMPIAS OPCIONALES
+    // Respuesta exitosa
     $response_data = [
         'nueva_cantidad' => $nueva_cantidad,
         'cantidad_anterior' => $cantidad_actual,
