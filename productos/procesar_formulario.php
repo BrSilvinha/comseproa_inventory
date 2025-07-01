@@ -88,6 +88,9 @@ if (!empty($input)) {
 }
 
 try {
+    // Iniciar transacción
+    $conn->begin_transaction();
+    
     // Procesamiento de transferencia normal
     
     // Obtener y validar datos del formulario
@@ -101,6 +104,49 @@ try {
     // Validaciones básicas
     if (!$datos['producto_id'] || $datos['producto_id'] <= 0) {
         http_response_code(400);
+        enviarRespuesta(false, 'ID de producto inválido.');
+    }
+    
+    if (!$datos['almacen_origen'] || $datos['almacen_origen'] <= 0) {
+        http_response_code(400);
+        enviarRespuesta(false, 'Almacén de origen inválido.');
+    }
+    
+    if (!$datos['almacen_destino'] || $datos['almacen_destino'] <= 0) {
+        http_response_code(400);
+        enviarRespuesta(false, 'Almacén de destino inválido.');
+    }
+    
+    if (!$datos['cantidad'] || $datos['cantidad'] <= 0) {
+        http_response_code(400);
+        enviarRespuesta(false, 'Cantidad inválida.');
+    }
+    
+    if ($datos['almacen_origen'] === $datos['almacen_destino']) {
+        http_response_code(400);
+        enviarRespuesta(false, 'El almacén de origen y destino no pueden ser el mismo.');
+    }
+    
+    // Verificar que el producto existe en el almacén de origen
+    $sql_producto = "SELECT p.*, a.nombre as almacen_nombre, c.nombre as categoria_nombre 
+                     FROM productos p 
+                     JOIN almacenes a ON p.almacen_id = a.id 
+                     JOIN categorias c ON p.categoria_id = c.id 
+                     WHERE p.id = ? AND p.almacen_id = ?";
+    $stmt = $conn->prepare($sql_producto);
+    
+    if (!$stmt) {
+        throw new Exception("Error preparando consulta de producto: " . $conn->error);
+    }
+    
+    $stmt->bind_param("ii", $datos['producto_id'], $datos['almacen_origen']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 0) {
+        $stmt->close();
+        $conn->rollback();
+        http_response_code(404);
         enviarRespuesta(false, 'Producto no encontrado en el almacén de origen.');
     }
 
@@ -291,12 +337,22 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
         // Iniciar transacción
         $conn->begin_transaction();
         
-        // Generar código de entrega único
-        $codigo_entrega = 'ENT-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        // Obtener almacén del usuario
+        $sql_usuario = "SELECT almacen_id FROM usuarios WHERE id = ?";
+        $stmt_usuario = $conn->prepare($sql_usuario);
+        $stmt_usuario->bind_param("i", $usuario_id);
+        $stmt_usuario->execute();
+        $usuario_info = $stmt_usuario->get_result()->fetch_assoc();
+        $stmt_usuario->close();
+        
+        if (!$usuario_info || !$usuario_info['almacen_id']) {
+            throw new Exception('Usuario no tiene almacén asignado');
+        }
+        
+        $almacen_usuario = $usuario_info['almacen_id'];
         
         $productos_procesados = [];
         $total_unidades = 0;
-        $usuario_name = $_SESSION["user_name"] ?? "Usuario";
         
         // Procesar cada producto
         foreach ($productos as $producto) {
@@ -312,16 +368,19 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
                             FROM productos p 
                             JOIN almacenes a ON p.almacen_id = a.id 
                             JOIN categorias c ON p.categoria_id = c.id 
-                            WHERE p.id = ? FOR UPDATE";
+                            WHERE p.id = ? AND p.almacen_id = ? FOR UPDATE";
             $stmt_producto = $conn->prepare($sql_producto);
-            $stmt_producto->bind_param("i", $producto_id);
+            $stmt_producto->bind_param("ii", $producto_id, $almacen_usuario);
             $stmt_producto->execute();
-            $producto_info = $stmt_producto->get_result()->fetch_assoc();
-            $stmt_producto->close();
+            $result_producto = $stmt_producto->get_result();
             
-            if (!$producto_info) {
-                throw new Exception("Producto con ID $producto_id no encontrado");
+            if ($result_producto->num_rows === 0) {
+                $stmt_producto->close();
+                throw new Exception("Producto con ID $producto_id no encontrado en su almacén");
             }
+            
+            $producto_info = $result_producto->fetch_assoc();
+            $stmt_producto->close();
             
             // Verificar stock disponible
             if ($producto_info['cantidad'] < $cantidad_solicitada) {
@@ -339,6 +398,41 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
             }
             $stmt_update->close();
             
+            // Registrar entrega en tabla entrega_uniformes
+            $sql_entrega = "INSERT INTO entrega_uniformes 
+                           (usuario_responsable_id, nombre_destinatario, dni_destinatario, producto_id, cantidad, almacen_id, fecha_entrega) 
+                           VALUES (?, ?, ?, ?, ?, ?, NOW())";
+            $stmt_entrega = $conn->prepare($sql_entrega);
+            $stmt_entrega->bind_param("issiii", 
+                $usuario_id, 
+                $destinatario_nombre, 
+                $destinatario_dni, 
+                $producto_id, 
+                $cantidad_solicitada, 
+                $almacen_usuario
+            );
+            
+            if (!$stmt_entrega->execute()) {
+                throw new Exception("Error al registrar entrega del producto {$producto_info['nombre']}");
+            }
+            $stmt_entrega->close();
+            
+            // Registrar movimiento de salida
+            $sql_movimiento = "INSERT INTO movimientos 
+                              (producto_id, almacen_origen, cantidad, tipo, fecha, usuario_id, estado, descripcion) 
+                              VALUES (?, ?, ?, 'salida', NOW(), ?, 'completado', ?)";
+            $stmt_mov = $conn->prepare($sql_movimiento);
+            $descripcion = "Entrega a {$destinatario_nombre} (DNI: {$destinatario_dni})";
+            $stmt_mov->bind_param("iiiis", 
+                $producto_id, 
+                $almacen_usuario, 
+                $cantidad_solicitada, 
+                $usuario_id, 
+                $descripcion
+            );
+            $stmt_mov->execute();
+            $stmt_mov->close();
+            
             $productos_procesados[] = [
                 'id' => $producto_id,
                 'nombre' => $producto_info['nombre'],
@@ -353,42 +447,22 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
             throw new Exception('No se procesó ningún producto válido');
         }
         
-        // Registrar en tabla de movimientos
-        foreach ($productos_procesados as $prod) {
-            // Verificar estructura de la tabla movimientos
-            $check_columns = $conn->query("SHOW COLUMNS FROM movimientos");
-            $columns = [];
-            while ($col = $check_columns->fetch_assoc()) {
-                $columns[] = $col['Field'];
-            }
-            
-            // Adaptar la consulta según las columnas disponibles
-            if (in_array('fecha_movimiento', $columns)) {
-                $sql_movimiento = "INSERT INTO movimientos (producto_id, cantidad, tipo, descripcion, usuario_id, fecha_movimiento)
-                                  VALUES (?, ?, 'entrega_personal', ?, ?, NOW())";
-            } else if (in_array('fecha', $columns)) {
-                $sql_movimiento = "INSERT INTO movimientos (producto_id, cantidad, tipo, descripcion, usuario_id, fecha)
-                                  VALUES (?, ?, 'entrega_personal', ?, ?, NOW())";
-            } else {
-                $sql_movimiento = "INSERT INTO movimientos (producto_id, cantidad, tipo, descripcion, usuario_id)
-                                  VALUES (?, ?, 'entrega_personal', ?, ?)";
-            }
-            
-            $stmt_mov = $conn->prepare($sql_movimiento);
-            $descripcion = "Entrega a {$destinatario_nombre} (DNI: {$destinatario_dni}) - Código: {$codigo_entrega}";
-            $stmt_mov->bind_param("iiss", $prod['id'], $prod['cantidad'], $descripcion, $usuario_id);
-            $stmt_mov->execute();
-            $stmt_mov->close();
-        }
-        
         // Registrar en logs de actividad si existe la tabla
         try {
             $check_logs = $conn->query("SHOW TABLES LIKE 'logs_actividad'");
             if ($check_logs && $check_logs->num_rows > 0) {
                 $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
-                            VALUES (?, 'ENTREGA_PERSONAL', ?, NOW())";
+                            VALUES (?, 'ENTREGA_PRODUCTOS', ?, NOW())";
                 $stmt_log = $conn->prepare($sql_log);
-                $detalle = "Registró entrega a {$destinatario_nombre} (DNI: {$destinatario_dni}) - {$total_unidades} unidades - Código: {$codigo_entrega}";
+                
+                // Crear lista de productos para el detalle
+                $productos_nombres = array_slice(array_map(function($p) { return $p['nombre']; }, $productos_procesados), 0, 3);
+                $productos_texto = implode(', ', $productos_nombres);
+                if (count($productos_procesados) > 3) {
+                    $productos_texto .= '...';
+                }
+                
+                $detalle = "Entregó " . count($productos_procesados) . " tipo(s) de productos ({$total_unidades} unidades total) a {$destinatario_nombre} (DNI: {$destinatario_dni}). Productos: {$productos_texto}";
                 $stmt_log->bind_param("is", $usuario_id, $detalle);
                 $stmt_log->execute();
                 $stmt_log->close();
@@ -403,12 +477,12 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
         
         // Respuesta exitosa
         enviarRespuesta(true, 'Entrega registrada exitosamente', [
-            'codigo_entrega' => $codigo_entrega,
             'destinatario' => $destinatario_nombre,
             'dni' => $destinatario_dni,
             'productos_entregados' => count($productos_procesados),
             'total_unidades' => $total_unidades,
-            'fecha_entrega' => date('Y-m-d H:i:s')
+            'fecha_entrega' => date('Y-m-d H:i:s'),
+            'productos' => $productos_procesados
         ]);
         
     } catch (Exception $e) {
