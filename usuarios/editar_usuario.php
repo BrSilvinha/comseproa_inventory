@@ -30,26 +30,73 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     $total_pendientes = $row_pendientes['total'];
 }
 
-// MODIFICACIÓN DE SEGURIDAD: Obtener datos del usuario a editar usando sesión
-if (isset($_SESSION['edit_user_id'])) {
+// MODIFICACIÓN: Manejar tanto GET como POST para el ID
+$id = null;
+
+// Primero intentar obtener de POST (cuando se envía el formulario)
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["user_id"])) {
+    $id = (int) $_POST["user_id"];
+    
+    // Procesar el formulario
+    $nombre = trim($_POST["nombre"]);
+    $apellidos = trim($_POST["apellidos"]);
+    $dni = trim($_POST["dni"]);
+    $correo = trim($_POST["correo"]);
+    $rol = $_POST["rol"];
+    $estado = $_POST["estado"];
+    $almacen_id = $_POST["almacen_id"];
+
+    // Validaciones
+    $error = false;
+    if (!preg_match("/^\d{8}$/", $dni)) {
+        $_SESSION['mensaje_error'] = "El DNI debe tener exactamente 8 dígitos.";
+        $error = true;
+    }
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['mensaje_error'] = "Correo electrónico no válido.";
+        $error = true;
+    }
+
+    if (!$error) {
+        $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, apellidos=?, dni=?, correo=?, rol=?, estado=?, almacen_id=? WHERE id=?");
+        $stmt->bind_param("ssssssii", $nombre, $apellidos, $dni, $correo, $rol, $estado, $almacen_id, $id);
+
+        if ($stmt->execute()) {
+            $_SESSION['mensaje_exito'] = "Usuario actualizado correctamente.";
+            $stmt->close();
+            header("Location: listar.php");
+            exit();
+        } else {
+            $_SESSION['mensaje_error'] = "Error al actualizar usuario.";
+        }
+        $stmt->close();
+    }
+    
+    // Si hay error, continuamos mostrando el formulario con el ID
+}
+// Si no es POST, intentar obtener de la sesión
+else if (isset($_SESSION['edit_user_id'])) {
     $id = (int) $_SESSION['edit_user_id'];
     // Limpiar la sesión después de obtener el ID
     unset($_SESSION['edit_user_id']);
-    
-    $stmt = $conn->prepare("SELECT nombre, apellidos, dni, correo, rol, estado, almacen_id FROM usuarios WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $usuario = $result->fetch_assoc();
-    $stmt->close();
-
-    if (!$usuario) {
-        $_SESSION['mensaje_error'] = "Usuario no encontrado.";
-        header("Location: listar.php");
-        exit();
-    }
-} else {
+}
+// Si no hay ID de ninguna forma, redirigir
+else {
     $_SESSION['mensaje_error'] = "Acceso no válido.";
+    header("Location: listar.php");
+    exit();
+}
+
+// Obtener datos del usuario
+$stmt = $conn->prepare("SELECT nombre, apellidos, dni, correo, rol, estado, almacen_id, celular, direccion FROM usuarios WHERE id = ?");
+$stmt->bind_param("i", $id);
+$stmt->execute();
+$result = $stmt->get_result();
+$usuario = $result->fetch_assoc();
+$stmt->close();
+
+if (!$usuario) {
+    $_SESSION['mensaje_error'] = "Usuario no encontrado.";
     header("Location: listar.php");
     exit();
 }
@@ -63,45 +110,6 @@ while ($row = $result->fetch_assoc()) {
     $almacenes[] = $row;
 }
 $stmt->close();
-
-// MODIFICACIÓN DE SEGURIDAD: Guardar cambios usando ID del formulario hidden
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    // Reobtener el ID del formulario hidden
-    $id = (int) $_POST["user_id"];
-    $nombre = trim($_POST["nombre"]);
-    $apellidos = trim($_POST["apellidos"]);
-    $dni = trim($_POST["dni"]);
-    $correo = trim($_POST["correo"]);
-    $rol = $_POST["rol"];
-    $estado = $_POST["estado"];
-    $almacen_id = $_POST["almacen_id"];
-
-    // Validaciones
-    if (!preg_match("/^\d{8}$/", $dni)) {
-        $_SESSION['mensaje_error'] = "El DNI debe tener exactamente 8 dígitos.";
-        header("Location: editar_usuario.php?id=" . $id);
-        exit();
-    }
-    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        $_SESSION['mensaje_error'] = "Correo electrónico no válido.";
-        header("Location: editar_usuario.php?id=" . $id);
-        exit();
-    }
-
-    $stmt = $conn->prepare("UPDATE usuarios SET nombre=?, apellidos=?, dni=?, correo=?, rol=?, estado=?, almacen_id=? WHERE id=?");
-    $stmt->bind_param("ssssssii", $nombre, $apellidos, $dni, $correo, $rol, $estado, $almacen_id, $id);
-
-    if ($stmt->execute()) {
-        $_SESSION['mensaje_exito'] = "Usuario actualizado correctamente.";
-        header("Location: listar.php");
-        exit();
-    } else {
-        $_SESSION['mensaje_error'] = "Error al actualizar usuario.";
-        header("Location: listar.php");
-        exit();
-    }
-    $stmt->close();
-}
 ?>
 
 <!DOCTYPE html>
@@ -263,7 +271,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
         <?php endif; ?>
         
-        <form method="post" novalidate id="formEditarUsuario">
+        <form method="post" action="editar_usuario.php" novalidate id="formEditarUsuario">
             <!-- CAMPO HIDDEN PARA SEGURIDAD -->
             <input type="hidden" name="user_id" value="<?= $id ?>">
             
@@ -458,10 +466,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Mostrar notificación de bienvenida
-    setTimeout(() => {
-        mostrarNotificacion('Editando usuario: <?= htmlspecialchars($usuario['nombre'] . ' ' . $usuario['apellidos']) ?>', 'info', 3000);
-    }, 1000);
+    // NO mostrar notificación de bienvenida automáticamente
+    // Solo mostrar cuando el usuario realice alguna acción
     
     // Validación de formularios
     const inputs = document.querySelectorAll('input, select');
@@ -597,14 +603,8 @@ inputs.forEach(input => {
     });
 });
 
-// Advertir sobre cambios sin guardar al salir
-window.addEventListener('beforeunload', function(e) {
-    if (formChanged) {
-        e.preventDefault();
-        e.returnValue = '¿Estás seguro de que deseas salir? Los cambios no guardados se perderán.';
-        return e.returnValue;
-    }
-});
+// ELIMINADO: No mostrar advertencia del navegador al salir
+// Solo se usará la confirmación personalizada cuando sea necesario
 
 // Remover advertencia cuando se guarde
 form.addEventListener('submit', () => {
