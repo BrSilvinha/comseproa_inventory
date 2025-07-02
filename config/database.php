@@ -1,8 +1,13 @@
 <?php
 $host = "localhost";
-$usuario = "root"; // Cambia si usas otro usuario
-$contraseña = "";  // Cambia si tu MySQL tiene contraseña
-$base_datos = "comseproa_db"; // Cambia si usas otro nombre de base de datos
+$usuario = "u797525844_comseproa_db"; // Cambia si usas otro usuario
+$contraseña = "9Q4yc#q:";  // Cambia si tu MySQL tiene contraseña
+
+$base_datos = "u797525844_comseproa_db";
+
+
+//$base_datos = "comseproa_db";
+
 
 // Conectar a la base de datos
 $conn = new mysqli($host, $usuario, $contraseña, $base_datos);
@@ -11,7 +16,5 @@ $conn = new mysqli($host, $usuario, $contraseña, $base_datos);
 if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
-
 // Establecer el conjunto de caracteres
 $conn->set_charset("utf8mb4");
-?>
