@@ -72,40 +72,7 @@ class DashboardCharts {
 
     async loadDashboardData() {
         try {
-            // Datos estáticos temporales
-            const staticData = {
-                success: true,
-                data: {
-                    total_productos: 156,
-                    total_almacenes: 3,
-                    total_usuarios: 8,
-                    stock_bajo: 12,
-                    valor_inventario: 25000,
-                    productos_por_categoria: {
-                        labels: ['Uniformes', 'Equipos', 'Materiales', 'Otros'],
-                        data: [45, 30, 15, 10]
-                    },
-                    movimientos_semana: {
-                        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                        data: [12, 8, 15, 20, 18, 6, 4]
-                    },
-                    productos_top: {
-                        labels: ['Casco', 'Chaleco', 'Botas', 'Guantes', 'Lentes'],
-                        data: [25, 20, 18, 15, 12]
-                    },
-                    stock_critico: [
-                        { nombre: 'Casco Seguridad', cantidad: 5, stock_minimo: 10 },
-                        { nombre: 'Chaleco Reflectivo', cantidad: 3, stock_minimo: 15 },
-                        { nombre: 'Botas Seguridad', cantidad: 8, stock_minimo: 20 }
-                    ]
-                }
-            };
-            
-            this.updateStatsCards(staticData.data);
-            this.createCharts(staticData.data);
-            return;
-            
-            const response = await fetch('api/dashboard_stats_simple.php', {
+            const response = await fetch('api/dashboard_real.php', {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -119,6 +86,7 @@ class DashboardCharts {
             const result = await response.json();
             
             if (result.success) {
+                console.log('✅ Datos reales cargados:', result.source);
                 this.updateStatsCards(result.data);
                 this.createCharts(result.data);
             } else {
