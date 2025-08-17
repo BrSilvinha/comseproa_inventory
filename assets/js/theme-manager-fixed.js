@@ -60,8 +60,8 @@ class ThemeManager {
             metaThemeColor.content = effectiveTheme === 'dark' ? '#1a1a1a' : '#ffffff';
         }
         
-        // Actualizar favicon si es necesario
-        this.updateFavicon(effectiveTheme);
+        // Actualizar favicon si es necesario (deshabilitado temporalmente)
+        // this.updateFavicon(effectiveTheme);
         
         // Trigger evento personalizado
         document.dispatchEvent(new CustomEvent('themeChanged', {
