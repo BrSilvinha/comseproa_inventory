@@ -92,7 +92,12 @@ class DashboardCharts {
                     productos_top: {
                         labels: ['Casco', 'Chaleco', 'Botas', 'Guantes', 'Lentes'],
                         data: [25, 20, 18, 15, 12]
-                    }
+                    },
+                    stock_critico: [
+                        { producto: 'Casco Seguridad', stock: 5, minimo: 10 },
+                        { producto: 'Chaleco Reflectivo', stock: 3, minimo: 15 },
+                        { producto: 'Botas Seguridad', stock: 8, minimo: 20 }
+                    ]
                 }
             };
             
@@ -149,7 +154,7 @@ class DashboardCharts {
     createCharts(data) {
         this.createCategoryChart(data.productos_por_categoria);
         this.createMovementsChart(data.movimientos_semana);
-        this.createTopProductsChart(data.top_productos);
+        this.createTopProductsChart(data.productos_top);
         this.createStockAlertTable(data.stock_critico);
     }
 
