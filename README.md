@@ -364,23 +364,6 @@ Este proyecto está desarrollado para uso interno de GRUPO SEAL. Todos los derec
 - ✅ Responsive design optimizado para móvil
 - ✅ Seguridad avanzada (CSRF, rate limiting, headers)
 
-### 🔮 Próximas Versiones
-
-**v2.1 - Analytics Avanzados**
-- [ ] Predicción de stock con IA
-- [ ] Dashboards personalizables
-- [ ] Métricas de rendimiento
-
-**v2.2 - Movilidad**
-- [ ] PWA (Progressive Web App)
-- [ ] Códigos QR para productos
-- [ ] Aplicación móvil nativa
-
-**v2.3 - Integraciones**
-- [ ] API REST completa
-- [ ] Webhooks para sistemas externos
-- [ ] Backup automático a la nube
-
 ---
 
 ## 📄 Licencia
