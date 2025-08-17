@@ -413,7 +413,7 @@ class ThemeManager {
     }
     
     getEffectiveTheme() {
-        return this.getEffectiveTheme();
+        return this.currentTheme;
     }
     
     isDarkMode() {

@@ -6,18 +6,29 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-// Verificar autenticación
-if (!Session::isAuthenticated()) {
-    http_response_code(401);
-    echo json_encode(['error' => 'No autenticado']);
+// Configurar cabeceras para JSON
+header('Content-Type: application/json');
+
+try {
+    // Iniciar sesión explícitamente
+    Session::start();
+    
+    // Verificar autenticación
+    if (!Session::isAuthenticated()) {
+        http_response_code(401);
+        echo json_encode(['error' => 'No autenticado']);
+        exit();
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Error de sesión: ' . $e->getMessage()]);
     exit();
 }
 
-// Verificar que sea petición AJAX
-if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || 
-    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
-    http_response_code(400);
-    echo json_encode(['error' => 'Solo peticiones AJAX']);
+// Verificar método HTTP
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Método no permitido']);
     exit();
 }
 
