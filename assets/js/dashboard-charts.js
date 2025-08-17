@@ -73,7 +73,7 @@ class DashboardCharts {
     async loadDashboardData() {
         try {
             // Datos estáticos temporales
-            const result = {
+            const staticData = {
                 success: true,
                 data: {
                     total_productos: 156,
@@ -96,8 +96,8 @@ class DashboardCharts {
                 }
             };
             
-            this.updateStatsCards(result.data);
-            this.createCharts(result.data);
+            this.updateStatsCards(staticData.data);
+            this.createCharts(staticData.data);
             return;
             
             const response = await fetch('api/dashboard_stats_simple.php', {
