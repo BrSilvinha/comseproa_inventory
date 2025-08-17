@@ -140,18 +140,26 @@ function baseUrl($path = '') {
  * Helper function para verificar autenticación
  */
 function requireAuth() {
-    if (!Session::isAuthenticated()) {
-        redirect(baseUrl('views/login_form.php'));
-    }
+    Navigation::requireAuth();
 }
 
 /**
  * Helper function para verificar rol admin
  */
 function requireAdmin() {
-    requireAuth();
-    if (!Session::isAdmin()) {
-        Session::setFlash('error', 'No tienes permisos para acceder a esta página');
-        redirect(baseUrl('dashboard.php'));
-    }
+    Navigation::requireAuth('admin');
+}
+
+/**
+ * Helper function para rutas nombradas
+ */
+function route($name, $params = []) {
+    return Navigation::route($name, $params);
+}
+
+/**
+ * Helper function para redirecciones nombradas  
+ */
+function redirectTo($name, $params = []) {
+    Navigation::redirectTo($name, $params);
 }

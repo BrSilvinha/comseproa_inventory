@@ -8,12 +8,12 @@ require_once __DIR__ . '/../bootstrap.php';
 
 // Verificar que no esté ya autenticado
 if (Session::isAuthenticated()) {
-    redirect(baseUrl('dashboard.php'));
+    Navigation::redirectAfterLogin(Session::get('user_role'));
 }
 
 // Verificar método POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirect(baseUrl('views/login_form.php'));
+    redirectTo('login');
 }
 
 try {
@@ -24,7 +24,7 @@ try {
             'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
         ]);
         Session::setFlash('error', 'Token de seguridad inválido');
-        redirect(baseUrl('views/login_form.php'));
+        redirectTo('login');
     }
     
     // Sanitizar y validar entrada
@@ -36,7 +36,7 @@ try {
     if ($rateLimitCheck['blocked']) {
         $remainingMinutes = ceil($rateLimitCheck['remaining_time'] / 60);
         Session::setFlash('error', "Demasiados intentos fallidos. Intente nuevamente en {$remainingMinutes} minutos.");
-        redirect(baseUrl('views/login_form.php'));
+        redirectTo('login');
     }
     
     // Validar datos de entrada
@@ -50,7 +50,7 @@ try {
     
     if (!empty($errors)) {
         Session::setFlash('error', 'Datos de entrada inválidos');
-        redirect(baseUrl('views/login_form.php'));
+        redirectTo('login');
     }
 
     // Obtener instancia de base de datos
@@ -74,7 +74,7 @@ try {
             'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
         ]);
         
-        redirect(baseUrl('dashboard.php'));
+        Navigation::redirectAfterLogin($user['rol']);
     } else {
         // Login fallido - registrar intento
         Security::recordFailedLogin($correo);
@@ -85,7 +85,7 @@ try {
         ]);
         
         Session::setFlash('error', 'Credenciales inválidas');
-        redirect(baseUrl('views/login_form.php'));
+        redirectTo('login');
     }
 
 } catch (Exception $e) {
@@ -96,5 +96,5 @@ try {
     ]);
     
     Session::setFlash('error', 'Error del sistema. Intente nuevamente.');
-    redirect(baseUrl('views/login_form.php'));
+    redirectTo('login');
 }
