@@ -1,8 +1,5 @@
 <?php
-/**
- * Punto de entrada principal del sistema
- * Redirige al login o dashboard según el estado de autenticación
- */
+
 
 try {
     // Cargar bootstrap con manejo de errores
