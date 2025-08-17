@@ -26,3 +26,16 @@ desktop.ini
 
 # Upload directories (if any)
 uploads/private/
+
+# Environment and config files that might differ between environments
+.env.local
+.env.development
+.env.production
+
+# Backup files created during deployment
+*.htaccess.backup
+*.php.backup
+
+# Deployment specific files
+deployment.log
+deployment_errors.log
