@@ -1,33 +1,37 @@
 <?php
-session_start();
-require_once "../config/database.php"; // Incluir archivo de conexión
+require_once __DIR__ . '/../bootstrap.php';
 
-// Verificar si el usuario ha iniciado sesión
-if (!isset($_SESSION["user_id"])) {
-    header("Location: ../views/login_form.php");
-    exit();
-}
+// La autenticación ya se verifica en requireAuth() del bootstrap
 
-$user_name = $_SESSION["user_name"] ?? "Usuario";
-$usuario_rol = $_SESSION["user_role"] ?? "usuario";
-$usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
+$user_name = Session::get('user_name', 'Usuario');
+$usuario_rol = Session::get('user_role', 'usuario');
+$usuario_almacen_id = Session::get('almacen_id');
 
-session_regenerate_id(true);
+// Obtener conexión a la base de datos
+$db = Database::getInstance();
+$conn = $db->getConnection();
+
 // Contar solicitudes pendientes para el badge
+$total_pendientes = 0;
 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+
 if ($usuario_rol != 'admin') {
     $sql_pendientes .= " AND almacen_destino = ?";
     $stmt_pendientes = $conn->prepare($sql_pendientes);
     $stmt_pendientes->bind_param("i", $usuario_almacen_id);
     $stmt_pendientes->execute();
     $result_pendientes = $stmt_pendientes->get_result();
+    $stmt_pendientes->close();
 } else {
     $result_pendientes = $conn->query($sql_pendientes);
 }
 
-$total_pendientes = 0;
 if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     $total_pendientes = $row_pendientes['total'];
+}
+
+if ($result_pendientes) {
+    $result_pendientes->free();
 }
 
 // Restricción de acceso basada en roles
@@ -153,6 +157,11 @@ $stmt->close();
     
     <!-- CSS consistente con dashboard -->
     <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
+    
+    <?php 
+    require_once '../core/NavigationHelper.php';
+    NavigationHelper::includeNavigationCSS();
+    ?>
     
 <body>
 
@@ -428,6 +437,7 @@ $stmt->close();
 
 <!-- JavaScript optimizado -->
 <script src="../assets/js/universal-confirmation-system.js"></script>
+<?php NavigationHelper::includeNavigationScripts(); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos principales

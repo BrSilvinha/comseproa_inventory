@@ -1,19 +1,17 @@
 <?php
-session_start();
+require_once __DIR__ . '/../bootstrap.php';
 
-// Verificar si el usuario ha iniciado sesión
-if (!isset($_SESSION["user_id"])) {
-    header("Location: ../views/login_form.php");
-    exit();
-}
-
-session_regenerate_id(true);
-require_once "../config/database.php";
+// Verificar autenticación
+requireAuth();
 
 // Obtener información del usuario
-$user_name = $_SESSION["user_name"] ?? "Usuario";
-$usuario_rol = $_SESSION["user_role"] ?? "usuario";
-$usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
+$user_name = Session::get('user_name', 'Usuario');
+$usuario_rol = Session::get('user_role', 'usuario');
+$usuario_almacen_id = Session::get('almacen_id');
+
+// Obtener conexión a la base de datos
+$db = Database::getInstance();
+$conn = $db->getConnection();
 
 // Configuración de paginación optimizada
 $productos_por_pagina = 10;
@@ -239,6 +237,11 @@ function obtenerUrlRetornoAlmacen($almacen_id) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <link rel="stylesheet" href="../assets/css/productos/productos-tabla.css">
+    
+    <?php 
+    require_once '../core/NavigationHelper.php';
+    NavigationHelper::includeNavigationCSS();
+    ?>
     
     <?php if ($pagina_actual < $total_paginas): ?>
     <link rel="prefetch" href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>">
@@ -1158,6 +1161,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- JavaScript principal -->
 <script src="../assets/js/productos-listar-tabla.js"></script>
+<?php NavigationHelper::includeNavigationScripts(); ?>
 
 </body>
 </html>

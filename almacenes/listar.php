@@ -1,17 +1,16 @@
 <?php
-session_start();
-if (!isset($_SESSION["user_id"])) {
-    header("Location: /views/login_form.php");
-    exit();
-}
+require_once __DIR__ . '/../bootstrap.php';
 
-session_regenerate_id(true);
+// Verificar autenticación
+requireAuth();
 
-require_once "../config/database.php";
+$user_name = Session::get('user_name', 'Usuario');
+$usuario_rol = Session::get('user_role', 'usuario');
+$usuario_almacen_id = Session::get('almacen_id');
 
-$user_name = $_SESSION["user_name"] ?? "Usuario";
-$usuario_rol = $_SESSION["user_role"] ?? "usuario";
-$usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
+// Obtener conexión a la base de datos
+$db = Database::getInstance();
+$conn = $db->getConnection();
 // Contar solicitudes pendientes para el badge
 $sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
 if ($usuario_rol != 'admin') {
@@ -69,6 +68,11 @@ if ($usuario_rol == 'admin') {
     <!-- CSS específico para listar almacenes -->
     <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/almacen/almacenes-listar.css">
+    
+    <?php 
+    require_once '../core/NavigationHelper.php';
+    NavigationHelper::includeNavigationCSS();
+    ?>
 </head>
 <body>
 
@@ -303,6 +307,7 @@ if ($usuario_rol == 'admin') {
 
 <!-- JavaScript -->
 <script src="../assets/js/universal-confirmation-system.js"></script>
+<?php NavigationHelper::includeNavigationScripts(); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos principales

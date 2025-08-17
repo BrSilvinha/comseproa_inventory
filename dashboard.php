@@ -642,6 +642,7 @@ window.confirmarAccion = function(mensaje, callback) {
 <script src="assets/js/instant-search.js"></script>
 <script src="assets/js/dashboard-charts.js"></script>
 <script src="assets/js/theme-manager.js"></script>
+<script src="assets/js/active-navigation.js"></script>
 
 <script>
 // Demo de las nuevas funcionalidades
