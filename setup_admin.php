@@ -59,6 +59,7 @@ try {
         
         // Crear usuario administrador por defecto
         $adminData = [
+            'dni' => '00000000',
             'nombre' => 'Administrador',
             'apellidos' => 'Sistema',
             'correo' => 'admin@comseproa.com',
@@ -68,10 +69,11 @@ try {
             'almacen_id' => $almacenId
         ];
         
-        $sql = "INSERT INTO usuarios (nombre, apellidos, correo, contrasena, rol, estado, almacen_id) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO usuarios (dni, nombre, apellidos, correo, contrasena, rol, estado, almacen_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         
         $result = $db->execute($sql, [
+            $adminData['dni'],
             $adminData['nombre'],
             $adminData['apellidos'], 
             $adminData['correo'],
