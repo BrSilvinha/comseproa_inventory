@@ -141,18 +141,53 @@ class Validator
      */
     public static function generateCsrfToken()
     {
-        if (!isset($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        Session::start();
+        
+        if (!Session::get('csrf_token') || 
+            !Session::get('csrf_token_time') || 
+            time() - Session::get('csrf_token_time') > 3600) {
+            
+            $token = bin2hex(random_bytes(32));
+            Session::set('csrf_token', $token);
+            Session::set('csrf_token_time', time());
         }
-        return $_SESSION['csrf_token'];
+        
+        return Session::get('csrf_token');
     }
 
     /**
-     * Validar token CSRF
+     * Verificar token CSRF
+     */
+    public static function verifyCsrfToken($token)
+    {
+        Session::start();
+        
+        $sessionToken = Session::get('csrf_token');
+        $tokenTime = Session::get('csrf_token_time');
+        
+        // Verificar que existe el token y no ha expirado (1 hora)
+        if (!$sessionToken || !$tokenTime || time() - $tokenTime > 3600) {
+            return false;
+        }
+        
+        return hash_equals($sessionToken, $token);
+    }
+
+    /**
+     * Obtener campo hidden CSRF para formularios
+     */
+    public static function getCsrfField()
+    {
+        $token = self::generateCsrfToken();
+        return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token) . '">';
+    }
+
+    /**
+     * Validar token CSRF (método legacy)
      */
     public static function validateCsrfToken($token)
     {
-        return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+        return self::verifyCsrfToken($token);
     }
 
     /**

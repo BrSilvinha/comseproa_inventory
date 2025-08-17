@@ -17,9 +17,27 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
+    // Verificar token CSRF
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!Validator::verifyCsrfToken($csrfToken)) {
+        Logger::warning("CSRF token verification failed", [
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ]);
+        Session::setFlash('error', 'Token de seguridad inválido');
+        redirect(baseUrl('views/login_form.php'));
+    }
+    
     // Sanitizar y validar entrada
     $correo = Validator::sanitizeInput($_POST['correo'] ?? '');
     $password = $_POST['password'] ?? '';
+    
+    // Verificar rate limiting
+    $rateLimitCheck = Security::checkLoginAttempts($correo);
+    if ($rateLimitCheck['blocked']) {
+        $remainingMinutes = ceil($rateLimitCheck['remaining_time'] / 60);
+        Session::setFlash('error', "Demasiados intentos fallidos. Intente nuevamente en {$remainingMinutes} minutos.");
+        redirect(baseUrl('views/login_form.php'));
+    }
     
     // Validar datos de entrada
     $errors = Validator::validate([
@@ -46,7 +64,8 @@ try {
     $user = $db->fetchOne($sql, [$correo], 's');
     
     if ($user && password_verify($password, $user['contrasena'])) {
-        // Login exitoso
+        // Login exitoso - limpiar intentos fallidos
+        Security::clearLoginAttempts($correo);
         Session::login($user);
         
         Logger::info("Successful login", [
@@ -57,7 +76,9 @@ try {
         
         redirect(baseUrl('dashboard.php'));
     } else {
-        // Login fallido
+        // Login fallido - registrar intento
+        Security::recordFailedLogin($correo);
+        
         Logger::warning("Failed login attempt", [
             'email' => $correo,
             'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'

@@ -1,20 +1,16 @@
 <?php
-session_start();
-if (!isset($_SESSION["user_id"])) {
-    header("Location: /views/login_form.php");
-    exit();
-}
+require_once __DIR__ . '/bootstrap.php';
 
-// Prevent session hijacking
-session_regenerate_id(true);
+// Verificar autenticación
+requireAuth();
 
-$user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
-$usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
-$usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
+$user_name = Session::get('user_name', 'Usuario');
+$usuario_almacen_id = Session::get('almacen_id');
+$usuario_rol = Session::get('user_role', 'usuario');
 
-// Require database connection
-// Require database connection
-require_once "config/database.php";
+// Obtener conexión a base de datos
+$db = Database::getInstance();
+$conn = $db->getConnection();
 
 // ===== CONTAR SOLICITUDES PENDIENTES PARA EL BADGE =====
 $total_pendientes = 0;
@@ -211,6 +207,59 @@ $flashSuccess = Session::getFlash('success');
             </small>
         </h1>
     </header>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <input type="text" 
+               class="search-input" 
+               placeholder="Buscar productos..." 
+               data-instant-search 
+               data-endpoint="api/search.php"
+               data-results="#search-results">
+        <i class="fas fa-search search-icon"></i>
+        <div id="search-results" class="search-results" data-search-results style="display: none;"></div>
+    </div>
+
+    <!-- Stats Dashboard -->
+    <div class="stats-grid">
+        <div id="total-productos" class="stat-card">
+            <div class="loading-skeleton" style="height: 80px;"></div>
+        </div>
+        <div id="total-almacenes" class="stat-card">
+            <div class="loading-skeleton" style="height: 80px;"></div>
+        </div>
+        <div id="total-usuarios" class="stat-card">
+            <div class="loading-skeleton" style="height: 80px;"></div>
+        </div>
+        <div id="stock-bajo" class="stat-card">
+            <div class="loading-skeleton" style="height: 80px;"></div>
+        </div>
+        <div id="valor-inventario" class="stat-card">
+            <div class="loading-skeleton" style="height: 80px;"></div>
+        </div>
+    </div>
+
+    <!-- Charts Dashboard -->
+    <div class="charts-grid">
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="movementsChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="topProductsChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div id="stockAlerts"></div>
+        </div>
+    </div>
 
     <div id="contenido-dinamico">
         <section class="dashboard-grid" role="region" aria-label="Panel de control">
@@ -585,5 +634,50 @@ window.confirmarAccion = function(mensaje, callback) {
     return false;
 };
 </script>
+
+<!-- Modern UX/UI Scripts -->
+<link rel="stylesheet" href="assets/css/dashboard-modern.css">
+<link rel="stylesheet" href="assets/css/responsive-mobile.css">
+<script src="assets/js/toast-notifications.js"></script>
+<script src="assets/js/instant-search.js"></script>
+<script src="assets/js/dashboard-charts.js"></script>
+<script src="assets/js/theme-manager.js"></script>
+
+<script>
+// Demo de las nuevas funcionalidades
+document.addEventListener('DOMContentLoaded', function() {
+    // Mostrar notificación de bienvenida
+    setTimeout(() => {
+        if (window.Toast) {
+            Toast.success('¡Bienvenido! Dashboard modernizado con éxito 🚀', {
+                duration: 4000
+            });
+        }
+    }, 1000);
+    
+    // Demo de funcionalidades cada 10 segundos
+    setTimeout(() => {
+        if (window.Toast) {
+            Toast.info('💡 Tip: Usa la búsqueda instantánea para encontrar productos rápidamente');
+        }
+    }, 8000);
+    
+    setTimeout(() => {
+        if (window.Toast) {
+            Toast.info('🌙 Tip: Cambia al modo oscuro con el botón de tema en la esquina superior');
+        }
+    }, 15000);
+});
+
+// Configurar búsqueda para mostrar resultados al seleccionar
+document.addEventListener('resultSelected', function(e) {
+    const productId = e.detail.id;
+    if (window.Toast) {
+        Toast.success(`Producto seleccionado: ${productId}`);
+    }
+    // Aquí puedes agregar lógica adicional
+});
+</script>
+
 </body>
 </html>

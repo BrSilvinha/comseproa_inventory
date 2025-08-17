@@ -41,6 +41,15 @@ Autoloader::register();
 // Inicializar configuración
 Config::load();
 
+// Aplicar headers de seguridad
+Security::setSecurityHeaders();
+
+// Validar origen de petición
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !Security::validateOrigin()) {
+    http_response_code(403);
+    die('Forbidden: Invalid origin');
+}
+
 // Configurar zona horaria
 date_default_timezone_set('America/Lima');
 
