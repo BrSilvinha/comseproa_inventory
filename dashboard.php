@@ -638,11 +638,12 @@ window.confirmarAccion = function(mensaje, callback) {
 <!-- Modern UX/UI Scripts -->
 <link rel="stylesheet" href="assets/css/dashboard-modern.css">
 <link rel="stylesheet" href="assets/css/responsive-mobile.css">
-<script src="assets/js/toast-notifications.js"></script>
-<script src="assets/js/instant-search.js"></script>
-<script src="assets/js/dashboard-charts.js"></script>
-<script src="assets/js/theme-manager.js"></script>
-<script src="assets/js/active-navigation.js"></script>
+<?php $jsVersion = time(); ?>
+<script src="assets/js/toast-notifications.js?v=<?php echo $jsVersion; ?>"></script>
+<script src="assets/js/instant-search.js?v=<?php echo $jsVersion; ?>"></script>
+<script src="assets/js/dashboard-charts.js?v=<?php echo $jsVersion; ?>"></script>
+<script src="assets/js/theme-manager-fixed.js?v=<?php echo $jsVersion; ?>"></script>
+<script src="assets/js/active-navigation.js?v=<?php echo $jsVersion; ?>"></script>
 
 <script>
 // Demo de las nuevas funcionalidades

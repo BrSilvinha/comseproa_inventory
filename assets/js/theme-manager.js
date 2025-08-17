@@ -412,10 +412,6 @@ class ThemeManager {
         return this.currentTheme;
     }
     
-    getEffectiveTheme() {
-        return this.currentTheme;
-    }
-    
     isDarkMode() {
         return this.getEffectiveTheme() === 'dark';
     }
