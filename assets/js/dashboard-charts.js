@@ -94,9 +94,9 @@ class DashboardCharts {
                         data: [25, 20, 18, 15, 12]
                     },
                     stock_critico: [
-                        { producto: 'Casco Seguridad', stock: 5, minimo: 10 },
-                        { producto: 'Chaleco Reflectivo', stock: 3, minimo: 15 },
-                        { producto: 'Botas Seguridad', stock: 8, minimo: 20 }
+                        { nombre: 'Casco Seguridad', cantidad: 5, stock_minimo: 10 },
+                        { nombre: 'Chaleco Reflectivo', cantidad: 3, stock_minimo: 15 },
+                        { nombre: 'Botas Seguridad', cantidad: 8, stock_minimo: 20 }
                     ]
                 }
             };
