@@ -44,6 +44,19 @@ try {
             echo "</table>\n";
         }
     } else {
+        // Verificar si existe algún almacén
+        $almacen = $db->fetchOne("SELECT id FROM almacenes LIMIT 1");
+        $almacenId = $almacen ? $almacen['id'] : null;
+        
+        // Si no hay almacenes, crear uno por defecto
+        if (!$almacenId) {
+            $sqlAlmacen = "INSERT INTO almacenes (nombre, ubicacion, descripcion, estado) VALUES (?, ?, ?, ?)";
+            $db->execute($sqlAlmacen, ['Almacén Principal', 'Sede Central', 'Almacén principal del sistema', 'activo']);
+            $almacen = $db->fetchOne("SELECT id FROM almacenes WHERE nombre = 'Almacén Principal'");
+            $almacenId = $almacen['id'];
+            echo "✅ Almacén principal creado<br>\n";
+        }
+        
         // Crear usuario administrador por defecto
         $adminData = [
             'nombre' => 'Administrador',
@@ -52,7 +65,7 @@ try {
             'contrasena' => password_hash('admin123', PASSWORD_DEFAULT),
             'rol' => 'administrador',
             'estado' => 'activo',
-            'almacen_id' => 1 // Asumiendo que existe almacén con ID 1
+            'almacen_id' => $almacenId
         ];
         
         $sql = "INSERT INTO usuarios (nombre, apellidos, correo, contrasena, rol, estado, almacen_id) 
