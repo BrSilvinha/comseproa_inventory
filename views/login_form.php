@@ -1,9 +1,42 @@
+<?php
+/**
+ * Formulario de login seguro
+ * Incluye protección CSRF y validaciones
+ */
+
+require_once __DIR__ . '/../bootstrap.php';
+
+// Verificar que no esté ya autenticado
+if (Session::isAuthenticated()) {
+    redirect(baseUrl('dashboard.php'));
+}
+
+// Generar token CSRF
+$csrfToken = Validator::generateCsrfToken();
+
+// Obtener mensajes de error
+$errorMessage = Session::getFlash('error');
+$successMessage = Session::getFlash('success');
+
+// Procesar errores de URL legacy (para compatibilidad)
+if (isset($_GET['error'])) {
+    $errorCodes = [
+        'empty_fields' => 'Por favor complete todos los campos',
+        'invalid_email' => 'El formato del email no es válido',
+        'invalid_credentials' => 'Credenciales incorrectas',
+        'system_error' => 'Error del sistema. Intente nuevamente.'
+    ];
+    
+    $errorMessage = $errorCodes[$_GET['error']] ?? 'Error desconocido';
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | GRUPO SEAL</title>
+    <meta name="csrf-token" content="<?= TemplateHelper::attr($csrfToken) ?>">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,7 +46,8 @@
     <!-- Font Awesome para los iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     
-    <!-- CSS exclusivo para login -->
+    <!-- CSS principal y login -->
+    <link rel="stylesheet" href="../assets/css/main.css">
     <link rel="stylesheet" href="../assets/css/login-styles.css">
     
     <!-- Meta tags adicionales para mejor SEO y rendimiento -->
@@ -40,9 +74,24 @@
             <h2>Login</h2>
             
             <!-- Área para mensajes del sistema -->
-            <div id="messages-area"></div>
+            <div id="messages-area">
+                <?php if ($errorMessage): ?>
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <?= TemplateHelper::h($errorMessage) ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if ($successMessage): ?>
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle"></i>
+                        <?= TemplateHelper::h($successMessage) ?>
+                    </div>
+                <?php endif; ?>
+            </div>
             
-            <form action="../auth/login.php" method="POST" id="loginForm">
+            <form action="../auth/login.php" method="POST" id="loginForm" data-validate-form>
+                <input type="hidden" name="csrf_token" value="<?= TemplateHelper::attr($csrfToken) ?>">
                 <div class="input-container">
                     <label for="correo">Correo Electrónico:</label>
                     <input 
@@ -53,6 +102,8 @@
                         autocomplete="email"
                         placeholder="ejemplo@gruposeal.com"
                         aria-describedby="correo-help"
+                        data-validate="required|email"
+                        class="form-control"
                     >
                 </div>
 
@@ -68,6 +119,8 @@
                             placeholder="Ingresa tu contraseña"
                             minlength="6"
                             aria-describedby="password-help"
+                            data-validate="required|min:6"
+                            class="form-control"
                         >
                         <button 
                             type="button" 
@@ -109,12 +162,44 @@
         </div>
     </div>
 
-    <!-- JavaScript principal del login -->
+    <!-- JavaScript principal del sistema -->
+    <script src="../assets/js/main.js"></script>
     <script src="../assets/js/login-functions.js"></script>
     
-    <!-- Herramientas de administrador (solo para desarrollo) -->
-    <?php if (isset($_GET['admin']) && $_GET['admin'] === 'true'): ?>
-    <script src="../assets/js/admin-utils.js"></script>
-    <?php endif; ?>
+    <!-- CSS para loader global -->
+    <style>
+    .global-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loader-content {
+        text-align: center;
+        color: white;
+    }
+    
+    .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    </style>
 </body>
 </html>

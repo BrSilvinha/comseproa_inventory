@@ -43,6 +43,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 if ($result_pendientes) {
     $result_pendientes->free();
 }
+
+// Obtener mensajes flash
+$flashError = Session::getFlash('error');
+$flashSuccess = Session::getFlash('success');
 ?>
 <!DOCTYPE html>
 <html lang="es">

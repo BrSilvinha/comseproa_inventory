@@ -1,143 +1,79 @@
 <?php
-// auth/login.php - Versión con debug
-session_start();
-require_once __DIR__ . "/../config/database.php";
+/**
+ * Controlador de autenticación
+ * Maneja el proceso de login de forma segura
+ */
 
-// Habilitar logging de errores
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/../logs/login_debug.log');
+require_once __DIR__ . '/../bootstrap.php';
 
-// Función para logging
-function logDebug($message) {
-    $timestamp = date('Y-m-d H:i:s');
-    $logMessage = "[$timestamp] $message" . PHP_EOL;
-    file_put_contents(__DIR__ . '/../logs/login_debug.log', $logMessage, FILE_APPEND | LOCK_EX);
+// Verificar que no esté ya autenticado
+if (Session::isAuthenticated()) {
+    redirect(baseUrl('dashboard.php'));
 }
 
-logDebug("=== INICIO DEL PROCESO DE LOGIN ===");
-logDebug("Método: " . $_SERVER["REQUEST_METHOD"]);
+// Verificar método POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    redirect(baseUrl('views/login_form.php'));
+}
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    logDebug("Datos POST recibidos: " . print_r($_POST, true));
+try {
+    // Sanitizar y validar entrada
+    $correo = Validator::sanitizeInput($_POST['correo'] ?? '');
+    $password = $_POST['password'] ?? '';
     
-    $correo = trim($_POST["correo"]);
-    $password = $_POST["password"];
+    // Validar datos de entrada
+    $errors = Validator::validate([
+        'correo' => $correo,
+        'password' => $password
+    ], [
+        'correo' => ['required' => true, 'email' => true],
+        'password' => ['required' => true, 'min_length' => 6]
+    ]);
     
-    logDebug("Correo procesado: " . $correo);
-    logDebug("Password longitud: " . strlen($password));
-
-    // Validación de campos vacíos
-    if (empty($correo) || empty($password)) {
-        logDebug("ERROR: Campos vacíos");
-        $error = "empty_fields";
-        header("Location: ../views/login_form.php?error=" . urlencode($error));
-        exit();
+    if (!empty($errors)) {
+        Session::setFlash('error', 'Datos de entrada inválidos');
+        redirect(baseUrl('views/login_form.php'));
     }
 
-    // Validar formato de email
-    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        logDebug("ERROR: Email inválido");
-        $error = "invalid_email";
-        header("Location: ../views/login_form.php?error=" . urlencode($error));
-        exit();
-    }
+    // Obtener instancia de base de datos
+    $db = Database::getInstance();
 
-    // Verificar conexión a la base de datos
-    if (!$conn) {
-        logDebug("ERROR: No hay conexión a la base de datos");
-        $error = "system_error";
-        header("Location: ../views/login_form.php?error=" . urlencode($error));
-        exit();
-    }
+    // Buscar usuario en base de datos
+    $sql = "SELECT id, nombre, apellidos, contrasena, rol, almacen_id 
+            FROM usuarios 
+            WHERE correo = ? AND estado = 'activo' LIMIT 1";
     
-    logDebug("Conexión a BD exitosa");
-
-    // Consulta SQL
-    $sql = "SELECT id, nombre, apellidos, contrasena, rol, almacen_id FROM usuarios WHERE correo = ? AND estado = 'activo'";
-    logDebug("SQL Query: " . $sql);
+    $user = $db->fetchOne($sql, [$correo], 's');
     
-    $stmt = $conn->prepare($sql);
-    
-    if (!$stmt) {
-        logDebug("ERROR: Error en prepare statement: " . $conn->error);
-        $error = "system_error";
-        header("Location: ../views/login_form.php?error=" . urlencode($error));
-        exit();
-    }
-
-    $stmt->bind_param("s", $correo);
-    $executeResult = $stmt->execute();
-    
-    if (!$executeResult) {
-        logDebug("ERROR: Error en execute: " . $stmt->error);
-        $error = "system_error";
-        header("Location: ../views/login_form.php?error=" . urlencode($error));
-        exit();
-    }
-    
-    $result = $stmt->get_result();
-    logDebug("Número de filas encontradas: " . $result->num_rows);
-    
-    if ($result->num_rows === 1) {
-        $user = $result->fetch_assoc();
-        logDebug("Usuario encontrado: " . $user['nombre'] . " " . $user['apellidos']);
+    if ($user && password_verify($password, $user['contrasena'])) {
+        // Login exitoso
+        Session::login($user);
         
-        // Verificar la contraseña
-        $passwordCheck = password_verify($password, $user["contrasena"]);
-        logDebug("Verificación de contraseña: " . ($passwordCheck ? "EXITOSA" : "FALLIDA"));
+        Logger::info("Successful login", [
+            'user_id' => $user['id'],
+            'email' => $correo,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ]);
         
-        if ($passwordCheck) {
-            logDebug("=== LOGIN EXITOSO ===");
-            
-            // Regenerar ID de sesión por seguridad
-            session_regenerate_id(true);
-            logDebug("ID de sesión regenerado");
-            
-            // Guardar datos en la sesión
-            $_SESSION["user_id"] = $user["id"];
-            $_SESSION["user_name"] = $user["nombre"] . " " . $user["apellidos"];
-            $_SESSION["user_role"] = $user["rol"];
-            $_SESSION["almacen_id"] = $user["almacen_id"];
-            $_SESSION["rol"] = $user["rol"];
-            
-            logDebug("Datos de sesión guardados:");
-            logDebug("- user_id: " . $_SESSION["user_id"]);
-            logDebug("- user_name: " . $_SESSION["user_name"]);
-            logDebug("- user_role: " . $_SESSION["user_role"]);
-            logDebug("- almacen_id: " . $_SESSION["almacen_id"]);
-            
-            // Verificar si el archivo dashboard.php existe
-            $dashboardPath = __DIR__ . "/../dashboard.php";
-            if (file_exists($dashboardPath)) {
-                logDebug("Dashboard encontrado en: " . $dashboardPath);
-            } else {
-                logDebug("ERROR: Dashboard NO encontrado en: " . $dashboardPath);
-            }
-            
-            logDebug("Redirigiendo a dashboard...");
-            header("Location: ../dashboard.php");
-            exit();
-        } else {
-            logDebug("ERROR: Contraseña incorrecta");
-            $error = "invalid_credentials";
-        }
+        redirect(baseUrl('dashboard.php'));
     } else {
-        logDebug("ERROR: Usuario no encontrado o inactivo");
-        $error = "invalid_credentials";
+        // Login fallido
+        Logger::warning("Failed login attempt", [
+            'email' => $correo,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ]);
+        
+        Session::setFlash('error', 'Credenciales inválidas');
+        redirect(baseUrl('views/login_form.php'));
     }
 
-    $stmt->close();
-    $conn->close();
-    logDebug("Conexión a BD cerrada");
+} catch (Exception $e) {
+    Logger::error("Login system error", [
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
     
-    logDebug("Redirigiendo con error: " . $error);
-    header("Location: ../views/login_form.php?error=" . urlencode($error));
-    exit();
-} else {
-    logDebug("Acceso directo sin POST - Redirigiendo a login");
-    header("Location: ../views/login_form.php");
-    exit();
+    Session::setFlash('error', 'Error del sistema. Intente nuevamente.');
+    redirect(baseUrl('views/login_form.php'));
 }
-?>
