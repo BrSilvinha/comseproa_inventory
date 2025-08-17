@@ -1,122 +1,136 @@
-# Sistema de Gestión de Inventario COMSEPROA
-## GRUPO SEAL - Sistema Integral de Control de Inventarios
+# 🏢 COMSEPROA Inventory System
 
-![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?style=flat&logo=php&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=flat&logo=mysql&logoColor=white)
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
+<div align="center">
+
+![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![Chart.js](https://img.shields.io/badge/Chart.js-4.0+-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white)
+
+**Sistema de Inventario Moderno y Seguro para GRUPO SEAL**
+
+[🚀 Demo](#demo) • [📖 Instalación](#instalación) • [🛡️ Seguridad](#seguridad) • [⚡ Características](#características)
+
+</div>
+
+---
 
 ### 📋 Descripción
 
 COMSEPROA es un sistema integral de gestión de inventarios desarrollado para GRUPO SEAL, diseñado para controlar y administrar eficientemente el inventario de uniformes, equipos de seguridad y materiales operativos distribuidos en múltiples almacenes.
 
-### ✨ Características Principales
+## ⚡ Características Principales
 
-#### 🏢 **Gestión Multi-Almacén**
+### 🎯 **Nuevas Funcionalidades Modernas (v2.0)**
+
+- 📊 **Dashboard Interactivo** - Gráficos en tiempo real con Chart.js
+- 🔍 **Búsqueda Instantánea** - Sin recargar página, con filtros avanzados  
+- 🌙 **Dark Mode** - Tema oscuro/claro con detección automática
+- 📱 **Responsive Design** - Optimizado para móviles y tablets
+- 🔔 **Notificaciones Toast** - Sistema moderno de alertas
+- 🛡️ **Seguridad Avanzada** - CSRF, rate limiting, headers de seguridad
+
+### 🏢 **Gestión Multi-Almacén**
 - Control de inventario en múltiples ubicaciones
 - Transferencias automáticas entre almacenes
 - Seguimiento en tiempo real de stock por ubicación
 - Reportes consolidados y por almacén específico
 
-#### 👥 **Sistema de Usuarios y Roles**
+### 👥 **Sistema de Usuarios y Roles**
 - **Administradores**: Control total del sistema
 - **Almaceneros**: Gestión limitada a su almacén asignado
 - Autenticación segura con sesiones
 - Control de permisos granular
 
-#### 📦 **Gestión de Productos**
+### 📦 **Gestión de Productos**
 - Categorización avanzada de productos
 - Control detallado de stock (modelo, color, talla)
 - Estados de productos (Nuevo, Usado, Dañado)
-- Alertas de stock crítico
+- Alertas de stock crítico automáticas
 - Ajustes manuales de inventario
 
-#### 🔄 **Sistema de Transferencias**
+### 🔄 **Sistema de Transferencias**
 - Solicitudes de transferencia entre almacenes
 - Flujo de aprobación/rechazo
 - Notificaciones automáticas
 - Historial completo de movimientos
 
-#### 👔 **Gestión de Entregas**
-- Registro detallado de entregas a personal
-- Control por destinatario con DNI
-- Historial por categoría de productos
-- Reportes de entregas por período
-
-#### 📊 **Reportes y Analytics**
+### 📊 **Reportes y Analytics**
+- Dashboard con gráficos interactivos
 - Inventario general y por almacén
-- Análisis de movimientos
-- Actividad de usuarios
-- Productos con stock crítico
-- Exportación a PDF
+- Análisis de movimientos con filtros
+- Actividad de usuarios detallada
+- Exportación a PDF/Excel
 
-#### 🔔 **Sistema de Notificaciones**
-- Solicitudes pendientes de aprobación
-- Alertas de stock bajo
-- Notificaciones en tiempo real
-- Centro de notificaciones unificado
+## 🛠️ Tecnologías Utilizadas
 
-### 🛠️ Tecnologías Utilizadas
+### Backend
+- **PHP 8.0+** - Arquitectura MVC moderna
+- **MySQL 8.0+** - Base de datos optimizada
+- **PDO/MySQLi** - Conexión segura con prepared statements
+- **Autoloader PSR-4** - Carga automática de clases
 
-#### Backend
-- **PHP 8.2+** - Lógica del servidor
-- **MySQL/MariaDB** - Base de datos
-- **PDO/MySQLi** - Conexión segura a base de datos
+### Frontend Moderno
+- **HTML5 Semántico** - Estructura accesible
+- **CSS3 Avanzado** - Variables CSS, Grid, Flexbox
+- **JavaScript ES6+** - Módulos, async/await, fetch API
+- **Chart.js 4.0** - Gráficos interactivos
+- **Font Awesome 6** - Iconografía completa
+- **Google Fonts (Poppins)** - Tipografía moderna
 
-#### Frontend
-- **HTML5** - Estructura
-- **CSS3** - Estilos responsivos
-- **JavaScript (Vanilla)** - Interactividad
-- **Font Awesome 6.4.2** - Iconografía
-- **Google Fonts (Poppins)** - Tipografía
+### Seguridad Empresarial
+- **Autenticación robusta** - bcrypt, sesiones seguras
+- **Protección CSRF** - Tokens únicos en formularios  
+- **Rate Limiting** - Prevención de ataques de fuerza bruta
+- **Headers de seguridad** - CSP, HSTS, X-Frame-Options
+- **Validación completa** - Sanitización automática
+- **Logging de seguridad** - Auditoría completa
 
-#### Seguridad
-- Autenticación por sesiones PHP
-- Prepared statements (SQL Injection prevention)
-- Validación de entrada
-- Control de acceso por roles
-- Regeneración de session ID
-
-### 📁 Estructura del Proyecto
+## 🏗️ Arquitectura del Sistema
 
 ```
-COMSEPROA_INVENTORY/
-├── 📁 almacenes/           # Gestión de almacenes
-│   ├── listar.php         # Lista de almacenes
-│   ├── registrar.php      # Registro de almacenes
-│   └── ver-almacen.php    # Detalle de almacén
-├── 📁 assets/             # Recursos estáticos
-│   ├── 📁 css/           # Hojas de estilo
-│   ├── 📁 js/            # Scripts JavaScript
-│   └── 📁 img/           # Imágenes
-├── 📁 config/            # Configuración
-│   └── database.php      # Conexión a BD
-├── 📁 entregas/          # Gestión de entregas
-│   └── historial.php     # Historial de entregas
-├── 📁 logs/              # Logs del sistema
-├── 📁 notificaciones/    # Sistema de notificaciones
-│   ├── historial.php     # Historial de solicitudes
-│   └── pendientes.php    # Solicitudes pendientes
-├── 📁 perfil/            # Gestión de perfil
-│   └── cambiar-password.php
-├── 📁 productos/         # Gestión de productos
-│   ├── listar.php        # Lista de productos
-│   ├── registrar.php     # Registro de productos
-│   ├── ver-producto.php  # Detalle de producto
-│   └── eliminar_producto.php
-├── 📁 reportes/          # Sistema de reportes
-│   ├── inventario.php    # Reporte de inventario
-│   ├── movimientos.php   # Reporte de movimientos
-│   └── usuarios.php      # Actividad de usuarios
-├── 📁 usuarios/          # Gestión de usuarios
-│   ├── listar.php        # Lista de usuarios
-│   └── registrar.php     # Registro de usuarios
-├── 📁 views/             # Vistas de autenticación
-├── comseproa_db.sql      # Script de base de datos
-├── dashboard.php         # Panel principal
-├── index.php            # Punto de entrada
-└── logout.php           # Cerrar sesión
+comseproa_inventory/
+├── 📁 api/                    # Endpoints REST modernos
+│   ├── dashboard_stats.php    # Estadísticas en tiempo real
+│   └── search.php            # Búsqueda instantánea
+├── 📁 assets/                # Recursos estáticos optimizados
+│   ├── css/                  # Hojas de estilo modernas
+│   │   ├── dashboard-modern.css
+│   │   ├── responsive-mobile.css
+│   │   └── main.css
+│   ├── js/                   # JavaScript modular
+│   │   ├── dashboard-charts.js
+│   │   ├── instant-search.js
+│   │   ├── toast-notifications.js
+│   │   └── theme-manager.js
+│   └── img/                  # Imágenes optimizadas
+├── 📁 auth/                  # Sistema de autenticación
+│   └── login.php            # Login con protección CSRF
+├── 📁 core/                  # Clases principales del sistema
+│   ├── Autoloader.php        # Carga automática PSR-4
+│   ├── Config.php           # Configuración centralizada
+│   ├── Database.php         # Conexión optimizada a BD
+│   ├── Logger.php           # Sistema de logging avanzado
+│   ├── Security.php         # Funciones de seguridad
+│   ├── Session.php          # Manejo seguro de sesiones
+│   ├── TemplateHelper.php   # Helpers para vistas
+│   └── Validator.php        # Validación y CSRF
+├── 📁 config/               # Configuración del sistema
+│   ├── app.php             # Configuración principal
+│   └── database.php        # Configuración de BD
+├── 📁 logs/                 # Registros del sistema
+├── 📁 [modules]/           # Módulos funcionales
+│   ├── almacenes/          # Gestión de almacenes
+│   ├── productos/          # Gestión de productos  
+│   ├── usuarios/           # Gestión de usuarios
+│   ├── reportes/           # Sistema de reportes
+│   └── notificaciones/     # Centro de notificaciones
+├── 📄 .env                 # Variables de entorno
+├── 📄 .htaccess            # Configuración de seguridad
+├── 📄 bootstrap.php        # Inicialización del sistema
+├── 📄 dashboard.php        # Dashboard moderno
+├── 📄 index.php           # Punto de entrada
+└── 📄 comseproa_db.sql    # Esquema de base de datos
 ```
 
 ### 🗄️ Esquema de Base de Datos
@@ -151,71 +165,76 @@ COMSEPROA_INVENTORY/
 - Auditoría completa del sistema
 - Trazabilidad de acciones
 
-### 🚀 Instalación
+## ⚡ Instalación Rápida
 
-#### Prerrequisitos
-- PHP 8.2 o superior
-- MySQL 8.0 o MariaDB 10.4+
-- Servidor web (Apache/Nginx)
-- Extensiones PHP: `mysqli`, `pdo`, `session`
+### 📋 Requisitos Previos
 
-#### Pasos de Instalación
+- **PHP 8.0+** con extensiones: mysqli, session, json
+- **MySQL 8.0+** o MariaDB 10.4+
+- **Servidor Web** (Apache/Nginx) con mod_rewrite
+- **SSL Certificate** (recomendado para producción)
 
-1. **Clonar/Descargar el proyecto**
-```bash
-# Si tienes Git
-git clone (https://github.com/BrSilvinha/comseproa_inventory.git)
+### 🚀 Instalación Paso a Paso
 
-# O descargar y extraer el ZIP
-```
+1. **Clonar el repositorio**
+   ```bash
+   git clone https://github.com/BrSilvinha/comseproa_inventory.git
+   cd comseproa_inventory
+   ```
 
-2. **Configurar la base de datos**
-```sql
--- Crear base de datos
-CREATE DATABASE comseproa_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+2. **Configurar base de datos**
+   ```sql
+   CREATE DATABASE comseproa_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   SOURCE comseproa_db.sql;
+   ```
 
--- Importar estructura y datos
-mysql -u [usuario] -p comseproa_db < comseproa_db.sql
-```
+3. **Configurar variables de entorno**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Editar `.env` con tus credenciales:
+   ```env
+   # Configuración de Base de Datos
+   DB_HOST=localhost
+   DB_USERNAME=tu_usuario
+   DB_PASSWORD=tu_contraseña
+   DB_NAME=comseproa_db
+   
+   # Configuración de la Aplicación
+   APP_URL=https://tu-dominio.com
+   APP_ENV=production
+   APP_DEBUG=false
+   
+   # Configuración de Seguridad
+   MAX_LOGIN_ATTEMPTS=5
+   LOGIN_LOCKOUT_TIME=900
+   SESSION_SECURE=true
+   ```
 
-3. **Configurar conexión a base de datos**
-```php
-// config/database.php
-$servername = "localhost";
-$username = "tu_usuario";
-$password = "tu_password";
-$dbname = "comseproa_db";
-```
+4. **Configurar permisos**
+   ```bash
+   chmod 755 -R .
+   chmod 644 -R *.php
+   chmod 777 logs/
+   chmod 600 .env
+   ```
 
-4. **Configurar permisos de archivos**
-```bash
-# Linux/macOS
-chmod 755 -R /ruta/al/proyecto
-chmod 644 -R /ruta/al/proyecto/logs/
-```
+5. **Crear usuario administrador**
+   - Accede a `tu-dominio.com/setup_admin.php`
+   - Usa las credenciales por defecto:
+     - **Email:** admin@comseproa.com
+     - **Contraseña:** admin123
+   - ⚠️ **Cambia la contraseña inmediatamente**
 
-5. **Configurar servidor web**
-- Apuntar document root a la carpeta del proyecto
-- Habilitar mod_rewrite (Apache)
-- Configurar PHP con las extensiones necesarias
+### 🎯 Acceso al Sistema
 
-### 👤 Usuarios por Defecto
-
-El sistema incluye usuarios predeterminados para pruebas:
-
-**Administrador**
-- **Usuario**: jhamirsilva@gmail.com
-- **Contraseña**: [Ver en base de datos - hash bcrypt]
+**Credenciales por defecto:**
+- **Email**: admin@comseproa.com
+- **Contraseña**: admin123
 - **Rol**: Administrador
-- **Permisos**: Acceso completo al sistema
 
-**Almacenero**
-- **Usuario**: almaceneroolmos@gmail.com
-- **Contraseña**: [Ver en base de datos - hash bcrypt]
-- **Rol**: Almacenero
-- **Almacén**: Grupo Sael - Olmos
-
-> **Nota**: Las contraseñas están hasheadas con bcrypt. Se recomienda cambiarlas en el primer acceso.
+> ⚠️ **Importante**: Cambia las credenciales inmediatamente después del primer login.
 
 ### 🔧 Configuración
 
@@ -333,18 +352,61 @@ Este proyecto está desarrollado para uso interno de GRUPO SEAL. Todos los derec
 
 ---
 
-### 🔄 Versión Actual: 1.0.0
+## 🚀 Roadmap y Versiones
 
-**Última actualización**: Junio 2025
+### 📅 Versión Actual: 2.0.0
 
-**Próximas características**:
-- [ ] API REST para integración móvil
-- [ ] Dashboard con gráficos avanzados
-- [ ] Sistema de códigos QR/códigos de barras
-- [ ] Integración con proveedores
-- [ ] App móvil nativa
-- [ ] Backup automático de base de datos
+**Nuevas características implementadas:**
+- ✅ Dashboard interactivo con gráficos Chart.js
+- ✅ Búsqueda instantánea sin recargar página
+- ✅ Sistema de notificaciones toast modernas
+- ✅ Dark mode con detección automática
+- ✅ Responsive design optimizado para móvil
+- ✅ Seguridad avanzada (CSRF, rate limiting, headers)
+
+### 🔮 Próximas Versiones
+
+**v2.1 - Analytics Avanzados**
+- [ ] Predicción de stock con IA
+- [ ] Dashboards personalizables
+- [ ] Métricas de rendimiento
+
+**v2.2 - Movilidad**
+- [ ] PWA (Progressive Web App)
+- [ ] Códigos QR para productos
+- [ ] Aplicación móvil nativa
+
+**v2.3 - Integraciones**
+- [ ] API REST completa
+- [ ] Webhooks para sistemas externos
+- [ ] Backup automático a la nube
 
 ---
 
-*Desarrollado con ❤️ para optimizar la gestión de inventarios de GRUPO SEAL*
+## 📄 Licencia
+
+**Sistema Propietario - GRUPO SEAL**
+
+Este software es propiedad exclusiva de GRUPO SEAL y está protegido por derechos de autor. Su uso está restringido únicamente a las operaciones autorizadas de la empresa.
+
+---
+
+## 👨‍💻 Créditos
+
+**Desarrollado para GRUPO SEAL**
+
+- 🌐 **Website**: [inventary.gruposealsac.me](https://inventary.gruposealsac.me)
+- 📧 **Soporte**: soporte@gruposealsac.me
+- 🏢 **Empresa**: GRUPO SEAL SAC
+
+---
+
+<div align="center">
+
+**⭐ Sistema COMSEPROA v2.0 - Gestión de Inventarios Moderna ⭐**
+
+*Desarrollado con ❤️ para optimizar las operaciones de GRUPO SEAL*
+
+**Última actualización**: Agosto 2025
+
+</div>
