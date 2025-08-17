@@ -19,6 +19,8 @@ try {
     echo "- Host: " . TemplateHelper::h($dbConfig['host']) . "<br>\n";
     echo "- Database: " . TemplateHelper::h($dbConfig['database']) . "<br>\n";
     echo "- Debug Mode: " . (Config::isDebug() ? 'ON' : 'OFF') . "<br>\n";
+    echo "- APP_URL: " . TemplateHelper::h(Config::get('APP_URL')) . "<br>\n";
+    echo "- baseUrl(): " . TemplateHelper::h(baseUrl()) . "<br>\n";
 } catch (Exception $e) {
     echo "❌ Error en configuración: " . TemplateHelper::h($e->getMessage()) . "<br>\n";
     $allPassed = false;
