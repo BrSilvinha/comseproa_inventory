@@ -1,8 +1,5 @@
 <?php
-/**
- * Clase de base de datos centralizada
- * Maneja la conexión y operaciones seguras con la base de datos
- */
+
 class Database
 {
     private static $instance = null;
