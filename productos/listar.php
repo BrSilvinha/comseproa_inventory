@@ -238,10 +238,6 @@ function obtenerUrlRetornoAlmacen($almacen_id) {
     
     <link rel="stylesheet" href="../assets/css/productos/productos-tabla.css">
     
-    <?php 
-    require_once '../core/NavigationHelper.php';
-    NavigationHelper::includeNavigationCSS();
-    ?>
     
     <?php if ($pagina_actual < $total_paginas): ?>
     <link rel="prefetch" href="<?php echo buildUrl(['pagina' => $pagina_actual + 1]); ?>">
@@ -1161,7 +1157,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- JavaScript principal -->
 <script src="../assets/js/productos-listar-tabla.js"></script>
-<?php NavigationHelper::includeNavigationScripts(); ?>
 
 </body>
 </html>

@@ -644,7 +644,6 @@ window.confirmarAccion = function(mensaje, callback) {
 <script src="assets/js/instant-search.js?v=<?php echo $jsVersion; ?>"></script>
 <script src="assets/js/dashboard-charts.js?v=<?php echo $jsVersion; ?>"></script>
 <script src="assets/js/theme-manager-fixed.js?v=<?php echo $jsVersion; ?>"></script>
-<script src="assets/js/active-navigation.js?v=<?php echo $jsVersion; ?>"></script>
 
 <script>
 // Demo de las nuevas funcionalidades

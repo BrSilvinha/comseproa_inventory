@@ -69,10 +69,6 @@ if ($usuario_rol == 'admin') {
     <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
     <link rel="stylesheet" href="../assets/css/almacen/almacenes-listar.css">
     
-    <?php 
-    require_once '../core/NavigationHelper.php';
-    NavigationHelper::includeNavigationCSS();
-    ?>
 </head>
 <body>
 
@@ -307,7 +303,6 @@ if ($usuario_rol == 'admin') {
 
 <!-- JavaScript -->
 <script src="../assets/js/universal-confirmation-system.js"></script>
-<?php NavigationHelper::includeNavigationScripts(); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos principales

@@ -158,10 +158,6 @@ $stmt->close();
     <!-- CSS consistente con dashboard -->
     <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
     
-    <?php 
-    require_once '../core/NavigationHelper.php';
-    NavigationHelper::includeNavigationCSS();
-    ?>
     
 <body>
 
@@ -437,7 +433,6 @@ $stmt->close();
 
 <!-- JavaScript optimizado -->
 <script src="../assets/js/universal-confirmation-system.js"></script>
-<?php NavigationHelper::includeNavigationScripts(); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos principales
