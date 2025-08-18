@@ -72,7 +72,7 @@ class DashboardCharts {
 
     async loadDashboardData() {
         try {
-            const response = await fetch('api/dashboard_debug.php', {
+            const response = await fetch('api/dashboard_real_simple.php', {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
