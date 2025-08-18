@@ -259,7 +259,7 @@ class DashboardCharts {
             data: {
                 labels: data.labels,
                 datasets: [{
-                    label: 'Movimientos',
+                    label: 'Stock',
                     data: data.data,
                     backgroundColor: this.colors.secondary,
                     borderColor: this.colors.secondary,
@@ -275,7 +275,7 @@ class DashboardCharts {
                     },
                     title: {
                         display: true,
-                        text: 'Top 5 Productos - Últimos 30 días',
+                        text: 'Top 5 Productos - Mayor Stock',
                         color: this.colors.text,
                         font: {
                             size: 16,
