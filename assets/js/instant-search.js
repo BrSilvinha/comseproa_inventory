@@ -93,7 +93,7 @@ class InstantSearch {
                 ...this.filters
             });
             
-            const response = await fetch(`api/search_simple.php?${searchParams}`, {
+            const response = await fetch(`api/search_fixed.php?${searchParams}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -146,42 +146,33 @@ class InstantSearch {
     
     renderResultItem(item, index) {
         const highlightedName = this.highlightText(item.nombre, this.currentQuery);
-        const stockStatus = this.getStockStatus(item.cantidad, item.stock_minimo);
+        const stockStatus = this.getStockStatus(item.cantidad);
         
         return `
             <div class="search-result-item" data-index="${index}" data-id="${item.id}">
-                <div class="result-content">
-                    <div class="result-main">
-                        <h4 class="result-title">${highlightedName}</h4>
-                        <p class="result-meta">
-                            <span class="result-category">${this.escapeHtml(item.categoria || 'Sin categoría')}</span>
-                            <span class="result-separator">•</span>
-                            <span class="result-almacen">${this.escapeHtml(item.almacen || 'Sin almacén')}</span>
-                        </p>
-                    </div>
-                    <div class="result-stock">
-                        <span class="stock-badge ${stockStatus.class}">
-                            Stock: ${item.cantidad}
+                <div class="result-info">
+                    <span class="result-name">${highlightedName}</span>
+                    <span class="result-description">${this.escapeHtml(item.descripcion)}</span>
+                    <div class="result-meta">
+                        <span class="result-quantity">
+                            <i class="fas fa-boxes"></i>
+                            ${item.cantidad} unidades
                         </span>
-                        ${item.precio_unitario ? `<span class="result-price">S/ ${this.formatPrice(item.precio_unitario)}</span>` : ''}
+                        <span class="result-location">
+                            <i class="fas fa-map-marker-alt"></i>
+                            ${this.escapeHtml(item.almacen)}
+                        </span>
                     </div>
                 </div>
-                <div class="result-actions">
-                    <button type="button" class="btn-result btn-view" data-action="view" data-id="${item.id}">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button type="button" class="btn-result btn-edit" data-action="edit" data-id="${item.id}">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </div>
+                <span class="result-status ${item.estado.toLowerCase()}">${item.estado}</span>
             </div>
         `;
     }
     
-    getStockStatus(cantidad, stockMinimo) {
+    getStockStatus(cantidad) {
         if (cantidad <= 0) {
             return { class: 'stock-empty', text: 'Sin stock' };
-        } else if (cantidad <= stockMinimo) {
+        } else if (cantidad <= 5) {
             return { class: 'stock-low', text: 'Stock bajo' };
         } else {
             return { class: 'stock-ok', text: 'Stock normal' };
