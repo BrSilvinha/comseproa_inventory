@@ -93,7 +93,7 @@ class InstantSearch {
                 ...this.filters
             });
             
-            const response = await fetch(`api/search_fixed.php?${searchParams}`, {
+            const response = await fetch(`api/search_debug.php?${searchParams}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -108,7 +108,11 @@ class InstantSearch {
             
             if (result.success) {
                 this.displayResults(result.results, query);
+                if (result.debug) {
+                    console.log('🔍 Search Debug:', result.debug);
+                }
             } else {
+                console.error('❌ Search Error:', result);
                 this.showError(result.error || 'Error en la búsqueda');
             }
             
