@@ -72,7 +72,7 @@ class DashboardCharts {
 
     async loadDashboardData() {
         try {
-            const response = await fetch('api/dashboard_real.php', {
+            const response = await fetch('api/dashboard_real_simple.php', {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -86,11 +86,14 @@ class DashboardCharts {
             const result = await response.json();
             
             if (result.success) {
-                console.log('✅ Datos reales cargados:', result.source);
+                console.log('✅ Datos reales cargados desde BD:', result.message);
                 this.updateStatsCards(result.data);
                 this.createCharts(result.data);
             } else {
-                this.showError('Error al cargar estadísticas: ' + result.error);
+                console.warn('⚠️ Error en API, usando datos de fallback:', result.error);
+                // Si hay error, aún mostrar la estructura pero con datos vacíos reales
+                this.updateStatsCards(result.data);
+                this.createCharts(result.data);
             }
         } catch (error) {
             console.error('Error loading dashboard data:', error);
