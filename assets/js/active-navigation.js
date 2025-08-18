@@ -312,18 +312,18 @@ const activeNavigationStyles = `
     </style>
 `;
 
-// Insertar estilos en el head
-document.head.insertAdjacentHTML('beforeend', activeNavigationStyles);
+// Estilos de navegación activa deshabilitados
+// document.head.insertAdjacentHTML('beforeend', activeNavigationStyles);
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
-    const activeNav = new ActiveNavigation();
-    
-    // Exponer globalmente para uso manual
-    window.ActiveNavigation = activeNav;
-    
-    // Log para debugging (remover en producción)
-    if (console && typeof console.log === 'function') {
-        console.log('🧭 Active Navigation initialized for:', window.location.pathname);
-    }
-});
+// Navegación activa deshabilitada por petición del usuario
+// document.addEventListener('DOMContentLoaded', () => {
+//     const activeNav = new ActiveNavigation();
+//     
+//     // Exponer globalmente para uso manual
+//     window.ActiveNavigation = activeNav;
+//     
+//     // Log para debugging (remover en producción)
+//     if (console && typeof console.log === 'function') {
+//         console.log('🧭 Active Navigation initialized for:', window.location.pathname);
+//     }
+// });
