@@ -62,40 +62,45 @@ try {
     // Estimación: $50 promedio por producto
     $stats['valor_inventario'] = round($total_items * 50, 2);
 
-    // 6. DATOS REALES: Productos por categoría (verificando si la columna existe)
+    // 6. DATOS REALES: Productos por categoría (usando JOIN con tabla categorias)
+    $sql = "SELECT c.nombre, COUNT(p.id) as cantidad 
+            FROM categorias c 
+            LEFT JOIN productos p ON c.id = p.categoria_id";
+    
+    if ($usuario_rol !== 'admin' && $usuario_almacen_id) {
+        $sql .= " AND p.almacen_id = $usuario_almacen_id";
+    }
+    
+    $sql .= " GROUP BY c.id, c.nombre 
+              ORDER BY cantidad DESC";
+    
+    $result = $conn->query($sql);
     $categorias_labels = [];
     $categorias_data = [];
     
-    // Verificar si existe columna categoria
-    $check_result = $conn->query("SHOW COLUMNS FROM productos LIKE 'categoria'");
-    if ($check_result && $check_result->num_rows > 0) {
-        // La columna existe
-        $sql = "SELECT categoria as nombre, COUNT(*) as cantidad FROM productos WHERE categoria IS NOT NULL AND categoria != '' GROUP BY categoria ORDER BY cantidad DESC";
-        if ($usuario_rol !== 'admin' && $usuario_almacen_id) {
-            $sql = "SELECT categoria as nombre, COUNT(*) as cantidad FROM productos WHERE almacen_id = $usuario_almacen_id AND categoria IS NOT NULL AND categoria != '' GROUP BY categoria ORDER BY cantidad DESC";
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $categorias_labels[] = $row['nombre'];
+            $categorias_data[] = (int)$row['cantidad'];
         }
-        
+    }
+    
+    // Si no hay categorías, usar distribución por almacenes
+    if (empty($categorias_labels)) {
+        $sql = "SELECT a.nombre, COUNT(p.id) as cantidad 
+                FROM almacenes a 
+                LEFT JOIN productos p ON a.id = p.almacen_id 
+                GROUP BY a.id 
+                ORDER BY cantidad DESC";
         $result = $conn->query($sql);
         if ($result && $result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
                 $categorias_labels[] = $row['nombre'];
                 $categorias_data[] = (int)$row['cantidad'];
             }
-        }
-    }
-    
-    // Si no hay datos de categorías o no existe la columna, usar almacenes
-    if (empty($categorias_labels)) {
-        $sql = "SELECT a.nombre, COUNT(p.id) as cantidad FROM almacenes a LEFT JOIN productos p ON a.id = p.almacen_id GROUP BY a.id ORDER BY cantidad DESC";
-        $result = $conn->query($sql);
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $categorias_labels[] = $row['nombre'] ?: 'Sin nombre';
-                $categorias_data[] = (int)$row['cantidad'];
-            }
         } else {
-            $categorias_labels = ['Total productos'];
-            $categorias_data = [$stats['total_productos']];
+            $categorias_labels = ['Sin datos'];
+            $categorias_data = [0];
         }
     }
     
@@ -125,34 +130,28 @@ try {
     
     $stats['stock_critico'] = $stock_critico;
 
-    // 8. DATOS REALES: Movimientos de la semana (si existe tabla movimientos)
-    $movimientos_result = $conn->query("SHOW TABLES LIKE 'movimientos'");
-    if ($movimientos_result && $movimientos_result->num_rows > 0) {
-        // Tabla existe, obtener datos reales
-        $sql = "SELECT DAYNAME(fecha_movimiento) as dia, COUNT(*) as movimientos 
-                FROM movimientos 
-                WHERE fecha_movimiento >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
-                GROUP BY DATE(fecha_movimiento), DAYNAME(fecha_movimiento) 
-                ORDER BY fecha_movimiento";
-        
-        $result = $conn->query($sql);
-        $movimientos_labels = [];
-        $movimientos_data = [];
-        
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                $movimientos_labels[] = $row['dia'];
-                $movimientos_data[] = (int)$row['movimientos'];
-            }
+    // 8. DATOS REALES: Movimientos de la última semana
+    $sql = "SELECT DATE(fecha) as fecha_mov, COUNT(*) as movimientos 
+            FROM movimientos 
+            WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
+            GROUP BY DATE(fecha) 
+            ORDER BY fecha";
+    
+    $result = $conn->query($sql);
+    $movimientos_labels = [];
+    $movimientos_data = [];
+    
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $fecha = date('D', strtotime($row['fecha_mov'])); // Abreviación del día
+            $movimientos_labels[] = $fecha;
+            $movimientos_data[] = (int)$row['movimientos'];
         }
-        
-        if (empty($movimientos_labels)) {
-            $movimientos_labels = ['Sin datos'];
-            $movimientos_data = [0];
-        }
-    } else {
-        // No hay tabla movimientos, datos vacíos
-        $movimientos_labels = ['Sin datos'];
+    }
+    
+    // Si no hay movimientos, mostrar estructura básica
+    if (empty($movimientos_labels)) {
+        $movimientos_labels = ['Sin movimientos'];
         $movimientos_data = [0];
     }
     
