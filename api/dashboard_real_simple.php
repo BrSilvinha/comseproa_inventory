@@ -52,35 +52,51 @@ try {
     $result = $conn->query($sql);
     $stats['stock_bajo'] = $result ? $result->fetch_assoc()['total'] : 0;
 
-    // 5. DATOS REALES: Valor total inventario
-    $sql = "SELECT SUM(cantidad * COALESCE(precio, 0)) as valor FROM productos";
+    // 5. DATOS REALES: Valor estimado del inventario (basado en cantidad)
+    $sql = "SELECT SUM(cantidad) as total_productos FROM productos";
     if ($usuario_rol !== 'admin' && $usuario_almacen_id) {
         $sql .= " WHERE almacen_id = $usuario_almacen_id";
     }
     $result = $conn->query($sql);
-    $stats['valor_inventario'] = $result ? round($result->fetch_assoc()['valor'] ?? 0, 2) : 0;
+    $total_items = $result ? ($result->fetch_assoc()['total_productos'] ?? 0) : 0;
+    // Estimación: $50 promedio por producto
+    $stats['valor_inventario'] = round($total_items * 50, 2);
 
-    // 6. DATOS REALES: Productos por categoría
-    $sql = "SELECT categoria as nombre, COUNT(*) as cantidad FROM productos WHERE categoria IS NOT NULL AND categoria != '' GROUP BY categoria ORDER BY cantidad DESC";
-    if ($usuario_rol !== 'admin' && $usuario_almacen_id) {
-        $sql = "SELECT categoria as nombre, COUNT(*) as cantidad FROM productos WHERE almacen_id = $usuario_almacen_id AND categoria IS NOT NULL AND categoria != '' GROUP BY categoria ORDER BY cantidad DESC";
-    }
-    
-    $result = $conn->query($sql);
+    // 6. DATOS REALES: Productos por categoría (verificando si la columna existe)
     $categorias_labels = [];
     $categorias_data = [];
     
-    if ($result && $result->num_rows > 0) {
-        while ($row = $result->fetch_assoc()) {
-            $categorias_labels[] = $row['nombre'];
-            $categorias_data[] = (int)$row['cantidad'];
+    // Verificar si existe columna categoria
+    $check_result = $conn->query("SHOW COLUMNS FROM productos LIKE 'categoria'");
+    if ($check_result && $check_result->num_rows > 0) {
+        // La columna existe
+        $sql = "SELECT categoria as nombre, COUNT(*) as cantidad FROM productos WHERE categoria IS NOT NULL AND categoria != '' GROUP BY categoria ORDER BY cantidad DESC";
+        if ($usuario_rol !== 'admin' && $usuario_almacen_id) {
+            $sql = "SELECT categoria as nombre, COUNT(*) as cantidad FROM productos WHERE almacen_id = $usuario_almacen_id AND categoria IS NOT NULL AND categoria != '' GROUP BY categoria ORDER BY cantidad DESC";
+        }
+        
+        $result = $conn->query($sql);
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $categorias_labels[] = $row['nombre'];
+                $categorias_data[] = (int)$row['cantidad'];
+            }
         }
     }
     
-    // Si no hay categorías, mostrar mensaje
+    // Si no hay datos de categorías o no existe la columna, usar almacenes
     if (empty($categorias_labels)) {
-        $categorias_labels = ['Sin datos'];
-        $categorias_data = [0];
+        $sql = "SELECT a.nombre, COUNT(p.id) as cantidad FROM almacenes a LEFT JOIN productos p ON a.id = p.almacen_id GROUP BY a.id ORDER BY cantidad DESC";
+        $result = $conn->query($sql);
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $categorias_labels[] = $row['nombre'] ?: 'Sin nombre';
+                $categorias_data[] = (int)$row['cantidad'];
+            }
+        } else {
+            $categorias_labels = ['Total productos'];
+            $categorias_data = [$stats['total_productos']];
+        }
     }
     
     $stats['productos_por_categoria'] = [
