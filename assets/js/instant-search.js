@@ -93,7 +93,7 @@ class InstantSearch {
                 ...this.filters
             });
             
-            const response = await fetch(`${this.endpoint}?${searchParams}`, {
+            const response = await fetch(`api/search_simple.php?${searchParams}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -107,7 +107,7 @@ class InstantSearch {
             const result = await response.json();
             
             if (result.success) {
-                this.displayResults(result.data, query);
+                this.displayResults(result.results, query);
             } else {
                 this.showError(result.error || 'Error en la búsqueda');
             }

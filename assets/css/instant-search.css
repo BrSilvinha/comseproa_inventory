@@ -1,0 +1,318 @@
+/**
+ * Estilos para el Buscador Instantáneo
+ * Diseño moderno y responsive
+ */
+
+/* Contenedor principal del buscador */
+.search-container {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    z-index: 1000;
+}
+
+/* Input de búsqueda */
+.search-input {
+    width: 100%;
+    padding: 12px 20px 12px 50px;
+    font-size: 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 25px;
+    background: white;
+    outline: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.search-input::placeholder {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Icono de búsqueda */
+.search-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 18px;
+    pointer-events: none;
+    transition: color 0.3s ease;
+}
+
+.search-container:focus-within .search-icon {
+    color: #007bff;
+}
+
+/* Contenedor de resultados */
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1001;
+    margin-top: 8px;
+}
+
+.search-results:empty {
+    display: none;
+}
+
+/* Elemento de resultado individual */
+.search-result-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: #f8fafc;
+    transform: translateX(4px);
+}
+
+.search-result-item.selected {
+    background: #eff6ff;
+    border-left: 4px solid #007bff;
+}
+
+/* Información del producto */
+.result-info {
+    flex: 1;
+}
+
+.result-name {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.result-description {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.result-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.result-quantity {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.result-quantity i {
+    color: #10b981;
+}
+
+.result-location {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.result-location i {
+    color: #f59e0b;
+}
+
+/* Estados del producto */
+.result-status {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.result-status.nuevo {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.result-status.usado {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.result-status.dañado {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Indicador de carga */
+.search-loading {
+    padding: 20px;
+    text-align: center;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.search-loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Mensaje sin resultados */
+.no-results {
+    padding: 30px 20px;
+    text-align: center;
+    color: #64748b;
+}
+
+.no-results i {
+    font-size: 48px;
+    color: #cbd5e1;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.no-results-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #475569;
+}
+
+.no-results-message {
+    font-size: 14px;
+}
+
+/* Error de búsqueda */
+.search-error {
+    padding: 20px;
+    background: #fef2f2;
+    color: #dc2626;
+    text-align: center;
+    border-radius: 8px;
+    margin: 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .search-container {
+        margin: 0 auto 1rem;
+    }
+    
+    .search-input {
+        padding: 10px 16px 10px 44px;
+        font-size: 16px; /* Evita zoom en iOS */
+    }
+    
+    .search-icon {
+        left: 14px;
+        font-size: 16px;
+    }
+    
+    .search-results {
+        margin-top: 4px;
+        border-radius: 8px;
+    }
+    
+    .search-result-item {
+        padding: 10px 16px;
+    }
+    
+    .result-meta {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .search-input {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+[data-theme="dark"] .search-input:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 4px 20px rgba(96, 165, 250, 0.15);
+}
+
+[data-theme="dark"] .search-results {
+    background: #374151;
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] .search-result-item:hover {
+    background: #4b5563;
+}
+
+[data-theme="dark"] .result-name {
+    color: #f9fafb;
+}
+
+[data-theme="dark"] .result-description {
+    color: #d1d5db;
+}
+
+/* Animaciones de entrada */
+.search-results {
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.search-result-item {
+    animation: fadeInUp 0.3s ease forwards;
+    opacity: 0;
+}
+
+.search-result-item:nth-child(1) { animation-delay: 0.05s; }
+.search-result-item:nth-child(2) { animation-delay: 0.1s; }
+.search-result-item:nth-child(3) { animation-delay: 0.15s; }
+.search-result-item:nth-child(4) { animation-delay: 0.2s; }
+.search-result-item:nth-child(5) { animation-delay: 0.25s; }
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

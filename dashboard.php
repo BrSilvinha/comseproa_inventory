@@ -638,6 +638,7 @@ window.confirmarAccion = function(mensaje, callback) {
 <!-- Modern UX/UI Scripts -->
 <link rel="stylesheet" href="assets/css/dashboard-modern.css">
 <link rel="stylesheet" href="assets/css/responsive-mobile.css">
+<link rel="stylesheet" href="assets/css/instant-search.css">
 <?php $jsVersion = time(); ?>
 <script src="assets/js/toast-notifications.js?v=<?php echo $jsVersion; ?>"></script>
 <script src="assets/js/instant-search.js?v=<?php echo $jsVersion; ?>"></script>
