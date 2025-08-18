@@ -93,7 +93,7 @@ class InstantSearch {
                 ...this.filters
             });
             
-            const response = await fetch(`api/search_debug.php?${searchParams}`, {
+            const response = await fetch(`api/search_minimal.php?${searchParams}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'

@@ -214,7 +214,7 @@ $flashSuccess = Session::getFlash('success');
                class="search-input" 
                placeholder="Buscar productos..." 
                data-instant-search 
-               data-endpoint="api/search.php"
+               data-endpoint="api/search_minimal.php"
                data-results="#search-results">
         <i class="fas fa-search search-icon"></i>
         <div id="search-results" class="search-results" data-search-results style="display: none;"></div>
